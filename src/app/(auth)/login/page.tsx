@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { signIn } from 'next-auth/react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -22,7 +21,6 @@ const schema = z.object({
 type FormData = z.infer<typeof schema>
 
 export default function LoginPage() {
-  const router = useRouter()
   const { t } = useLanguage()
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -42,8 +40,7 @@ export default function LoginPage() {
 
     if (result?.ok) {
       toast({ title: 'Welcome back!', description: 'Redirecting to dashboard...' })
-      router.push('/dashboard')
-      router.refresh()
+      window.location.href = '/dashboard'
     } else if (result?.error === 'Configuration') {
       toast({ title: 'Server error', description: 'Could not reach the database. Please try again.', variant: 'destructive' })
     } else {
