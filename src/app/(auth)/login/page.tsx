@@ -6,11 +6,10 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { motion } from 'framer-motion'
-import { Building2, Eye, EyeOff, Lock, Mail } from 'lucide-react'
+import { Building2, Eye, EyeOff, Lock, Mail, AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { toast } from '@/hooks/use-toast'
 import { useLanguage } from '@/contexts/language-context'
 
 const schema = z.object({
@@ -24,6 +23,7 @@ export default function LoginPage() {
   const { t } = useLanguage()
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [loginError, setLoginError] = useState('')
 
   const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -32,6 +32,7 @@ export default function LoginPage() {
 
   const onSubmit = async (data: FormData) => {
     setLoading(true)
+    setLoginError('')
     const result = await signIn('credentials', {
       email: data.email,
       password: data.password,
@@ -39,12 +40,11 @@ export default function LoginPage() {
     })
 
     if (result?.ok) {
-      toast({ title: 'Welcome back!', description: 'Redirecting to dashboard...' })
       window.location.replace('/dashboard')
     } else if (result?.error === 'Configuration') {
-      toast({ title: 'Server error', description: 'Could not reach the database. Please try again.', variant: 'destructive' })
+      setLoginError('Cannot reach the server. Please try again.')
     } else {
-      toast({ title: 'Login failed', description: 'Invalid email or password.', variant: 'destructive' })
+      setLoginError('Incorrect email or password. Please try again.')
     }
     setLoading(false)
   }
@@ -89,7 +89,7 @@ export default function LoginPage() {
                 <Input
                   id="email"
                   type="email"
-                  {...register('email')}
+                  {...register('email', { onChange: () => setLoginError('') })}
                   className="pl-10 bg-white/10 border-white/20 text-white placeholder:text-white/30 focus-visible:ring-blue-500"
                   placeholder="admin@takmao.com"
                 />
@@ -104,7 +104,7 @@ export default function LoginPage() {
                 <Input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
-                  {...register('password')}
+                  {...register('password', { onChange: () => setLoginError('') })}
                   className="pl-10 pr-10 bg-white/10 border-white/20 text-white placeholder:text-white/30 focus-visible:ring-blue-500"
                   placeholder="••••••••"
                 />
@@ -118,6 +118,17 @@ export default function LoginPage() {
               </div>
               {errors.password && <p className="text-red-400 text-xs">{errors.password.message}</p>}
             </div>
+
+            {loginError && (
+              <motion.div
+                initial={{ opacity: 0, y: -6 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-red-500/20 border border-red-500/40 text-red-300 text-sm"
+              >
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                {loginError}
+              </motion.div>
+            )}
 
             <Button
               type="submit"
