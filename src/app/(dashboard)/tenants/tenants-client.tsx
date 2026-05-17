@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Plus, Search, User, Phone, Home, AlertCircle } from 'lucide-react'
+import { Plus, Search, User, Phone, Home, AlertCircle, Building2 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
@@ -34,6 +34,7 @@ export function TenantsClient({ tenants: initial, rooms }: Props) {
   const [tenants, setTenants] = useState(initial)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('active')
+  const [branchFilter, setBranchFilter] = useState<'all' | 'Takmoa' | 'Chamkadong'>('all')
   const [showForm, setShowForm] = useState(false)
 
   const filtered = tenants.filter((t) => {
@@ -42,7 +43,8 @@ export function TenantsClient({ tenants: initial, rooms }: Props) {
       t.phone.includes(search) ||
       (t.room?.roomNumber ?? '').toLowerCase().includes(search.toLowerCase())
     const matchStatus = statusFilter === 'all' || t.status === statusFilter
-    return matchSearch && matchStatus
+    const matchBranch = branchFilter === 'all' || t.room?.branch === branchFilter
+    return matchSearch && matchStatus && matchBranch
   })
 
   const handleMoveOut = async (id: string) => {
@@ -88,6 +90,14 @@ export function TenantsClient({ tenants: initial, rooms }: Props) {
             <Button key={s} variant={statusFilter === s ? 'default' : 'outline'} size="sm"
               onClick={() => setStatusFilter(s)}>
               {t(`status_${s}` as Parameters<typeof t>[0])}
+            </Button>
+          ))}
+        </div>
+        <div className="flex gap-2">
+          {(['all', 'Takmoa', 'Chamkadong'] as const).map((b) => (
+            <Button key={b} variant={branchFilter === b ? 'default' : 'outline'} size="sm"
+              onClick={() => setBranchFilter(b)}>
+              {b === 'all' ? <><Building2 className="w-3.5 h-3.5 mr-1" />{t('all')}</> : b}
             </Button>
           ))}
         </div>
