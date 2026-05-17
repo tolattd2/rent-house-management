@@ -64,6 +64,7 @@ interface OccupancyChartProps {
 }
 
 export function OccupancyChart({ occupied, vacant, maintenance }: OccupancyChartProps) {
+  const { t } = useLanguage()
   const data = [
     { name: 'Occupied', value: occupied, fill: '#22c55e' },
     { name: 'Vacant', value: vacant, fill: '#94a3b8' },

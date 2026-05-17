@@ -33,7 +33,8 @@
       "PowerShell(try { Invoke-WebRequest -Uri \"http://localhost:3001\" -MaximumRedirection 0 -ErrorAction Stop } catch { $_.Exception.Message }; Start-Sleep -Seconds 3; Get-Content \"C:\\\\Users\\\\TOLAMS~1\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Projects-Takmom-Tenant-Management\\\\c7161f41-c846-4f3d-9af0-36f20474afc7\\\\tasks\\\\bcl6ebhks.output\" -Tail 30)",
       "PowerShell(Stop-Process -Id 12220 -Force -ErrorAction SilentlyContinue)",
       "PowerShell(try { Invoke-WebRequest -Uri \"http://localhost:3001\" -MaximumRedirection 0 -ErrorAction Stop } catch { $_.Exception.Message })",
-      "PowerShell(Start-Sleep -Seconds 2; $r = Invoke-WebRequest -Uri \"http://localhost:3001/login\" -ErrorAction SilentlyContinue; Write-Output \"Status: $\\($r.StatusCode\\)\"; Get-Content \"C:\\\\Users\\\\TOLAMS~1\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Projects-Takmom-Tenant-Management\\\\c7161f41-c846-4f3d-9af0-36f20474afc7\\\\tasks\\\\bpbcaduo9.output\" -Tail 20)"
+      "PowerShell(Start-Sleep -Seconds 2; $r = Invoke-WebRequest -Uri \"http://localhost:3001/login\" -ErrorAction SilentlyContinue; Write-Output \"Status: $\\($r.StatusCode\\)\"; Get-Content \"C:\\\\Users\\\\TOLAMS~1\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Projects-Takmom-Tenant-Management\\\\c7161f41-c846-4f3d-9af0-36f20474afc7\\\\tasks\\\\bpbcaduo9.output\" -Tail 20)",
+      "Bash(npm run *)"
     ]
   }
 }
