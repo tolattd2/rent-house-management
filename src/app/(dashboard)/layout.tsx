@@ -6,12 +6,7 @@ import { SessionProvider } from 'next-auth/react'
 export const dynamic = 'force-dynamic'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
-  let session = null
-  try {
-    session = await auth()
-  } catch {
-    redirect('/login')
-  }
+  const session = await auth().catch(() => null)
   if (!session) redirect('/login')
 
   return (
