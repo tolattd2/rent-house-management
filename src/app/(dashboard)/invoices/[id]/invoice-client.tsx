@@ -92,8 +92,8 @@ export function InvoiceClient({ billing, invoice, settings }: Props) {
             <div>
               <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">{t('invoice_bill_to')}</p>
               <p className="font-bold text-lg">{billing.tenant?.fullName}</p>
-              <p className="text-slate-600 text-sm">{billing.tenant?.phone}</p>
-              {billing.tenant?.occupation && <p className="text-slate-500 text-sm">{billing.tenant.occupation}</p>}
+              <p className="text-slate-600 text-sm print:hidden">{billing.tenant?.phone}</p>
+              {billing.tenant?.occupation && <p className="text-slate-500 text-sm print:hidden">{billing.tenant.occupation}</p>}
             </div>
             <div>
               <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">{t('invoice_room_details')}</p>
@@ -177,7 +177,7 @@ export function InvoiceClient({ billing, invoice, settings }: Props) {
             <div className="flex justify-end">
               <div className="w-72 space-y-2 text-sm">
                 {totalPaid > 0 && (
-                  <>
+                  <div className="print:hidden">
                     <div className="flex justify-between">
                       <span className="text-slate-600">{t('invoice_subtotal')}</span>
                       <span>{formatCurrency(billing.totalUsd)}</span>
@@ -187,7 +187,7 @@ export function InvoiceClient({ billing, invoice, settings }: Props) {
                       <span>-{formatCurrency(totalPaid)}</span>
                     </div>
                     <Separator />
-                  </>
+                  </div>
                 )}
                 <div className="flex justify-between text-lg font-bold">
                   <span>{t('invoice_total_due_usd')}</span>
@@ -204,7 +204,7 @@ export function InvoiceClient({ billing, invoice, settings }: Props) {
 
           {/* Payments */}
           {billing.payments.length > 0 && (
-            <div className="mt-6">
+            <div className="mt-6 print:hidden">
               <p className="text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">{t('payment_history')}</p>
               <div className="space-y-1">
                 {billing.payments.map((p) => (
