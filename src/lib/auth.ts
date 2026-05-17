@@ -30,33 +30,37 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null
 
-        let user = null
-        for (let attempt = 0; attempt < 3; attempt++) {
-          try {
-            user = await db.user.findUnique({
-              where: { email: credentials.email as string },
-            })
-            break
-          } catch (err: unknown) {
-            const msg = err instanceof Error ? err.message : ''
-            if (attempt < 2 && msg.includes("Can't reach database")) {
-              await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)))
-              continue
+        try {
+          let user = null
+          for (let attempt = 0; attempt < 3; attempt++) {
+            try {
+              user = await db.user.findUnique({
+                where: { email: credentials.email as string },
+              })
+              break
+            } catch (err: unknown) {
+              const msg = err instanceof Error ? err.message : ''
+              if (attempt < 2 && msg.includes("Can't reach database")) {
+                await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)))
+                continue
+              }
+              return null
             }
-            throw err
           }
-        }
 
-        if (!user) return null
+          if (!user) return null
 
-        const valid = await bcrypt.compare(credentials.password as string, user.password)
-        if (!valid) return null
+          const valid = await bcrypt.compare(credentials.password as string, user.password)
+          if (!valid) return null
 
-        return {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          role: user.role as UserRole,
+          return {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            role: user.role as UserRole,
+          }
+        } catch {
+          return null
         }
       },
     }),

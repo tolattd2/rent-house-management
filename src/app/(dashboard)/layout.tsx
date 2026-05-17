@@ -4,7 +4,12 @@ import { Shell } from '@/components/layout/shell'
 import { SessionProvider } from 'next-auth/react'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const session = await auth()
+  let session = null
+  try {
+    session = await auth()
+  } catch {
+    redirect('/login')
+  }
   if (!session) redirect('/login')
 
   return (
