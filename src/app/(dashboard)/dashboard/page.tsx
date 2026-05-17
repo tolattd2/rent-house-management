@@ -2,8 +2,7 @@ import { db } from '@/lib/db'
 import { DashboardClient } from './dashboard-client'
 
 async function getDashboardData() {
-  try {
-    const [rooms, tenants, billings, expenses, unpaidBillings] = await Promise.all([
+  const [rooms, tenants, billings, expenses, unpaidBillings] = await Promise.all([
       db.room.findMany({
         select: { id: true, branch: true, status: true },
       }),
@@ -34,11 +33,9 @@ async function getDashboardData() {
         orderBy: { createdAt: 'desc' },
         take: 50,
       }),
-    ])
-    return { rooms, tenants, billings, expenses, unpaidBillings }
-  } catch {
-    return { rooms: [], tenants: [], billings: [], expenses: [], unpaidBillings: [] }
-  }
+  ])
+
+  return { rooms, tenants, billings, expenses, unpaidBillings }
 }
 
 export default async function DashboardPage() {
