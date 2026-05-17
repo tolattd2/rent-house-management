@@ -1,0 +1,6 @@
+@media print {
+  .no-print { display: none !important; }
+  body { background: white !important; }
+  .rounded-2xl { border-radius: 0 !important; }
+  .shadow-xl { box-shadow: none !important; }
+}

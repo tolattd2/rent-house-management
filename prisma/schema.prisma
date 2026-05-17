@@ -1,0 +1,283 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  admin
+  manager
+  staff
+}
+
+enum RoomStatus {
+  occupied
+  vacant
+  maintenance
+}
+
+enum TenantStatus {
+  active
+  inactive
+}
+
+enum ContractStatus {
+  active
+  expired
+  terminated
+}
+
+enum PaymentStatus {
+  unpaid
+  partial
+  paid
+}
+
+enum NotificationStatus {
+  sent
+  failed
+  pending
+}
+
+enum MaintenanceStatus {
+  pending
+  in_progress
+  completed
+}
+
+enum PaymentMethod {
+  Cash
+  ABA_Pay
+  Wing
+  TrueMoney
+  Bank_Transfer
+  Other
+}
+
+model User {
+  id         String   @id @default(cuid())
+  name       String
+  email      String   @unique
+  password   String
+  role       UserRole @default(staff)
+  phone      String   @default("")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  payments   Payment[]
+
+  @@map("users")
+}
+
+model Room {
+  id                String     @id @default(cuid())
+  roomNumber        String
+  branch            String     @default("Takmoa")
+  floor             String     @default("1")
+  roomType          String     @default("Standard")
+  rentPriceUsd      Float      @default(0)
+  depositAmount     Float      @default(0)
+  status            RoomStatus @default(vacant)
+  waterRateRiel     Float      @default(2000)
+  electricRateRiel  Float      @default(720)
+  notes             String     @default("")
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  tenants      Tenant[]
+  billings     Billing[]
+  maintenances Maintenance[]
+  expenses     Expense[]
+
+  @@unique([roomNumber, branch])
+  @@map("rooms")
+}
+
+model Tenant {
+  id                String       @id @default(cuid())
+  fullName          String
+  gender            String       @default("")
+  phone             String       @default("")
+  nationalId        String       @default("")
+  emergencyContact  String       @default("")
+  occupation        String       @default("")
+  moveInDate        String       @default("")
+  moveOutDate       String       @default("")
+  depositAmount     Float        @default(0)
+  monthlyRent       Float        @default(0)
+  payDay            Int          @default(1)
+  contractFileUrl   String       @default("")
+  status            TenantStatus @default(active)
+  notes             String       @default("")
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  roomId     String?
+  room       Room?     @relation(fields: [roomId], references: [id], onDelete: SetNull)
+
+  contracts       Contract[]
+  billings        Billing[]
+  invoices        Invoice[]
+  notifications   Notification[]
+  maintenances    Maintenance[]
+
+  @@map("tenants")
+}
+
+model Contract {
+  id            String         @id @default(cuid())
+  contractStart String
+  contractEnd   String         @default("")
+  monthlyRent   Float          @default(0)
+  depositAmount Float          @default(0)
+  contractPdf   String         @default("")
+  status        ContractStatus @default(active)
+  notes         String         @default("")
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  tenantId   String
+  tenant     Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("contracts")
+}
+
+model Billing {
+  id                  String        @id @default(cuid())
+  billingMonth        String
+  prevWaterReading    Float         @default(0)
+  currWaterReading    Float         @default(0)
+  waterUsage          Float         @default(0)
+  waterCostRiel       Float         @default(0)
+  prevElectricReading Float         @default(0)
+  currElectricReading Float         @default(0)
+  electricUsage       Float         @default(0)
+  electricCostRiel    Float         @default(0)
+  roomRentUsd         Float         @default(0)
+  outstandingDebtUsd  Float         @default(0)
+  lateDays            Int           @default(0)
+  latePenaltyUsd      Float         @default(0)
+  discountUsd         Float         @default(0)
+  totalUsd            Float         @default(0)
+  totalRiel           Float         @default(0)
+  exchangeRate        Float         @default(4100)
+  paymentStatus       PaymentStatus @default(unpaid)
+  paymentDate         String        @default("")
+  notes               String        @default("")
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  tenantId   String
+  tenant     Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  roomId     String
+  room       Room   @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  payments   Payment[]
+  invoices   Invoice[]
+
+  @@unique([tenantId, billingMonth])
+  @@map("billings")
+}
+
+model Payment {
+  id               String        @id @default(cuid())
+  amountUsd        Float         @default(0)
+  amountRiel       Float         @default(0)
+  paymentMethod    PaymentMethod @default(Cash)
+  transactionRef   String        @default("")
+  notes            String        @default("")
+  createdAt        DateTime      @default(now())
+
+  billingId   String
+  billing     Billing @relation(fields: [billingId], references: [id], onDelete: Cascade)
+  receivedById String?
+  receivedBy  User?   @relation(fields: [receivedById], references: [id], onDelete: SetNull)
+
+  @@map("payments")
+}
+
+model Invoice {
+  id            String   @id @default(cuid())
+  invoiceNumber String   @unique
+  pdfUrl        String   @default("")
+  sentEmail     Boolean  @default(false)
+  sentTelegram  Boolean  @default(false)
+  sentSms       Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  tenantId   String
+  tenant     Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  billingId  String  @unique
+  billing    Billing @relation(fields: [billingId], references: [id], onDelete: Cascade)
+
+  @@map("invoices")
+}
+
+model Notification {
+  id             String             @id @default(cuid())
+  type           String
+  message        String
+  status         NotificationStatus @default(pending)
+  createdAt      DateTime           @default(now())
+
+  tenantId   String
+  tenant     Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+model Setting {
+  key       String @id
+  value     String @default("")
+  label     String @default("")
+  updatedAt DateTime @updatedAt
+
+  @@map("settings")
+}
+
+model Maintenance {
+  id            String            @id @default(cuid())
+  title         String
+  description   String            @default("")
+  category      String            @default("general")
+  status        MaintenanceStatus @default(pending)
+  repairFeeUsd  Float             @default(0)
+  reportedDate  String
+  completedDate String            @default("")
+  notes         String            @default("")
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  roomId    String
+  room      Room    @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  tenantId  String?
+  tenant    Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+
+  expense   Expense?
+
+  @@map("maintenance")
+}
+
+model Expense {
+  id          String   @id @default(cuid())
+  title       String
+  category    String   @default("other")
+  amountUsd   Float    @default(0)
+  expenseDate String
+  paidTo      String   @default("")
+  receiptUrl  String   @default("")
+  notes       String   @default("")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  roomId        String?
+  room          Room?        @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  maintenanceId String?      @unique
+  maintenance   Maintenance? @relation(fields: [maintenanceId], references: [id], onDelete: SetNull)
+
+  @@map("expenses")
+}

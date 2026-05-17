@@ -1,0 +1,204 @@
+'use client'
+
+import { useState } from 'react'
+import { motion } from 'framer-motion'
+import { Plus, Search, User, Phone, Home, AlertCircle } from 'lucide-react'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Badge } from '@/components/ui/badge'
+import { Card } from '@/components/ui/card'
+import { TenantFormDialog } from '@/components/tenants/tenant-form-dialog'
+import { formatCurrency, formatDate, roomLabel } from '@/lib/utils'
+import { toast } from '@/hooks/use-toast'
+import { useLanguage } from '@/contexts/language-context'
+
+type Room = {
+  id: string; roomNumber: string; branch?: string; status: string; rentPriceUsd: number
+}
+type Tenant = {
+  id: string; fullName: string; gender: string; phone: string; nationalId: string
+  emergencyContact: string; occupation: string; moveInDate: string; moveOutDate: string
+  depositAmount: number; payDay: number; status: string; notes: string; createdAt: Date
+  roomId: string | null
+  room: { id: string; roomNumber: string; branch?: string; rentPriceUsd: number } | null
+  billings: Array<{ id: string; totalUsd: number; paymentStatus: string }>
+}
+
+interface Props { tenants: Tenant[]; rooms: Room[] }
+
+export function TenantsClient({ tenants: initial, rooms }: Props) {
+  const router = useRouter()
+  const { t } = useLanguage()
+  const [tenants, setTenants] = useState(initial)
+  const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('active')
+  const [showForm, setShowForm] = useState(false)
+
+  const filtered = tenants.filter((t) => {
+    const matchSearch =
+      t.fullName.toLowerCase().includes(search.toLowerCase()) ||
+      t.phone.includes(search) ||
+      (t.room?.roomNumber ?? '').toLowerCase().includes(search.toLowerCase())
+    const matchStatus = statusFilter === 'all' || t.status === statusFilter
+    return matchSearch && matchStatus
+  })
+
+  const handleMoveOut = async (id: string) => {
+    if (!confirm(t('tenant_moveout_confirm'))) return
+    const date = new Date().toISOString().slice(0, 10)
+    const res = await fetch(`/api/tenants/${id}/moveout`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ date }),
+    })
+    const data = await res.json()
+    if (data.ok) {
+      setTenants((prev) => prev.map((t) => t.id === id ? { ...t, status: 'inactive', moveOutDate: date } : t))
+      toast({ title: t('tenant_moved_out') })
+    } else {
+      toast({ title: 'Error', description: data.error, variant: 'destructive' })
+    }
+  }
+
+  return (
+    <div className="space-y-6 animate-fade-in">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold">{t('tenants_title')}</h1>
+          <p className="text-muted-foreground text-sm">
+            {tenants.filter((t) => t.status === 'active').length} {t('tenants_active_count')}
+          </p>
+        </div>
+        <Button onClick={() => setShowForm(true)}>
+          <Plus className="w-4 h-4 mr-2" /> {t('tenants_add')}
+        </Button>
+      </div>
+
+      {/* Filters */}
+      <div className="flex flex-wrap gap-3">
+        <div className="relative flex-1 min-w-48 max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input placeholder={t('tenants_search')} className="pl-9" value={search}
+            onChange={(e) => setSearch(e.target.value)} />
+        </div>
+        <div className="flex gap-2">
+          {(['all', 'active', 'inactive'] as const).map((s) => (
+            <Button key={s} variant={statusFilter === s ? 'default' : 'outline'} size="sm"
+              onClick={() => setStatusFilter(s)}>
+              {t(`status_${s}` as Parameters<typeof t>[0])}
+            </Button>
+          ))}
+        </div>
+      </div>
+
+      {/* Table */}
+      <Card>
+        <div className="overflow-x-auto scrollbar-thin">
+          <table className="w-full min-w-[1000px] text-sm">
+            <thead>
+              <tr className="border-b border-border">
+                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{t('tenants_col_tenant')}</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{t('tenants_col_room')}</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{t('tenants_col_monthly_rent')}</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{t('tenants_col_payday')}</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{t('tenants_col_movein')}</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{t('tenants_col_moveout')}</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{t('tenants_col_deposit')}</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{t('tenants_col_outstanding')}</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{t('tenants_col_status')}</th>
+                <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground">{t('tenants_col_actions')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((tenant, i) => {
+                const outstanding = tenant.billings.reduce((s, b) => s + b.totalUsd, 0)
+                return (
+                  <motion.tr key={tenant.id}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: i * 0.03 }}
+                    className={`border-b border-border last:border-0 hover:bg-muted/40 ${i % 2 ? 'bg-muted/10' : ''}`}
+                  >
+                    <td className="px-4 py-3">
+                      <Link href={`/tenants/${tenant.id}`} className="flex items-center gap-2.5 hover:text-primary">
+                        <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                          <User className="w-4 h-4 text-primary" />
+                        </div>
+                        <div>
+                          <p className="font-medium">{tenant.fullName}</p>
+                          <p className="text-xs text-muted-foreground flex items-center gap-1">
+                            <Phone className="w-3 h-3" />{tenant.phone || '—'}
+                          </p>
+                        </div>
+                      </Link>
+                    </td>
+                    <td className="px-4 py-3">
+                      {tenant.room ? (
+                        <div className="flex items-center gap-1.5">
+                          <Home className="w-3.5 h-3.5 text-muted-foreground" />
+                          <span>{t('room')} {roomLabel(tenant.room)}</span>
+                        </div>
+                      ) : <span className="text-muted-foreground">—</span>}
+                    </td>
+                    <td className="px-4 py-3">
+                      {tenant.room ? formatCurrency(tenant.room.rentPriceUsd) : <span className="text-muted-foreground">—</span>}
+                    </td>
+                    <td className="px-4 py-3 text-center font-medium">{tenant.payDay}<span className="text-xs text-muted-foreground"> {t('tenants_per_month')}</span></td>
+                    <td className="px-4 py-3 text-muted-foreground">{formatDate(tenant.moveInDate)}</td>
+                    <td className="px-4 py-3">
+                      {tenant.moveOutDate ? (
+                        <span className="text-red-500">{formatDate(tenant.moveOutDate)}</span>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">{formatCurrency(tenant.depositAmount)}</td>
+                    <td className="px-4 py-3">
+                      {outstanding > 0 ? (
+                        <span className="flex items-center gap-1 text-red-600 font-semibold">
+                          <AlertCircle className="w-3.5 h-3.5" />{formatCurrency(outstanding)}
+                        </span>
+                      ) : <span className="text-green-600 text-xs">{t('tenants_paid_up')}</span>}
+                    </td>
+                    <td className="px-4 py-3">
+                      <Badge variant={tenant.status === 'active' ? 'success' : 'secondary'}>
+                        {t(tenant.status === 'active' ? 'status_active' : 'status_inactive')}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <Link href={`/tenants/${tenant.id}`}>
+                          <Button variant="ghost" size="sm">{t('view')}</Button>
+                        </Link>
+                        {tenant.status === 'active' && (
+                          <Button variant="outline" size="sm" onClick={() => handleMoveOut(tenant.id)}
+                            className="text-xs">{t('tenants_move_out')}</Button>
+                        )}
+                      </div>
+                    </td>
+                  </motion.tr>
+                )
+              })}
+            </tbody>
+          </table>
+          {filtered.length === 0 && (
+            <div className="text-center py-16 text-muted-foreground">
+              <User className="w-12 h-12 mx-auto mb-3 opacity-30" />
+              <p>{t('tenants_empty')}</p>
+            </div>
+          )}
+        </div>
+      </Card>
+
+      {showForm && (
+        <TenantFormDialog
+          rooms={rooms}
+          onClose={() => setShowForm(false)}
+          onSave={() => { setShowForm(false); router.refresh() }}
+        />
+      )}
+    </div>
+  )
+}

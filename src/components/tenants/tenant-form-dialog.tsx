@@ -1,0 +1,250 @@
+'use client'
+
+import { useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Textarea } from '@/components/ui/textarea'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { toast } from '@/hooks/use-toast'
+import { roomLabel } from '@/lib/utils'
+import { useLanguage } from '@/contexts/language-context'
+
+const schema = z.object({
+  fullName: z.string().min(1, 'Full name required'),
+  gender: z.string().default(''),
+  phone: z.string().default(''),
+  nationalId: z.string().default(''),
+  emergencyContact: z.string().default(''),
+  occupation: z.string().default(''),
+  moveInDate: z.string().default(''),
+  depositAmount: z.coerce.number().min(0).default(0),
+  payDay: z.coerce.number().int().min(1).max(31).default(1),
+  roomId: z.string().optional(),
+  notes: z.string().default(''),
+  contractStart: z.string().default(''),
+  contractEnd: z.string().default(''),
+  monthlyRent: z.coerce.number().min(0).default(0),
+})
+
+type FormData = z.infer<typeof schema>
+
+interface Room {
+  id: string; roomNumber: string; branch?: string; status: string; rentPriceUsd: number
+}
+interface Props {
+  rooms: Room[]
+  tenant?: Partial<FormData & { id: string }> | null
+  onClose: () => void
+  onSave: () => void
+}
+
+export function TenantFormDialog({ rooms, tenant, onClose, onSave }: Props) {
+  const { t } = useLanguage()
+  const [loading, setLoading] = useState(false)
+  const isEdit = !!tenant?.id
+
+  const initialBranch = tenant?.roomId
+    ? (rooms.find((r) => r.id === tenant.roomId)?.branch ?? '')
+    : ''
+  const [selectedBranch, setSelectedBranch] = useState(initialBranch)
+
+  const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<FormData>({
+    resolver: zodResolver(schema),
+    defaultValues: {
+      fullName: tenant?.fullName ?? '',
+      gender: tenant?.gender ?? '',
+      phone: tenant?.phone ?? '',
+      nationalId: tenant?.nationalId ?? '',
+      emergencyContact: tenant?.emergencyContact ?? '',
+      occupation: tenant?.occupation ?? '',
+      moveInDate: tenant?.moveInDate ?? '',
+      depositAmount: tenant?.depositAmount ?? 0,
+      payDay: tenant?.payDay ?? 1,
+      roomId: tenant?.roomId ?? '',
+      notes: tenant?.notes ?? '',
+      contractStart: tenant?.contractStart ?? '',
+      contractEnd: tenant?.contractEnd ?? '',
+      monthlyRent: tenant?.monthlyRent ?? 0,
+    },
+  })
+
+  const branches = [...new Set(rooms.map((r) => r.branch ?? 'Takmoa'))].sort()
+  const branchRooms = selectedBranch
+    ? rooms.filter((r) => (r.branch ?? 'Takmoa') === selectedBranch)
+    : []
+
+  const selectedRoomId = watch('roomId')
+  const selectedRoom = rooms.find((r) => r.id === selectedRoomId)
+
+  const onSubmit = async (data: FormData) => {
+    setLoading(true)
+    const url = isEdit ? `/api/tenants/${tenant.id}` : '/api/tenants'
+    const method = isEdit ? 'PATCH' : 'POST'
+
+    const res = await fetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    })
+    const result = await res.json()
+
+    if (result.ok) {
+      toast({ title: isEdit ? 'Tenant updated' : 'Tenant added' })
+      onSave()
+    } else {
+      toast({ title: 'Error', description: result.error, variant: 'destructive' })
+    }
+    setLoading(false)
+  }
+
+  return (
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent className="max-w-2xl max-h-[90vh]">
+        <DialogHeader>
+          <DialogTitle>{isEdit ? t('tenant_form_edit') : t('tenant_form_add')}</DialogTitle>
+        </DialogHeader>
+
+        <form onSubmit={handleSubmit(onSubmit)}>
+          <Tabs defaultValue="personal">
+            <TabsList className="mb-4">
+              <TabsTrigger value="personal">{t('tenant_form_personal')}</TabsTrigger>
+              <TabsTrigger value="rental">{t('tenant_form_rental')}</TabsTrigger>
+              <TabsTrigger value="contract">{t('tenant_form_contract')}</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="personal" className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="col-span-2 space-y-1.5">
+                  <Label>{t('tenant_form_fullname')}</Label>
+                  <Input {...register('fullName')} placeholder={t('tenant_form_name_ph')} />
+                  {errors.fullName && <p className="text-xs text-destructive">{errors.fullName.message}</p>}
+                </div>
+                <div className="space-y-1.5">
+                  <Label>{t('tenant_form_gender')}</Label>
+                  <Select onValueChange={(v) => setValue('gender', v)} defaultValue={tenant?.gender ?? ''}>
+                    <SelectTrigger><SelectValue placeholder={t('tenant_form_gender_ph')} /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Male">{t('tenant_form_male')}</SelectItem>
+                      <SelectItem value="Female">{t('tenant_form_female')}</SelectItem>
+                      <SelectItem value="Other">{t('tenant_form_other_gender')}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>{t('settings_phone')}</Label>
+                  <Input {...register('phone')} placeholder={t('tenant_form_phone_ph')} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>{t('tenant_national_id')}</Label>
+                  <Input {...register('nationalId')} placeholder={t('tenant_form_national_id_ph')} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>{t('tenant_occupation')}</Label>
+                  <Input {...register('occupation')} placeholder={t('tenant_form_occupation_ph')} />
+                </div>
+                <div className="col-span-2 space-y-1.5">
+                  <Label>{t('tenant_emergency_contact')}</Label>
+                  <Input {...register('emergencyContact')} placeholder={t('tenant_form_emergency_ph')} />
+                </div>
+                <div className="col-span-2 space-y-1.5">
+                  <Label>{t('notes')}</Label>
+                  <Textarea {...register('notes')} rows={2} />
+                </div>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="rental" className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label>{t('branch')}</Label>
+                  <Select
+                    value={selectedBranch || 'none'}
+                    onValueChange={(v) => {
+                      const branch = v === 'none' ? '' : v
+                      setSelectedBranch(branch)
+                      setValue('roomId', '')
+                      setValue('monthlyRent', 0)
+                    }}
+                  >
+                    <SelectTrigger><SelectValue placeholder={t('tenant_form_branch_ph')} /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">{t('tenant_form_branch_ph')}</SelectItem>
+                      {branches.map((b) => (
+                        <SelectItem key={b} value={b}>{b}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>{t('tenant_form_assign_room')}</Label>
+                  <Select
+                    value={selectedRoomId || 'none'}
+                    onValueChange={(v) => {
+                      setValue('roomId', v === 'none' ? '' : v)
+                      const room = rooms.find((r) => r.id === v)
+                      if (room) setValue('monthlyRent', room.rentPriceUsd)
+                    }}
+                    disabled={!selectedBranch}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={selectedBranch ? t('tenant_form_room_ph') : t('tenant_form_branch_first')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">{t('tenant_form_no_room')}</SelectItem>
+                      {branchRooms.map((r) => (
+                        <SelectItem key={r.id} value={r.id} disabled={r.status === 'occupied' && r.id !== tenant?.roomId}>
+                          {t('room')} {roomLabel(r)} — ${r.rentPriceUsd}/mo
+                          {r.status === 'occupied' ? ` [${t('tenant_form_occupied_tag')}]` : ` [${t('tenant_form_available_tag')}]`}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>{t('tenant_form_movein')}</Label>
+                  <Input type="date" {...register('moveInDate')} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>{t('tenant_form_rent')}</Label>
+                  <Input type="number" step="0.01" {...register('monthlyRent')} placeholder="0" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>{t('tenant_form_deposit')}</Label>
+                  <Input type="number" step="0.01" {...register('depositAmount')} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>{t('tenant_form_payday_label')}</Label>
+                  <Input type="number" min="1" max="31" {...register('payDay')} placeholder="1" />
+                </div>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="contract" className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label>{t('tenant_form_contract_start')}</Label>
+                  <Input type="date" {...register('contractStart')} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>{t('tenant_form_contract_end')}</Label>
+                  <Input type="date" {...register('contractEnd')} />
+                </div>
+              </div>
+            </TabsContent>
+          </Tabs>
+
+          <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-border">
+            <Button type="button" variant="outline" onClick={onClose}>{t('cancel')}</Button>
+            <Button type="submit" loading={loading}>{isEdit ? t('tenant_form_update_btn') : t('tenant_form_add_btn')}</Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
