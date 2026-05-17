@@ -40,7 +40,7 @@ export default function LoginPage() {
 
     if (result?.ok) {
       toast({ title: 'Welcome back!', description: 'Redirecting to dashboard...' })
-      window.location.href = '/dashboard'
+      window.location.replace('/dashboard')
     } else if (result?.error === 'Configuration') {
       toast({ title: 'Server error', description: 'Could not reach the database. Please try again.', variant: 'destructive' })
     } else {
