@@ -75,7 +75,7 @@ export function PaymentDialog({ billing, onClose, onSave }: Props) {
 
         <div className="p-3 bg-muted/50 rounded-lg text-sm mb-2">
           <p><span className="text-muted-foreground">{t('payment_tenant_label')}:</span> <span className="font-medium">{billing.tenant?.fullName}</span></p>
-          <p><span className="text-muted-foreground">{t('month')}:</span> {billing.billingMonth} · {t('room')} {billing.room?.roomNumber}</p>
+          <p><span className="text-muted-foreground">{t('billing_col_month')}:</span> {billing.billingMonth} · {t('room')} {billing.room?.roomNumber}</p>
           <div className="mt-2 flex justify-between">
             <span className="text-muted-foreground">{t('payment_total_due')}:</span>
             <span className="font-bold">{formatCurrency(billing.totalUsd)}</span>
