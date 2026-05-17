@@ -27,23 +27,27 @@ export default function LoginPage() {
 
   const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { email: 'admin@takmao.com', password: 'admin123' },
+    defaultValues: { email: '', password: '' },
   })
 
   const onSubmit = async (data: FormData) => {
     setLoading(true)
     setLoginError('')
-    const result = await signIn('credentials', {
-      email: data.email,
-      password: data.password,
-      redirect: false,
-    })
+    try {
+      const result = await signIn('credentials', {
+        email: data.email,
+        password: data.password,
+        redirect: false,
+      })
 
-    if (result?.ok) {
-      window.location.replace('/dashboard')
-    } else if (result?.error === 'Configuration') {
-      setLoginError('Cannot reach the server. Please try again.')
-    } else {
+      if (result?.ok) {
+        window.location.replace('/dashboard')
+      } else if (result?.error === 'Configuration') {
+        setLoginError('Cannot reach the server. Please try again.')
+      } else {
+        setLoginError('Incorrect email or password. Please try again.')
+      }
+    } catch {
       setLoginError('Incorrect email or password. Please try again.')
     }
     setLoading(false)
@@ -139,12 +143,6 @@ export default function LoginPage() {
             </Button>
           </form>
 
-          {/* Demo credentials hint */}
-          <div className="mt-6 p-3 bg-white/5 rounded-lg border border-white/10">
-            <p className="text-xs text-white/50 text-center">
-              {t('login_demo')} <span className="text-white/70">admin@takmao.com</span> / <span className="text-white/70">admin123</span>
-            </p>
-          </div>
         </div>
 
         <p className="text-center text-white/30 text-xs mt-6">
