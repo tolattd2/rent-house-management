@@ -29,7 +29,7 @@ export function Header({ onMenuClick, title }: HeaderProps) {
   }, 400)
 
   return (
-    <header className="h-16 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 flex items-center px-6 gap-4 flex-shrink-0">
+    <header className="h-16 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 flex items-center px-6 gap-4 flex-shrink-0 print:hidden">
       {/* Mobile menu button */}
       <Button variant="ghost" size="icon" className="lg:hidden" onClick={onMenuClick}>
         <Menu className="w-5 h-5" />

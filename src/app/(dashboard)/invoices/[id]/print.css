@@ -1,6 +1,24 @@
 @media print {
+  @page {
+    margin: 0;
+  }
+
   .no-print { display: none !important; }
-  body { background: white !important; }
+
+  body {
+    background: white !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Remove screen-only layout constraints */
+  .h-screen { height: auto !important; }
+  .overflow-hidden { overflow: visible !important; }
+  .overflow-y-auto { overflow: visible !important; }
+  .flex-1 { flex: none !important; }
+
+  /* Clean up card styling for paper */
   .rounded-2xl { border-radius: 0 !important; }
   .shadow-xl { box-shadow: none !important; }
 }
