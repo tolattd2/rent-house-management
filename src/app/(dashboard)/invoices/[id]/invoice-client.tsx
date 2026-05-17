@@ -14,7 +14,10 @@ import { useLanguage } from '@/contexts/language-context'
 interface Props {
   billing: {
     id: string; billingMonth: string; roomRentUsd: number
-    waterUsage: number; waterCostRiel: number; electricUsage: number; electricCostRiel: number
+    prevWaterReading: number; currWaterReading: number
+    waterUsage: number; waterCostRiel: number
+    prevElectricReading: number; currElectricReading: number
+    electricUsage: number; electricCostRiel: number
     outstandingDebtUsd: number; lateDays: number; latePenaltyUsd: number; discountUsd: number
     totalUsd: number; totalRiel: number; exchangeRate: number
     paymentStatus: string; paymentDate: string
@@ -130,6 +133,9 @@ export function InvoiceClient({ billing, invoice, settings }: Props) {
               <tr>
                 <td className="py-3">
                   {t('invoice_water_usage')}
+                  <p className="text-xs text-slate-500">
+                    {t('invoice_meter_old')}: {billing.prevWaterReading} → {t('invoice_meter_new')}: {billing.currWaterReading}
+                  </p>
                   <p className="text-xs text-slate-400">({billing.waterUsage} {t('unit_kib')} × {(billing.waterUsage > 0 ? billing.waterCostRiel / billing.waterUsage : 0).toLocaleString()} ៛)</p>
                 </td>
                 <td className="py-3 text-right">{billing.waterUsage} {t('unit_kib')}</td>
@@ -139,6 +145,9 @@ export function InvoiceClient({ billing, invoice, settings }: Props) {
               <tr>
                 <td className="py-3">
                   {t('invoice_electricity')}
+                  <p className="text-xs text-slate-500">
+                    {t('invoice_meter_old')}: {billing.prevElectricReading} → {t('invoice_meter_new')}: {billing.currElectricReading}
+                  </p>
                   <p className="text-xs text-slate-400">({billing.electricUsage} {t('unit_kw')} × {(billing.electricUsage > 0 ? billing.electricCostRiel / billing.electricUsage : 0).toLocaleString()} ៛)</p>
                 </td>
                 <td className="py-3 text-right">{billing.electricUsage} {t('unit_kw')}</td>
