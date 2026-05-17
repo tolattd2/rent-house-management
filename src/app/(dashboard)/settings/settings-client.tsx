@@ -1,21 +1,105 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
-import { Save, Building2, DollarSign, Zap, MessageSquare, Mail, Phone } from 'lucide-react'
+import { Save, Building2, DollarSign, MessageSquare, Mail, Phone, Users, Plus, Key, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Badge } from '@/components/ui/badge'
 import { toast } from '@/hooks/use-toast'
 import { useLanguage } from '@/contexts/language-context'
+
+interface UserRow {
+  id: string
+  name: string
+  email: string
+  role: 'admin' | 'manager' | 'staff'
+  phone: string
+  createdAt: string
+}
 
 interface Props { settings: Record<string, string> }
 
 export function SettingsClient({ settings: initial }: Props) {
   const { t } = useLanguage()
   const [loading, setLoading] = useState(false)
+
+  // Users state
+  const [users, setUsers] = useState<UserRow[]>([])
+  const [usersLoading, setUsersLoading] = useState(false)
+  const [showAddUser, setShowAddUser] = useState(false)
+  const [addingUser, setAddingUser] = useState(false)
+  const [newUser, setNewUser] = useState({ name: '', email: '', password: '', role: 'staff' as const, phone: '' })
+
+  const [showChangePw, setShowChangePw] = useState(false)
+  const [changePwTarget, setChangePwTarget] = useState<UserRow | null>(null)
+  const [newPassword, setNewPassword] = useState('')
+  const [changingPw, setChangingPw] = useState(false)
+
+  async function loadUsers() {
+    setUsersLoading(true)
+    const res = await fetch('/api/users')
+    const data = await res.json()
+    if (data.ok) setUsers(data.data)
+    setUsersLoading(false)
+  }
+
+  async function handleAddUser() {
+    if (!newUser.name || !newUser.email || !newUser.password) return
+    setAddingUser(true)
+    const res = await fetch('/api/users', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newUser),
+    })
+    const data = await res.json()
+    if (data.ok) {
+      toast({ title: t('settings_user_added') })
+      setShowAddUser(false)
+      setNewUser({ name: '', email: '', password: '', role: 'staff', phone: '' })
+      loadUsers()
+    } else {
+      toast({ title: t('settings_user_add_error'), description: data.error, variant: 'destructive' })
+    }
+    setAddingUser(false)
+  }
+
+  async function handleChangePassword() {
+    if (!changePwTarget || !newPassword) return
+    setChangingPw(true)
+    const res = await fetch(`/api/users/${changePwTarget.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ newPassword }),
+    })
+    const data = await res.json()
+    if (data.ok) {
+      toast({ title: t('settings_password_changed') })
+      setShowChangePw(false)
+      setNewPassword('')
+      setChangePwTarget(null)
+    } else {
+      toast({ title: t('settings_password_change_error'), description: data.error, variant: 'destructive' })
+    }
+    setChangingPw(false)
+  }
+
+  async function handleDeleteUser(user: UserRow) {
+    if (!confirm(t('settings_user_delete_confirm'))) return
+    const res = await fetch(`/api/users/${user.id}`, { method: 'DELETE' })
+    const data = await res.json()
+    if (data.ok) {
+      toast({ title: t('settings_user_deleted') })
+      loadUsers()
+    } else {
+      toast({ title: data.error, variant: 'destructive' })
+    }
+  }
 
   const { register, handleSubmit } = useForm({
     defaultValues: {
@@ -63,13 +147,14 @@ export function SettingsClient({ settings: initial }: Props) {
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)}>
-        <Tabs defaultValue="rates">
+        <Tabs defaultValue="rates" onValueChange={(v) => { if (v === 'users') loadUsers() }}>
           <TabsList>
             <TabsTrigger value="rates"><DollarSign className="w-4 h-4 mr-2" />{t('settings_rates')}</TabsTrigger>
             <TabsTrigger value="company"><Building2 className="w-4 h-4 mr-2" />{t('settings_company')}</TabsTrigger>
             <TabsTrigger value="telegram"><MessageSquare className="w-4 h-4 mr-2" />{t('settings_telegram_bot')}</TabsTrigger>
             <TabsTrigger value="email"><Mail className="w-4 h-4 mr-2" />{t('settings_email_smtp')}</TabsTrigger>
             <TabsTrigger value="sms"><Phone className="w-4 h-4 mr-2" />{t('settings_twilio_sms')}</TabsTrigger>
+            <TabsTrigger value="users"><Users className="w-4 h-4 mr-2" />{t('settings_users')}</TabsTrigger>
           </TabsList>
 
           <TabsContent value="rates" className="mt-4">
@@ -198,14 +283,135 @@ export function SettingsClient({ settings: initial }: Props) {
               </CardContent>
             </Card>
           </TabsContent>
+          <TabsContent value="users" className="mt-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Users className="w-4 h-4" />{t('settings_users_title')}
+                </CardTitle>
+                <Button type="button" size="sm" onClick={() => setShowAddUser(true)}>
+                  <Plus className="w-4 h-4 mr-1" />{t('settings_add_user')}
+                </Button>
+              </CardHeader>
+              <CardContent>
+                {usersLoading ? (
+                  <p className="text-sm text-muted-foreground py-4 text-center">Loading...</p>
+                ) : users.length === 0 ? (
+                  <p className="text-sm text-muted-foreground py-4 text-center">{t('settings_admin_only_note')}</p>
+                ) : (
+                  <div className="space-y-2">
+                    {users.map((u) => (
+                      <div key={u.id} className="flex items-center justify-between p-3 border rounded-lg">
+                        <div className="min-w-0">
+                          <p className="font-medium text-sm">{u.name}</p>
+                          <p className="text-xs text-muted-foreground">{u.email}</p>
+                          {u.phone && <p className="text-xs text-muted-foreground">{u.phone}</p>}
+                        </div>
+                        <div className="flex items-center gap-2 ml-4 shrink-0">
+                          <Badge variant={u.role === 'admin' ? 'default' : 'secondary'} className="text-xs capitalize">
+                            {u.role}
+                          </Badge>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => { setChangePwTarget(u); setShowChangePw(true) }}
+                          >
+                            <Key className="w-3 h-3 mr-1" />{t('settings_change_password')}
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="text-destructive hover:text-destructive"
+                            onClick={() => handleDeleteUser(u)}
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
         </Tabs>
 
+        {/* Only show save button when not on users tab */}
         <div className="mt-6 flex justify-end">
           <Button type="submit" loading={loading}>
             <Save className="w-4 h-4 mr-2" />{t('settings_save')}
           </Button>
         </div>
       </form>
+
+      {/* Add User Dialog */}
+      <Dialog open={showAddUser} onOpenChange={setShowAddUser}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t('settings_add_user')}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <div className="space-y-1.5">
+              <Label>{t('settings_user_name')}</Label>
+              <Input value={newUser.name} onChange={(e) => setNewUser({ ...newUser, name: e.target.value })} placeholder="John Doe" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>{t('settings_user_email')}</Label>
+              <Input type="email" value={newUser.email} onChange={(e) => setNewUser({ ...newUser, email: e.target.value })} placeholder="john@example.com" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>{t('settings_user_password')}</Label>
+              <Input type="password" value={newUser.password} onChange={(e) => setNewUser({ ...newUser, password: e.target.value })} placeholder="••••••••" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>{t('settings_user_role')}</Label>
+              <Select value={newUser.role} onValueChange={(v) => setNewUser({ ...newUser, role: v as typeof newUser.role })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="manager">Manager</SelectItem>
+                  <SelectItem value="staff">Staff</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>{t('settings_user_phone')}</Label>
+              <Input value={newUser.phone} onChange={(e) => setNewUser({ ...newUser, phone: e.target.value })} placeholder="012 000 000" />
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button type="button" variant="outline" onClick={() => setShowAddUser(false)}>{t('cancel')}</Button>
+              <Button type="button" loading={addingUser} onClick={handleAddUser}>{t('settings_add_user')}</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Change Password Dialog */}
+      <Dialog open={showChangePw} onOpenChange={(open) => { setShowChangePw(open); if (!open) setNewPassword('') }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t('settings_change_password')} — {changePwTarget?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <div className="space-y-1.5">
+              <Label>{t('settings_new_password')}</Label>
+              <Input
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="••••••••"
+                autoFocus
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button type="button" variant="outline" onClick={() => setShowChangePw(false)}>{t('cancel')}</Button>
+              <Button type="button" loading={changingPw} onClick={handleChangePassword}>{t('save')}</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
