@@ -16,10 +16,6 @@ export default auth((req) => {
     return NextResponse.redirect(new URL('/login', nextUrl))
   }
 
-  if (isLoggedIn && isAuthPage) {
-    return NextResponse.redirect(new URL('/dashboard', nextUrl))
-  }
-
   return NextResponse.next()
 })
 
