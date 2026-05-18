@@ -227,10 +227,10 @@ export function MaintenanceClient({ records: initial, rooms, tenants }: Props) {
         {(['all', 'pending', 'in_progress', 'completed'] as const).map((s) => {
           const count = s === 'all' ? filtered.length : filtered.filter((r) => r.status === s).length
           return (
-            <Card key={s} className={`p-4 cursor-pointer border-2 transition-colors ${statusFilter === s ? 'border-primary' : 'border-transparent'}`}
+            <Card key={s} className={`p-4 cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 ${statusFilter === s ? 'ring-2 ring-primary/70' : ''}`}
               onClick={() => setStatusFilter(s)}>
-              <p className="text-xs text-muted-foreground capitalize">{s === 'all' ? t('maintenance_total') : t(`status_${s}` as Parameters<typeof t>[0])}</p>
-              <p className="text-2xl font-bold mt-1">{count}</p>
+              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{s === 'all' ? t('maintenance_total') : t(`status_${s}` as Parameters<typeof t>[0])}</p>
+              <p className="text-2xl font-bold mt-1.5 tabular-nums">{count}</p>
             </Card>
           )
         })}

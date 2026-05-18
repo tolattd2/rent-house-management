@@ -151,7 +151,7 @@ export function RoomsClient({ rooms: initialRooms }: Props) {
           const StatusIcon = statusIcon[room.status] ?? Home
           return (
             <div key={room.id}>
-              <Card className="hover:shadow-md transition-shadow group">
+              <Card className="hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 group">
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between mb-3">
                     <div>

@@ -14,7 +14,7 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { toast } from '@/hooks/use-toast'
-import { formatCurrency, exportToCSV } from '@/lib/utils'
+import { formatCurrency, formatCompact, exportToCSV } from '@/lib/utils'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { useLanguage } from '@/contexts/language-context'
@@ -221,48 +221,48 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
       </div>
 
       {/* Summary cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <Card>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <Card className="hover:shadow-md transition-all duration-200 hover:-translate-y-0.5">
           <CardContent className="p-4 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-red-50 dark:bg-red-950/30 flex items-center justify-center flex-shrink-0">
-              <TrendingDown className="w-5 h-5 text-red-600" />
+            <div className="w-9 h-9 rounded-xl bg-red-50 dark:bg-red-950/40 flex items-center justify-center flex-shrink-0">
+              <TrendingDown className="w-4 h-4 text-red-600" />
             </div>
-            <div>
-              <p className="text-xs text-muted-foreground">{t('expenses_total_this_month')}</p>
-              <p className="text-lg font-bold text-red-600">{formatCurrency(thisMonthTotal)}</p>
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{t('expenses_total_this_month')}</p>
+              <p className="text-lg font-bold text-red-600 mt-0.5 tabular-nums">{formatCompact(thisMonthTotal)}</p>
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="hover:shadow-md transition-all duration-200 hover:-translate-y-0.5">
           <CardContent className="p-4 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-orange-50 dark:bg-orange-950/30 flex items-center justify-center flex-shrink-0">
-              <DollarSign className="w-5 h-5 text-orange-600" />
+            <div className="w-9 h-9 rounded-xl bg-orange-50 dark:bg-orange-950/40 flex items-center justify-center flex-shrink-0">
+              <DollarSign className="w-4 h-4 text-orange-600" />
             </div>
-            <div>
-              <p className="text-xs text-muted-foreground">{t('expenses_total_all')}</p>
-              <p className="text-lg font-bold">{formatCurrency(filteredTotal)}</p>
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{t('expenses_total_all')}</p>
+              <p className="text-lg font-bold mt-0.5 tabular-nums">{formatCompact(filteredTotal)}</p>
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="hover:shadow-md transition-all duration-200 hover:-translate-y-0.5">
           <CardContent className="p-4 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-blue-50 dark:bg-blue-950/30 flex items-center justify-center flex-shrink-0">
-              <Tag className="w-5 h-5 text-blue-600" />
+            <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-950/40 flex items-center justify-center flex-shrink-0">
+              <Tag className="w-4 h-4 text-blue-600" />
             </div>
-            <div>
-              <p className="text-xs text-muted-foreground">{t('expenses_col_category')}</p>
-              <p className="text-lg font-bold">{Object.keys(byCategory).length}</p>
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{t('expenses_col_category')}</p>
+              <p className="text-lg font-bold mt-0.5 tabular-nums">{Object.keys(byCategory).length}</p>
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="hover:shadow-md transition-all duration-200 hover:-translate-y-0.5">
           <CardContent className="p-4 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-slate-50 dark:bg-slate-900/30 flex items-center justify-center flex-shrink-0">
-              <Calendar className="w-5 h-5 text-slate-600" />
+            <div className="w-9 h-9 rounded-xl bg-slate-50 dark:bg-slate-900/40 flex items-center justify-center flex-shrink-0">
+              <Calendar className="w-4 h-4 text-slate-600" />
             </div>
-            <div>
-              <p className="text-xs text-muted-foreground">{t('billing_records')}</p>
-              <p className="text-lg font-bold">{filtered.length}</p>
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{t('billing_records')}</p>
+              <p className="text-lg font-bold mt-0.5 tabular-nums">{filtered.length}</p>
             </div>
           </CardContent>
         </Card>
@@ -277,8 +277,8 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
               <button
                 key={cat}
                 onClick={() => setCategoryFilter(categoryFilter === cat ? 'all' : cat)}
-                className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all text-center
-                  ${categoryFilter === cat ? 'ring-2 ring-primary' : 'hover:bg-muted/50'}
+                className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl border border-border/50 shadow-sm transition-all duration-200 text-center hover:-translate-y-0.5 hover:shadow-md
+                  ${categoryFilter === cat ? 'ring-2 ring-primary/70' : ''}
                   ${categoryColor[cat]}`}
               >
                 <Icon className="w-4 h-4" />

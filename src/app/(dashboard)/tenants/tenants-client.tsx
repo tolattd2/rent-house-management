@@ -176,7 +176,7 @@ export function TenantsClient({ tenants: initial, rooms }: Props) {
       </div>
 
       {/* Desktop table — hidden on small screens */}
-      <Card className="hidden md:block">
+      <Card className="hidden md:block hover:shadow-md transition-shadow duration-200">
         <div className="overflow-x-auto scrollbar-thin">
           <table className="w-full min-w-[1000px] text-sm">
             <thead>

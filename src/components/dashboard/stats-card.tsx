@@ -36,7 +36,7 @@ export function StatsCard({
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: index * 0.05, duration: 0.3, ease: 'easeOut' }}
-        className="flex items-center gap-3 rounded-xl bg-card shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 p-3.5"
+        className="flex items-center gap-3 rounded-2xl bg-card border border-border/50 shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 p-3.5"
       >
         <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0', iconBg)}>
           <Icon className={cn('w-4 h-4', iconColor)} />
@@ -55,7 +55,7 @@ export function StatsCard({
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.07, duration: 0.35, ease: 'easeOut' }}
-      className="group flex flex-col rounded-2xl bg-card shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-0.5 p-4 sm:p-5 overflow-hidden"
+      className="group flex flex-col rounded-2xl bg-card border border-border/50 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-0.5 p-4 sm:p-5 overflow-hidden"
     >
       {/* Label + icon row */}
       <div className="flex items-start justify-between gap-2 mb-3">
