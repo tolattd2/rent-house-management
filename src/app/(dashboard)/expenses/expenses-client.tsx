@@ -301,6 +301,13 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
+        {(['all', 'Takmoa', 'Chamkadong'] as const).map((b) => (
+          <Button key={b} variant={branchFilter === b ? 'default' : 'outline'} size="sm"
+            className="h-9 px-3 text-sm"
+            onClick={() => setBranchFilter(b)}>
+            {b === 'all' ? t('all_branches') : b}
+          </Button>
+        ))}
         <Select value={monthFilter} onValueChange={setMonthFilter}>
           <SelectTrigger className="w-36 h-9">
             <SelectValue placeholder={t('billing_all_months')} />
@@ -321,13 +328,6 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
             ))}
           </SelectContent>
         </Select>
-        {(['all', 'Takmoa', 'Chamkadong'] as const).map((b) => (
-          <Button key={b} variant={branchFilter === b ? 'default' : 'outline'} size="sm"
-            className="h-9 px-3 text-sm"
-            onClick={() => setBranchFilter(b)}>
-            {b === 'all' ? t('all_branches') : b}
-          </Button>
-        ))}
       </div>
 
       {/* Mobile card list */}
