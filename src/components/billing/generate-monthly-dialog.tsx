@@ -11,7 +11,7 @@ import { toast } from '@/hooks/use-toast'
 interface Props {
   branches: string[]
   onClose: () => void
-  onGenerated: () => void
+  onGenerated: (month: string) => void
 }
 
 function getMonthOptions(): { value: string; label: string; isUpcoming: boolean }[] {
@@ -59,7 +59,7 @@ export function GenerateMonthlyDialog({ branches, onClose, onGenerated }: Props)
     const data = await res.json()
     if (data.ok) {
       toast({ title: `Generated ${data.created} invoice${data.created !== 1 ? 's' : ''}${data.skipped > 0 ? `, skipped ${data.skipped}` : ''}` })
-      onGenerated()
+      onGenerated(month)
     } else {
       toast({ title: 'Error', description: data.error, variant: 'destructive' })
     }

@@ -412,7 +412,7 @@ export function BillingListClient({ billings: initial }: Props) {
         <GenerateMonthlyDialog
           branches={branches}
           onClose={() => setShowGenerate(false)}
-          onGenerated={() => { setShowGenerate(false); router.refresh() }}
+          onGenerated={(month) => { setShowGenerate(false); setMonthFilter(month); router.refresh() }}
         />
       )}
     </div>
