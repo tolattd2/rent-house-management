@@ -102,7 +102,7 @@ export function TenantsClient({ tenants: initial, rooms }: Props) {
           <Button key={b} variant={branchFilter === b ? 'default' : 'outline'} size="sm"
             className="h-9 px-3 text-sm"
             onClick={() => setBranchFilter(b)}>
-            {b === 'all' ? t('all') : b}
+            {b === 'all' ? t('all_branches') : b}
           </Button>
         ))}
       </div>

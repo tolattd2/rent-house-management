@@ -144,32 +144,6 @@ export function BillingListClient({ billings: initial }: Props) {
         </div>
       </div>
 
-      {/* Branch filter tabs */}
-      <div className="flex gap-2 flex-wrap">
-        {(['all', ...branches] as const).map((b) => {
-          const branchBillings = b === 'all' ? billings : billings.filter((bl) => (bl.room?.branch ?? 'Takmoa') === b)
-          const unpaidCount = branchBillings.filter((bl) => bl.paymentStatus !== 'paid').length
-          return (
-            <button
-              key={b}
-              onClick={() => setBranchFilter(b)}
-              className={`px-4 py-2.5 rounded-lg border text-sm font-medium transition-all min-h-[44px] ${
-                branchFilter === b
-                  ? 'bg-primary text-primary-foreground border-primary shadow-sm'
-                  : 'bg-background border-border text-muted-foreground hover:bg-muted/50'
-              }`}
-            >
-              {b === 'all' ? t('all_branches') : b}
-              {unpaidCount > 0 && (
-                <span className={`ml-2 text-xs rounded-full px-1.5 py-0.5 ${branchFilter === b ? 'bg-white/20' : 'bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300'}`}>
-                  {unpaidCount}
-                </span>
-              )}
-            </button>
-          )
-        })}
-      </div>
-
       {/* Summary */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <Card className="hover:shadow-md transition-all duration-200 hover:-translate-y-0.5"><div className="p-4"><p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{t('billing_revenue')}</p><p className="text-xl font-bold text-green-600 mt-1.5 tabular-nums">{formatCompact(totalRevenue)}</p></div></Card>
@@ -184,6 +158,22 @@ export function BillingListClient({ billings: initial }: Props) {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input placeholder={t('billing_search')} className="pl-9 h-9 bg-muted/50 border-0 focus-visible:ring-1" value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
+        {(['all', ...branches] as const).map((b) => {
+          const unpaidCount = (b === 'all' ? billings : billings.filter((bl) => (bl.room?.branch ?? 'Takmoa') === b))
+            .filter((bl) => bl.paymentStatus !== 'paid').length
+          return (
+            <Button key={b} variant={branchFilter === b ? 'default' : 'outline'} size="sm"
+              className="h-9 px-3 text-sm"
+              onClick={() => setBranchFilter(b)}>
+              {b === 'all' ? t('all_branches') : b}
+              {unpaidCount > 0 && (
+                <span className={`ml-1.5 text-xs rounded-full px-1.5 py-0.5 ${branchFilter === b ? 'bg-white/20' : 'bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300'}`}>
+                  {unpaidCount}
+                </span>
+              )}
+            </Button>
+          )
+        })}
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-36 h-9"><SelectValue /></SelectTrigger>
           <SelectContent>
