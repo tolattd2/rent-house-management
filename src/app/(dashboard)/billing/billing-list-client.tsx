@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Plus, Search, Filter, FileText, CheckCircle, AlertTriangle, Calendar, Trash2 } from 'lucide-react'
+import { Plus, Search, Filter, FileText, CheckCircle, AlertTriangle, Calendar, Trash2, Printer } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -133,6 +133,20 @@ export function BillingListClient({ billings: initial }: Props) {
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" size="sm" onClick={handleExport}>{t('billing_export')}</Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              if (monthFilter === 'all') {
+                toast({ title: 'Select a month first', description: 'Use the month filter to choose which month to batch print.', variant: 'destructive' })
+                return
+              }
+              const params = new URLSearchParams({ month: monthFilter, branch: branchFilter })
+              window.open(`/batch-print?${params}`, '_blank')
+            }}
+          >
+            <Printer className="w-4 h-4 mr-2" />Batch Print
+          </Button>
           {isAdmin && (
             <>
               <Button variant="outline" size="sm" onClick={handleGenerateMonthly}>
