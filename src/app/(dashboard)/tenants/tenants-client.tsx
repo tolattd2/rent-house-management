@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import { TenantFormDialog } from '@/components/tenants/tenant-form-dialog'
-import { formatCurrency, formatDate, roomLabel } from '@/lib/utils'
+import { formatCurrency, formatDate, roomLabel, sortRoomsByNumber } from '@/lib/utils'
 import { toast } from '@/hooks/use-toast'
 import { useLanguage } from '@/contexts/language-context'
 
@@ -39,15 +39,17 @@ export function TenantsClient({ tenants: initial, rooms }: Props) {
   const [branchFilter, setBranchFilter] = useState<'all' | 'Takmoa' | 'Chamkadong'>('all')
   const [showForm, setShowForm] = useState(false)
 
-  const filtered = tenants.filter((t) => {
-    const matchSearch =
-      t.fullName.toLowerCase().includes(search.toLowerCase()) ||
-      t.phone.includes(search) ||
-      (t.room?.roomNumber ?? '').toLowerCase().includes(search.toLowerCase())
-    const matchStatus = statusFilter === 'all' || t.status === statusFilter
-    const matchBranch = branchFilter === 'all' || t.room?.branch === branchFilter
-    return matchSearch && matchStatus && matchBranch
-  })
+  const filtered = sortRoomsByNumber(
+    tenants.filter((t) => {
+      const matchSearch =
+        t.fullName.toLowerCase().includes(search.toLowerCase()) ||
+        t.phone.includes(search) ||
+        (t.room?.roomNumber ?? '').toLowerCase().includes(search.toLowerCase())
+      const matchStatus = statusFilter === 'all' || t.status === statusFilter
+      const matchBranch = branchFilter === 'all' || t.room?.branch === branchFilter
+      return matchSearch && matchStatus && matchBranch
+    }).map((t) => ({ ...t, roomNumber: t.room?.roomNumber ?? '' }))
+  )
 
   const handleMoveOut = async (id: string) => {
     if (!confirm(t('tenant_moveout_confirm'))) return
