@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { Search, FileText, Printer, Trash2 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
@@ -12,6 +13,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useLanguage } from '@/contexts/language-context'
 import { useSession } from 'next-auth/react'
 import { toast } from '@/hooks/use-toast'
+import { InvoiceBatchPrintDialog } from '@/components/invoices/batch-print-dialog'
+import { InvoiceBatchDeleteDialog } from '@/components/invoices/batch-delete-dialog'
 
 interface Invoice {
   id: string
@@ -31,14 +34,18 @@ interface Props {
 }
 
 export function InvoicesClient({ invoices: initial }: Props) {
+  const router = useRouter()
   const { t } = useLanguage()
   const { data: session } = useSession()
   const isAdmin = session?.user?.role === 'admin'
   const [invoices, setInvoices] = useState(initial)
+  useEffect(() => { setInvoices(initial) }, [initial])
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [monthFilter, setMonthFilter] = useState('all')
   const [branchFilter, setBranchFilter] = useState('all')
+  const [showBatchPrint, setShowBatchPrint] = useState(false)
+  const [showBatchDelete, setShowBatchDelete] = useState(false)
 
   const branches = [...new Set(invoices.map((inv) => inv.billing?.room?.branch ?? 'Takmoa'))].sort()
   const months = [...new Set(invoices.map((inv) => inv.billing?.billingMonth).filter(Boolean) as string[])].sort().reverse()
@@ -71,15 +78,6 @@ export function InvoicesClient({ invoices: initial }: Props) {
     }
   }
 
-  const handleBatchPrint = () => {
-    if (monthFilter === 'all') {
-      toast({ title: 'Select a month first', description: 'Use the month filter to choose which month to batch print.', variant: 'destructive' })
-      return
-    }
-    const params = new URLSearchParams({ month: monthFilter, branch: branchFilter })
-    window.open(`/batch-print?${params}`, '_blank')
-  }
-
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
@@ -88,9 +86,18 @@ export function InvoicesClient({ invoices: initial }: Props) {
           <h1 className="text-2xl font-bold">{t('nav_invoices')}</h1>
           <p className="text-muted-foreground text-sm">{filtered.length} {t('invoices_generated')}</p>
         </div>
-        <Button variant="outline" size="sm" onClick={handleBatchPrint}>
-          <Printer className="w-4 h-4 mr-2" />Batch Print
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" onClick={() => setShowBatchPrint(true)}>
+            <Printer className="w-4 h-4 mr-2" />Batch Print
+          </Button>
+          {isAdmin && (
+            <Button variant="outline" size="sm"
+              className="text-destructive border-destructive/30 hover:bg-destructive/10"
+              onClick={() => setShowBatchDelete(true)}>
+              <Trash2 className="w-4 h-4 mr-2" />Batch Delete
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Summary cards */}
@@ -219,6 +226,23 @@ export function InvoicesClient({ invoices: initial }: Props) {
           </table>
         </div>
       </Card>
+
+      {showBatchPrint && (
+        <InvoiceBatchPrintDialog
+          months={months}
+          branches={branches}
+          onClose={() => setShowBatchPrint(false)}
+        />
+      )}
+
+      {showBatchDelete && (
+        <InvoiceBatchDeleteDialog
+          months={months}
+          branches={branches}
+          onClose={() => setShowBatchDelete(false)}
+          onDeleted={() => { setShowBatchDelete(false); router.refresh() }}
+        />
+      )}
     </div>
   )
 }
