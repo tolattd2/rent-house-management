@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { PaymentDialog } from '@/components/billing/payment-dialog'
 import { BatchDeleteDialog } from '@/components/billing/batch-delete-dialog'
 import { GenerateMonthlyDialog } from '@/components/billing/generate-monthly-dialog'
+import { InvoiceBatchPrintDialog } from '@/components/invoices/batch-print-dialog'
 import { formatCurrency, formatCompact, exportToCSV, roomLabel, sortRoomsByNumber } from '@/lib/utils'
 import { toast } from '@/hooks/use-toast'
 import { useSession } from 'next-auth/react'
@@ -55,6 +56,7 @@ export function BillingListClient({ billings: initial }: Props) {
   const [payDialog, setPayDialog] = useState<Billing | null>(null)
   const [showBatchDelete, setShowBatchDelete] = useState(false)
   const [showGenerate, setShowGenerate] = useState(false)
+  const [showBatchInvoice, setShowBatchInvoice] = useState(false)
 
   const branches = [...new Set(billings.map((b) => b.room?.branch ?? 'Takmoa'))].sort()
 
@@ -116,19 +118,8 @@ export function BillingListClient({ billings: initial }: Props) {
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" size="sm" onClick={handleExport}>{t('billing_export')}</Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              if (monthFilter === 'all') {
-                toast({ title: 'Select a month first', description: 'Use the month filter to choose which month to batch print.', variant: 'destructive' })
-                return
-              }
-              const params = new URLSearchParams({ month: monthFilter, branch: branchFilter })
-              window.open(`/batch-print?${params}`, '_blank')
-            }}
-          >
-            <Printer className="w-4 h-4 mr-2" />Batch Print
+          <Button variant="outline" size="sm" onClick={() => setShowBatchInvoice(true)}>
+            <Printer className="w-4 h-4 mr-2" />Batch Invoice
           </Button>
           {isAdmin && (
             <>
@@ -402,6 +393,14 @@ export function BillingListClient({ billings: initial }: Props) {
           branches={branches}
           onClose={() => setShowGenerate(false)}
           onGenerated={(month) => { setShowGenerate(false); setMonthFilter(month); router.refresh() }}
+        />
+      )}
+
+      {showBatchInvoice && (
+        <InvoiceBatchPrintDialog
+          months={months}
+          branches={branches}
+          onClose={() => setShowBatchInvoice(false)}
         />
       )}
     </div>
