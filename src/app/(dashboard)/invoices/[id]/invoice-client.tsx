@@ -83,24 +83,24 @@ export function InvoiceClient({ billing, invoice, settings }: Props) {
         className="bg-white text-slate-900 rounded-2xl shadow-xl overflow-hidden border border-slate-200 print:shadow-none print:rounded-none"
       >
         {/* Header */}
-        <div className="bg-gradient-to-r from-blue-600 to-blue-800 px-8 py-6 text-white">
+        <div className="bg-gradient-to-r from-blue-600 to-blue-800 px-8 py-6 print:px-6 print:py-3 text-white">
           <div className="flex justify-between items-start">
             <div>
-              <h1 className="text-2xl font-bold">{settings.company_name || 'Takmao Rental'}</h1>
+              <h1 className="text-2xl print:text-lg font-bold">{settings.company_name || 'Takmao Rental'}</h1>
               <p className="text-blue-200 text-sm">{settings.company_address || 'Phnom Penh, Cambodia'}</p>
               {settings.company_phone && <p className="text-blue-200 text-sm">{settings.company_phone}</p>}
             </div>
             <div className="text-right">
               <p className="text-blue-200 text-xs uppercase tracking-wider">{t('invoices_title')}</p>
-              <p className="text-xl font-mono font-bold">{invoice.invoiceNumber}</p>
+              <p className="text-xl print:text-base font-mono font-bold">{invoice.invoiceNumber}</p>
               <p className="text-blue-200 text-sm">{formatMonth(billing.billingMonth)}</p>
             </div>
           </div>
         </div>
 
         {/* Tenant info */}
-        <div className="px-8 py-6 bg-slate-50 border-b border-slate-200">
-          <div className="grid grid-cols-2 gap-6">
+        <div className="px-8 py-6 print:px-6 print:py-3 bg-slate-50 border-b border-slate-200">
+          <div className="grid grid-cols-2 gap-6 print:gap-3">
             <div>
               <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">{t('invoice_bill_to')}</p>
               <p className="font-bold text-lg">{billing.tenant?.fullName}</p>
@@ -122,7 +122,7 @@ export function InvoiceClient({ billing, invoice, settings }: Props) {
         </div>
 
         {/* Line items */}
-        <div className="px-8 py-6">
+        <div className="px-8 py-6 print:px-6 print:py-3">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b-2 border-slate-200">
@@ -134,64 +134,64 @@ export function InvoiceClient({ billing, invoice, settings }: Props) {
             </thead>
             <tbody className="divide-y divide-slate-100">
               <tr>
-                <td className="py-3">{t('invoice_monthly_rent')} — {formatMonth(billing.billingMonth)}</td>
-                <td className="py-3 text-right">1 {t('billing_col_month')}</td>
-                <td className="py-3 text-right">{formatCurrency(billing.roomRentUsd)}</td>
-                <td className="py-3 text-right font-medium">{formatCurrency(billing.roomRentUsd)}</td>
+                <td className="py-3 print:py-1.5">{t('invoice_monthly_rent')} — {formatMonth(billing.billingMonth)}</td>
+                <td className="py-3 print:py-1.5 text-right">1 {t('billing_col_month')}</td>
+                <td className="py-3 print:py-1.5 text-right">{formatCurrency(billing.roomRentUsd)}</td>
+                <td className="py-3 print:py-1.5 text-right font-medium">{formatCurrency(billing.roomRentUsd)}</td>
               </tr>
               <tr>
-                <td className="py-3">
+                <td className="py-3 print:py-1.5">
                   {t('invoice_water_usage')}
                   <p className="text-xs text-slate-500">
                     {t('invoice_meter_old')}: {billing.prevWaterReading} → {t('invoice_meter_new')}: {billing.currWaterReading}
                   </p>
                   <p className="text-xs text-slate-400">({billing.waterUsage} {t('unit_kib')} × {(billing.waterUsage > 0 ? billing.waterCostRiel / billing.waterUsage : 0).toLocaleString()} ៛)</p>
                 </td>
-                <td className="py-3 text-right">{billing.waterUsage} {t('unit_kib')}</td>
-                <td className="py-3 text-right">{billing.waterCostRiel.toLocaleString()} ៛</td>
-                <td className="py-3 text-right font-medium">{formatCurrency(billing.waterCostRiel / xRate)}</td>
+                <td className="py-3 print:py-1.5 text-right">{billing.waterUsage} {t('unit_kib')}</td>
+                <td className="py-3 print:py-1.5 text-right">{billing.waterCostRiel.toLocaleString()} ៛</td>
+                <td className="py-3 print:py-1.5 text-right font-medium">{formatCurrency(billing.waterCostRiel / xRate)}</td>
               </tr>
               <tr>
-                <td className="py-3">
+                <td className="py-3 print:py-1.5">
                   {t('invoice_electricity')}
                   <p className="text-xs text-slate-500">
                     {t('invoice_meter_old')}: {billing.prevElectricReading} → {t('invoice_meter_new')}: {billing.currElectricReading}
                   </p>
                   <p className="text-xs text-slate-400">({billing.electricUsage} {t('unit_kw')} × {(billing.electricUsage > 0 ? billing.electricCostRiel / billing.electricUsage : 0).toLocaleString()} ៛)</p>
                 </td>
-                <td className="py-3 text-right">{billing.electricUsage} {t('unit_kw')}</td>
-                <td className="py-3 text-right">{billing.electricCostRiel.toLocaleString()} ៛</td>
-                <td className="py-3 text-right font-medium">{formatCurrency(billing.electricCostRiel / xRate)}</td>
+                <td className="py-3 print:py-1.5 text-right">{billing.electricUsage} {t('unit_kw')}</td>
+                <td className="py-3 print:py-1.5 text-right">{billing.electricCostRiel.toLocaleString()} ៛</td>
+                <td className="py-3 print:py-1.5 text-right font-medium">{formatCurrency(billing.electricCostRiel / xRate)}</td>
               </tr>
               {billing.outstandingDebtUsd > 0 && (
                 <tr className="text-red-600">
-                  <td className="py-3">{t('invoice_outstanding_debt')}</td>
-                  <td className="py-3 text-right">—</td>
-                  <td className="py-3 text-right">—</td>
-                  <td className="py-3 text-right font-medium">{formatCurrency(billing.outstandingDebtUsd)}</td>
+                  <td className="py-3 print:py-1.5">{t('invoice_outstanding_debt')}</td>
+                  <td className="py-3 print:py-1.5 text-right">—</td>
+                  <td className="py-3 print:py-1.5 text-right">—</td>
+                  <td className="py-3 print:py-1.5 text-right font-medium">{formatCurrency(billing.outstandingDebtUsd)}</td>
                 </tr>
               )}
               {billing.lateDays > 0 && (
                 <tr className="text-orange-600">
-                  <td className="py-3">{t('invoice_late_penalty')} ({billing.lateDays} days)</td>
-                  <td className="py-3 text-right">{billing.lateDays} days</td>
-                  <td className="py-3 text-right">${parseFloat(settings.late_penalty_usd ?? '1')}/day</td>
-                  <td className="py-3 text-right font-medium">{formatCurrency(billing.latePenaltyUsd)}</td>
+                  <td className="py-3 print:py-1.5">{t('invoice_late_penalty')} ({billing.lateDays} days)</td>
+                  <td className="py-3 print:py-1.5 text-right">{billing.lateDays} days</td>
+                  <td className="py-3 print:py-1.5 text-right">${parseFloat(settings.late_penalty_usd ?? '1')}/day</td>
+                  <td className="py-3 print:py-1.5 text-right font-medium">{formatCurrency(billing.latePenaltyUsd)}</td>
                 </tr>
               )}
               {billing.discountUsd > 0 && (
                 <tr className="text-green-600">
-                  <td className="py-3">{t('discount')}</td>
-                  <td className="py-3 text-right">—</td>
-                  <td className="py-3 text-right">—</td>
-                  <td className="py-3 text-right font-medium">-{formatCurrency(billing.discountUsd)}</td>
+                  <td className="py-3 print:py-1.5">{t('discount')}</td>
+                  <td className="py-3 print:py-1.5 text-right">—</td>
+                  <td className="py-3 print:py-1.5 text-right">—</td>
+                  <td className="py-3 print:py-1.5 text-right font-medium">-{formatCurrency(billing.discountUsd)}</td>
                 </tr>
               )}
             </tbody>
           </table>
 
           {/* Totals */}
-          <div className="mt-4 pt-4 border-t-2 border-slate-200">
+          <div className="mt-4 pt-4 print:mt-2 print:pt-2 border-t-2 border-slate-200">
             <div className="flex justify-end">
               <div className="w-72 space-y-2 text-sm">
                 {totalPaid > 0 && (
@@ -238,8 +238,8 @@ export function InvoiceClient({ billing, invoice, settings }: Props) {
 
         {/* QR Codes */}
         {(settings.qr_code_1 || settings.qr_code_2) && (
-          <div className="px-8 py-6 border-t border-slate-200">
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4 text-center">{t('invoice_payment_qr')}</p>
+          <div className="px-8 py-6 print:px-6 print:py-3 border-t border-slate-200">
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4 print:mb-2 text-center">{t('invoice_payment_qr')}</p>
             <div className="flex gap-8 justify-center flex-wrap">
               {([1, 2] as const).map((slot) => {
                 const src = settings[`qr_code_${slot}`]
@@ -247,7 +247,7 @@ export function InvoiceClient({ billing, invoice, settings }: Props) {
                 if (!src) return null
                 return (
                   <div key={slot} className="flex flex-col items-center gap-2">
-                    <img src={src} alt={`QR ${slot}`} className="w-28 h-28 object-contain border border-slate-200 rounded-lg" />
+                    <img src={src} alt={`QR ${slot}`} className="w-28 h-28 print:w-20 print:h-20 object-contain border border-slate-200 rounded-lg" />
                     {label && <p className="text-xs text-slate-600 font-medium text-center">{label}</p>}
                   </div>
                 )
@@ -257,7 +257,7 @@ export function InvoiceClient({ billing, invoice, settings }: Props) {
         )}
 
         {/* Footer */}
-        <div className="px-8 py-4 bg-slate-50 border-t border-slate-200 text-center text-xs text-slate-400">
+        <div className="px-8 py-4 print:px-6 print:py-2 bg-slate-50 border-t border-slate-200 text-center text-xs text-slate-400">
           <p>{t('invoice_footer')}</p>
           <p className="mt-1">{settings.company_name || 'Takmao Rental'} · {settings.company_phone || ''} · {settings.company_address || ''}</p>
         </div>
