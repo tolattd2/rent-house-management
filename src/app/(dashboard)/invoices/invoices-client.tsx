@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { Search, FileText, Printer } from 'lucide-react'
+import { Search, FileText, Printer, Trash2 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useLanguage } from '@/contexts/language-context'
+import { useSession } from 'next-auth/react'
 import { toast } from '@/hooks/use-toast'
 
 interface Invoice {
@@ -29,8 +30,11 @@ interface Props {
   invoices: Invoice[]
 }
 
-export function InvoicesClient({ invoices }: Props) {
+export function InvoicesClient({ invoices: initial }: Props) {
   const { t } = useLanguage()
+  const { data: session } = useSession()
+  const isAdmin = session?.user?.role === 'admin'
+  const [invoices, setInvoices] = useState(initial)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [monthFilter, setMonthFilter] = useState('all')
@@ -54,6 +58,18 @@ export function InvoicesClient({ invoices }: Props) {
   const totalAmount = filtered.reduce((s, inv) => s + (inv.billing?.totalUsd ?? 0), 0)
   const paidCount = filtered.filter((inv) => inv.billing?.paymentStatus === 'paid').length
   const unpaidCount = filtered.filter((inv) => inv.billing?.paymentStatus !== 'paid').length
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Delete this invoice? This cannot be undone.')) return
+    const res = await fetch(`/api/invoices/${id}`, { method: 'DELETE' })
+    const data = await res.json()
+    if (data.ok) {
+      setInvoices((prev) => prev.filter((inv) => inv.id !== id))
+      toast({ title: 'Invoice deleted' })
+    } else {
+      toast({ title: 'Error', description: data.error, variant: 'destructive' })
+    }
+  }
 
   const handleBatchPrint = () => {
     if (monthFilter === 'all') {
@@ -181,6 +197,12 @@ export function InvoicesClient({ invoices }: Props) {
                         onClick={() => window.open(`/invoices/${inv.billingId}`, '_blank')}>
                         <Printer className="w-3.5 h-3.5" />
                       </Button>
+                      {isAdmin && (
+                        <Button variant="ghost" size="sm" className="text-xs h-8 px-2 text-destructive hover:bg-destructive/10"
+                          onClick={() => handleDelete(inv.id)}>
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      )}
                     </div>
                   </td>
                 </tr>
