@@ -243,7 +243,14 @@ export function MaintenanceClient({ records: initial, rooms, tenants }: Props) {
           <Input placeholder={t('maintenance_search')} className="pl-9 h-9 bg-muted/50 border-0 focus-visible:ring-1" value={search}
             onChange={(e) => setSearch(e.target.value)} />
         </div>
-        <p className="text-sm text-muted-foreground">
+        {(['all', ...branches] as const).map((b) => (
+          <Button key={b} variant={branchFilter === b ? 'default' : 'outline'} size="sm"
+            className="h-9 px-3 text-sm"
+            onClick={() => setBranchFilter(b)}>
+            {b === 'all' ? t('all_branches') : b}
+          </Button>
+        ))}
+        <p className="text-sm text-muted-foreground ml-auto">
           {t('maintenance_total_fees')} <span className="font-semibold text-foreground">{formatCurrency(totalFee)}</span>
         </p>
       </div>
