@@ -160,9 +160,13 @@ export function SettingsClient({ settings: initial }: Props) {
       water_rate_riel: initial.water_rate_riel ?? '2000',
       electric_rate_riel: initial.electric_rate_riel ?? '720',
       late_penalty_usd: initial.late_penalty_usd ?? '1',
-      company_name: initial.company_name ?? 'Takmao Rental',
-      company_phone: initial.company_phone ?? '',
-      company_address: initial.company_address ?? 'Phnom Penh, Cambodia',
+      // Branch-specific company info
+      company_takmoa_name: initial.company_takmoa_name ?? 'Takmao Rental',
+      company_takmoa_phone: initial.company_takmoa_phone ?? '',
+      company_takmoa_address: initial.company_takmoa_address ?? 'Phnom Penh, Cambodia',
+      company_chamkadong_name: initial.company_chamkadong_name ?? 'Chamkadong Rental',
+      company_chamkadong_phone: initial.company_chamkadong_phone ?? '',
+      company_chamkadong_address: initial.company_chamkadong_address ?? 'Phnom Penh, Cambodia',
       telegram_token: initial.telegram_token ?? '',
       telegram_chat_id: initial.telegram_chat_id ?? '',
       smtp_host: initial.smtp_host ?? '',
@@ -173,8 +177,10 @@ export function SettingsClient({ settings: initial }: Props) {
       twilio_sid: initial.twilio_sid ?? '',
       twilio_token: initial.twilio_token ?? '',
       twilio_phone: initial.twilio_phone ?? '',
-      qr_label_1: initial.qr_label_1 ?? '',
-      qr_label_2: initial.qr_label_2 ?? '',
+      qr_takmoa_label_1: initial.qr_takmoa_label_1 ?? '',
+      qr_takmoa_label_2: initial.qr_takmoa_label_2 ?? '',
+      qr_chamkadong_label_1: initial.qr_chamkadong_label_1 ?? '',
+      qr_chamkadong_label_2: initial.qr_chamkadong_label_2 ?? '',
     },
   })
 
@@ -244,24 +250,33 @@ export function SettingsClient({ settings: initial }: Props) {
             </Card>
           </TabsContent>
 
-          <TabsContent value="company" className="mt-4">
-            <Card>
-              <CardHeader><CardTitle className="text-base">{t('settings_company_info')}</CardTitle></CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-1.5">
-                  <Label>{t('settings_company_name')}</Label>
-                  <Input {...register('company_name')} placeholder="Takmao Rental Management" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>{t('settings_phone')}</Label>
-                  <Input {...register('company_phone')} placeholder="012 000 000" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>{t('settings_address')}</Label>
-                  <Input {...register('company_address')} placeholder="Phnom Penh, Cambodia" />
-                </div>
-              </CardContent>
-            </Card>
+          <TabsContent value="company" className="mt-4 space-y-4">
+            {([
+              { branch: 'takmoa' as const, label: 'Takmoa Branch', namePlaceholder: 'Takmao Rental' },
+              { branch: 'chamkadong' as const, label: 'Chamkadong Branch', namePlaceholder: 'Chamkadong Rental' },
+            ]).map(({ branch, label, namePlaceholder }) => (
+              <Card key={branch}>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Building2 className="w-4 h-4" />{label}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-1.5">
+                    <Label>{t('settings_company_name')}</Label>
+                    <Input {...register(`company_${branch}_name` as 'company_takmoa_name')} placeholder={namePlaceholder} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>{t('settings_phone')}</Label>
+                    <Input {...register(`company_${branch}_phone` as 'company_takmoa_phone')} placeholder="012 000 000" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>{t('settings_address')}</Label>
+                    <Input {...register(`company_${branch}_address` as 'company_takmoa_address')} placeholder="Phnom Penh, Cambodia" />
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
           </TabsContent>
 
           <TabsContent value="telegram" className="mt-4">
@@ -413,7 +428,7 @@ export function SettingsClient({ settings: initial }: Props) {
                           <div className="space-y-1.5">
                             <Label>{t('settings_qr_label')}</Label>
                             <Input
-                              {...register(`qr_${branch}_label_${slot}` as 'qr_label_1')}
+                              {...register(`qr_${branch}_label_${slot}` as 'qr_takmoa_label_1')}
                               placeholder={slot === 1 ? 'e.g. ABA Bank' : 'e.g. Wing Money'}
                             />
                           </div>

@@ -33,9 +33,15 @@ interface Props {
 
 export function BatchPrintClient({ billings, settings, month, branch }: Props) {
   const xRate = parseFloat(settings.exchange_rate ?? '4100')
-  const companyName = settings.company_name || 'Takmao Rental'
-  const companyPhone = settings.company_phone || ''
-  const companyAddress = settings.company_address || 'Phnom Penh, Cambodia'
+
+  function branchCompany(roomBranch: string | null | undefined) {
+    const key = roomBranch === 'Chamkadong' ? 'chamkadong' : 'takmoa'
+    return {
+      name: settings[`company_${key}_name`] || settings.company_name || 'Takmao Rental',
+      phone: settings[`company_${key}_phone`] || settings.company_phone || '',
+      address: settings[`company_${key}_address`] || settings.company_address || 'Phnom Penh, Cambodia',
+    }
+  }
 
   // Group into pages of 4
   const pages: BillingItem[][] = []
@@ -120,6 +126,7 @@ export function BatchPrintClient({ billings, settings, month, branch }: Props) {
           {page.map((b) => {
             const totalPaid = b.payments.reduce((s, p) => s + p.amountUsd, 0)
             const isPaid = b.paymentStatus === 'paid'
+            const { name: companyName, phone: companyPhone, address: companyAddress } = branchCompany(b.room?.branch)
 
             return (
               <div

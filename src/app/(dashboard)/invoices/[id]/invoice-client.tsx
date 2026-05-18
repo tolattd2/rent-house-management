@@ -43,6 +43,10 @@ export function InvoiceClient({ billing, invoice, settings }: Props) {
   const xRate = billing.exchangeRate || parseFloat(settings.exchange_rate ?? '4100')
   const totalPaid = billing.payments.reduce((s, p) => s + p.amountUsd, 0)
   const balance = Math.max(0, billing.totalUsd - totalPaid)
+  const branchKey = billing.room?.branch === 'Chamkadong' ? 'chamkadong' : 'takmoa'
+  const companyName = settings[`company_${branchKey}_name`] || settings.company_name || 'Takmao Rental'
+  const companyPhone = settings[`company_${branchKey}_phone`] || settings.company_phone || ''
+  const companyAddress = settings[`company_${branchKey}_address`] || settings.company_address || 'Phnom Penh, Cambodia'
 
   const handlePrint = () => window.print()
 
@@ -86,9 +90,9 @@ export function InvoiceClient({ billing, invoice, settings }: Props) {
         <div className="bg-gradient-to-r from-blue-600 to-blue-800 px-8 py-6 print:px-6 print:py-3 text-white">
           <div className="flex justify-between items-start">
             <div>
-              <h1 className="text-2xl print:text-lg font-bold">{settings.company_name || 'Takmao Rental'}</h1>
-              <p className="text-blue-200 text-sm">{settings.company_address || 'Phnom Penh, Cambodia'}</p>
-              {settings.company_phone && <p className="text-blue-200 text-sm">{settings.company_phone}</p>}
+              <h1 className="text-2xl print:text-lg font-bold">{companyName}</h1>
+              <p className="text-blue-200 text-sm">{companyAddress}</p>
+              {companyPhone && <p className="text-blue-200 text-sm">{companyPhone}</p>}
             </div>
             <div className="text-right">
               <p className="text-blue-200 text-xs uppercase tracking-wider">{t('invoices_title')}</p>
@@ -263,7 +267,7 @@ export function InvoiceClient({ billing, invoice, settings }: Props) {
         {/* Footer */}
         <div className="px-8 py-4 print:px-6 print:py-2 bg-slate-50 border-t border-slate-200 text-center text-xs text-slate-400">
           <p>{t('invoice_footer')}</p>
-          <p className="mt-1">{settings.company_name || 'Takmao Rental'} · {settings.company_phone || ''} · {settings.company_address || ''}</p>
+          <p className="mt-1">{companyName} · {companyPhone} · {companyAddress}</p>
         </div>
       </motion.div>
     </div>
