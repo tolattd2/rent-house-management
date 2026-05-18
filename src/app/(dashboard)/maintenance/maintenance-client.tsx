@@ -238,9 +238,9 @@ export function MaintenanceClient({ records: initial, rooms, tenants }: Props) {
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 sm:items-center">
-        <div className="relative sm:max-w-xs w-full">
+        <div className="relative w-full max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input placeholder={t('maintenance_search')} className="pl-9 h-9" value={search}
+          <Input placeholder={t('maintenance_search')} className="pl-9 h-9 bg-muted/50 border-0 focus-visible:ring-1" value={search}
             onChange={(e) => setSearch(e.target.value)} />
         </div>
         <p className="text-sm text-muted-foreground">
