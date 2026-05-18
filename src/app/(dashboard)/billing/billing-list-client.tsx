@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Plus, Search, FileText, Calendar, Trash2, Printer } from 'lucide-react'
@@ -46,6 +46,7 @@ export function BillingListClient({ billings: initial }: Props) {
   const isAdmin = session?.user?.role === 'admin'
   const { t } = useLanguage()
   const [billings, setBillings] = useState(initial)
+  useEffect(() => { setBillings(initial) }, [initial])
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [monthFilter, setMonthFilter] = useState('all')
