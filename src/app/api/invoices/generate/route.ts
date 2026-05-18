@@ -3,10 +3,13 @@ import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { generateInvoiceNumber } from '@/lib/utils'
 
-function buildBillingWhere(month: string, branch: string) {
-  const where: Record<string, unknown> = { billingMonth: month, invoice: null }
-  if (branch && branch !== 'all') where.room = { branch }
-  return where
+function billingFilter(month: string, branch: string) {
+  const base: Record<string, unknown> = {
+    billingMonth: month,
+    invoices: { none: {} },
+  }
+  if (branch && branch !== 'all') base.room = { branch }
+  return base
 }
 
 // GET — preview count of billings without invoices for month+branch
@@ -18,15 +21,13 @@ export async function GET(req: NextRequest) {
   const branch = searchParams.get('branch') ?? 'all'
   if (!month) return NextResponse.json({ ok: false, error: 'Month required' }, { status: 400 })
 
-  const willGenerate = await db.billing.count({ where: buildBillingWhere(month, branch) })
-  const alreadyExists = await db.invoice.count({
-    where: {
-      billing: {
-        billingMonth: month,
-        ...(branch && branch !== 'all' ? { room: { branch } } : {}),
-      },
-    },
-  })
+  const billingWhere: Record<string, unknown> = { billingMonth: month }
+  if (branch && branch !== 'all') billingWhere.room = { branch }
+
+  const [willGenerate, alreadyExists] = await Promise.all([
+    db.billing.count({ where: billingFilter(month, branch) }),
+    db.invoice.count({ where: { billing: billingWhere } }),
+  ])
 
   return NextResponse.json({ ok: true, willGenerate, alreadyExists })
 }
@@ -41,23 +42,25 @@ export async function POST(req: NextRequest) {
   if (!month) return NextResponse.json({ ok: false, error: 'Month required' }, { status: 400 })
 
   const billings = await db.billing.findMany({
-    where: buildBillingWhere(month, branch),
+    where: billingFilter(month, branch),
     select: { id: true, tenantId: true },
   })
 
+  if (billings.length === 0) return NextResponse.json({ ok: true, created: 0 })
+
   const existingCount = await db.invoice.count()
-  let created = 0
 
-  for (const billing of billings) {
-    await db.invoice.create({
-      data: {
-        invoiceNumber: generateInvoiceNumber(existingCount + created + 1),
-        tenantId: billing.tenantId,
-        billingId: billing.id,
-      },
-    })
-    created++
-  }
+  await Promise.all(
+    billings.map((billing, i) =>
+      db.invoice.create({
+        data: {
+          invoiceNumber: generateInvoiceNumber(existingCount + i + 1),
+          tenantId: billing.tenantId,
+          billingId: billing.id,
+        },
+      })
+    )
+  )
 
-  return NextResponse.json({ ok: true, created })
+  return NextResponse.json({ ok: true, created: billings.length })
 }
