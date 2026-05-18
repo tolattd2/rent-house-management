@@ -19,7 +19,7 @@ type Billing = {
   outstandingDebtUsd: number; latePenaltyUsd: number; discountUsd: number
   paymentStatus: string; paymentDate: string
   tenant: { id: string; fullName: string } | null
-  room: { id: string; roomNumber: string } | null
+  room: { id: string; roomNumber: string; branch: string } | null
   payments: Array<{ amountUsd: number }>
 }
 
@@ -31,14 +31,21 @@ type Expense = {
 
 interface Props { billings: Billing[]; expenses: Expense[] }
 
+const BRANCHES = ['all', 'Takmoa', 'Chamkadong'] as const
+type Branch = typeof BRANCHES[number]
+
 export function ReportsClient({ billings, expenses }: Props) {
   const { t } = useLanguage()
   const [selectedMonth, setSelectedMonth] = useState<string>('all')
+  const [branchFilter, setBranchFilter] = useState<Branch>('all')
 
   const months = useMemo(() =>
     [...new Set(billings.map((b) => b.billingMonth))].sort().reverse(),
     [billings]
   )
+
+  const branchBillings = branchFilter === 'all' ? billings : billings.filter((b) => b.room?.branch === branchFilter)
+  const branchExpenses = branchFilter === 'all' ? expenses : expenses.filter((e) => e.room?.branch === branchFilter)
 
   const revenueChart = useMemo(() => {
     const now = new Date()
@@ -46,24 +53,24 @@ export function ReportsClient({ billings, expenses }: Props) {
       const d = new Date(now.getFullYear(), now.getMonth() - (11 - i), 1)
       const m = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
       const label = d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
-      const rev = billings.filter((b) => b.billingMonth === m && b.paymentStatus === 'paid').reduce((s, b) => s + b.totalUsd, 0)
-      const out = billings.filter((b) => b.billingMonth === m && b.paymentStatus !== 'paid')
+      const rev = branchBillings.filter((b) => b.billingMonth === m && b.paymentStatus === 'paid').reduce((s, b) => s + b.totalUsd, 0)
+      const out = branchBillings.filter((b) => b.billingMonth === m && b.paymentStatus !== 'paid')
         .reduce((s, b) => {
           const paid = b.payments.reduce((ps, p) => ps + p.amountUsd, 0)
           return s + Math.max(0, b.totalUsd - paid)
         }, 0)
-      const exp = expenses.filter((e) => e.expenseDate.startsWith(m)).reduce((s, e) => s + e.amountUsd, 0)
+      const exp = branchExpenses.filter((e) => e.expenseDate.startsWith(m)).reduce((s, e) => s + e.amountUsd, 0)
       return { month: m, label, revenue: parseFloat(rev.toFixed(2)), outstanding: parseFloat(out.toFixed(2)), expenses: parseFloat(exp.toFixed(2)) }
     })
-  }, [billings])
+  }, [branchBillings, branchExpenses])
 
   const monthBillings = selectedMonth === 'all'
-    ? billings
-    : billings.filter((b) => b.billingMonth === selectedMonth)
+    ? branchBillings
+    : branchBillings.filter((b) => b.billingMonth === selectedMonth)
 
   const monthExpenses = selectedMonth === 'all'
-    ? expenses
-    : expenses.filter((e) => e.expenseDate.startsWith(selectedMonth))
+    ? branchExpenses
+    : branchExpenses.filter((e) => e.expenseDate.startsWith(selectedMonth))
 
   const totalRevenue = monthBillings.filter((b) => b.paymentStatus === 'paid').reduce((s, b) => s + b.totalUsd, 0)
   const totalOutstanding = monthBillings
@@ -99,7 +106,15 @@ export function ReportsClient({ billings, expenses }: Props) {
           <h1 className="text-2xl font-bold">{t('reports_title')}</h1>
           <p className="text-muted-foreground text-sm">{t('reports_subtitle')}</p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-2 items-center">
+          <div className="flex gap-1">
+            {BRANCHES.map((b) => (
+              <Button key={b} size="sm" variant={branchFilter === b ? 'default' : 'outline'}
+                onClick={() => setBranchFilter(b)}>
+                {b === 'all' ? t('all') : b}
+              </Button>
+            ))}
+          </div>
           <Select value={selectedMonth} onValueChange={setSelectedMonth}>
             <SelectTrigger className="w-40">
               <SelectValue placeholder={t('billing_all_months')} />

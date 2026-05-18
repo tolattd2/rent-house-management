@@ -6,7 +6,7 @@ async function getReportData() {
     db.billing.findMany({
       include: {
         tenant: { select: { id: true, fullName: true } },
-        room: { select: { id: true, roomNumber: true } },
+        room: { select: { id: true, roomNumber: true, branch: true } },
         payments: true,
       },
       orderBy: { billingMonth: 'desc' },
