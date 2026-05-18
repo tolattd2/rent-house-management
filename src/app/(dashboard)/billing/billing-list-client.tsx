@@ -49,7 +49,8 @@ export function BillingListClient({ billings: initial }: Props) {
   useEffect(() => { setBillings(initial) }, [initial])
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
-  const [monthFilter, setMonthFilter] = useState('all')
+  const latestMonth = [...new Set(initial.map((b) => b.billingMonth))].sort().reverse()[0] ?? 'all'
+  const [monthFilter, setMonthFilter] = useState(latestMonth)
   const [branchFilter, setBranchFilter] = useState('all')
   const [payDialog, setPayDialog] = useState<Billing | null>(null)
   const [showBatchDelete, setShowBatchDelete] = useState(false)
