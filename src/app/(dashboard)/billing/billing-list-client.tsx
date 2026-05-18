@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Plus, Search, Filter, FileText, CheckCircle, AlertTriangle, Calendar, Trash2, Printer } from 'lucide-react'
+import { Plus, Search, FileText, Calendar, Trash2, Printer } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -11,6 +11,7 @@ import { Card } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { PaymentDialog } from '@/components/billing/payment-dialog'
 import { BatchDeleteDialog } from '@/components/billing/batch-delete-dialog'
+import { GenerateMonthlyDialog } from '@/components/billing/generate-monthly-dialog'
 import { formatCurrency, formatCompact, exportToCSV, roomLabel, sortRoomsByNumber } from '@/lib/utils'
 import { toast } from '@/hooks/use-toast'
 import { useSession } from 'next-auth/react'
@@ -51,6 +52,7 @@ export function BillingListClient({ billings: initial }: Props) {
   const [branchFilter, setBranchFilter] = useState('all')
   const [payDialog, setPayDialog] = useState<Billing | null>(null)
   const [showBatchDelete, setShowBatchDelete] = useState(false)
+  const [showGenerate, setShowGenerate] = useState(false)
 
   const branches = [...new Set(billings.map((b) => b.room?.branch ?? 'Takmoa'))].sort()
 
@@ -79,22 +81,6 @@ export function BillingListClient({ billings: initial }: Props) {
 
   const months = [...new Set(billings.map((b) => b.billingMonth))].sort().reverse()
 
-  const handleGenerateMonthly = async () => {
-    const month = prompt('Generate billings for month (YYYY-MM):', new Date().toISOString().slice(0, 7))
-    if (!month) return
-    const res = await fetch('/api/billing/generate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ month }),
-    })
-    const data = await res.json()
-    if (data.ok) {
-      toast({ title: `Generated ${data.created} billings, skipped ${data.skipped}` })
-      router.refresh()
-    } else {
-      toast({ title: 'Error', description: data.error, variant: 'destructive' })
-    }
-  }
 
   const handleExport = () => {
     const headers = ['Month', 'Tenant', 'Room', 'Rent(USD)', 'Water', 'Water(KHR)', 'Electric', 'Elec(KHR)', 'Debt', 'Days', 'Penalty', 'Discount', 'Total(USD)', 'Total(KHR)', 'Status']
@@ -105,15 +91,6 @@ export function BillingListClient({ billings: initial }: Props) {
       b.totalUsd, Math.round(b.totalRiel), b.paymentStatus,
     ])
     exportToCSV(headers, rows, `billing-${monthFilter || 'all'}.csv`)
-  }
-
-  const handleMarkPaid = async (id: string) => {
-    const res = await fetch(`/api/billing/${id}/mark-paid`, { method: 'POST' })
-    const data = await res.json()
-    if (data.ok) {
-      setBillings((prev) => prev.map((b) => b.id === id ? { ...b, paymentStatus: 'paid', paymentDate: new Date().toISOString().slice(0, 10) } : b))
-      toast({ title: 'Marked as paid' })
-    }
   }
 
   const handleDelete = async (id: string) => {
@@ -153,7 +130,7 @@ export function BillingListClient({ billings: initial }: Props) {
           </Button>
           {isAdmin && (
             <>
-              <Button variant="outline" size="sm" onClick={handleGenerateMonthly}>
+              <Button variant="outline" size="sm" onClick={() => setShowGenerate(true)}>
                 <Calendar className="w-4 h-4 mr-2" />{t('billing_generate')}
               </Button>
               <Button variant="outline" size="sm" className="text-destructive border-destructive/30 hover:bg-destructive/10"
@@ -427,6 +404,14 @@ export function BillingListClient({ billings: initial }: Props) {
           branches={branches}
           onClose={() => setShowBatchDelete(false)}
           onDeleted={() => { setShowBatchDelete(false); router.refresh() }}
+        />
+      )}
+
+      {showGenerate && (
+        <GenerateMonthlyDialog
+          branches={branches}
+          onClose={() => setShowGenerate(false)}
+          onGenerated={() => { setShowGenerate(false); router.refresh() }}
         />
       )}
     </div>
