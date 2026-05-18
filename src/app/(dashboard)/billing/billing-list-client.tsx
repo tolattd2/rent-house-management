@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { PaymentDialog } from '@/components/billing/payment-dialog'
+import { BatchDeleteDialog } from '@/components/billing/batch-delete-dialog'
 import { formatCurrency, formatCompact, exportToCSV, roomLabel, sortRoomsByNumber } from '@/lib/utils'
 import { toast } from '@/hooks/use-toast'
 import { useSession } from 'next-auth/react'
@@ -49,6 +50,7 @@ export function BillingListClient({ billings: initial }: Props) {
   const [monthFilter, setMonthFilter] = useState('all')
   const [branchFilter, setBranchFilter] = useState('all')
   const [payDialog, setPayDialog] = useState<Billing | null>(null)
+  const [showBatchDelete, setShowBatchDelete] = useState(false)
 
   const branches = [...new Set(billings.map((b) => b.room?.branch ?? 'Takmoa'))].sort()
 
@@ -153,6 +155,10 @@ export function BillingListClient({ billings: initial }: Props) {
             <>
               <Button variant="outline" size="sm" onClick={handleGenerateMonthly}>
                 <Calendar className="w-4 h-4 mr-2" />{t('billing_generate')}
+              </Button>
+              <Button variant="outline" size="sm" className="text-destructive border-destructive/30 hover:bg-destructive/10"
+                onClick={() => setShowBatchDelete(true)}>
+                <Trash2 className="w-4 h-4 mr-2" />Batch Delete
               </Button>
               <Link href="/billing/create"><Button><Plus className="w-4 h-4 mr-2" />{t('billing_create')}</Button></Link>
             </>
@@ -412,6 +418,15 @@ export function BillingListClient({ billings: initial }: Props) {
           billing={payDialog}
           onClose={() => setPayDialog(null)}
           onSave={() => { setPayDialog(null); router.refresh() }}
+        />
+      )}
+
+      {showBatchDelete && (
+        <BatchDeleteDialog
+          months={months}
+          branches={branches}
+          onClose={() => setShowBatchDelete(false)}
+          onDeleted={() => { setShowBatchDelete(false); router.refresh() }}
         />
       )}
     </div>
