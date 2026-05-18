@@ -179,29 +179,27 @@ export function BillingListClient({ billings: initial }: Props) {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
-        <div className="relative w-full max-w-md">
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative flex-1 min-w-[200px] max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input placeholder={t('billing_search')} className="pl-9 h-9 bg-muted/50 border-0 focus-visible:ring-1" value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
-        <div className="flex gap-2">
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="flex-1 sm:w-36 h-11"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{t('billing_all_status')}</SelectItem>
-              <SelectItem value="paid">{t('status_paid')}</SelectItem>
-              <SelectItem value="unpaid">{t('status_unpaid')}</SelectItem>
-              <SelectItem value="partial">{t('status_partial')}</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={monthFilter} onValueChange={setMonthFilter}>
-            <SelectTrigger className="flex-1 sm:w-40 h-11"><SelectValue placeholder="All months" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{t('billing_all_months')}</SelectItem>
-              {months.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
-            </SelectContent>
-          </Select>
-        </div>
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-36 h-9"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{t('billing_all_status')}</SelectItem>
+            <SelectItem value="paid">{t('status_paid')}</SelectItem>
+            <SelectItem value="unpaid">{t('status_unpaid')}</SelectItem>
+            <SelectItem value="partial">{t('status_partial')}</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={monthFilter} onValueChange={setMonthFilter}>
+          <SelectTrigger className="w-40 h-9"><SelectValue placeholder="All months" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{t('billing_all_months')}</SelectItem>
+            {months.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Mobile card list — visible on small screens */}

@@ -85,28 +85,26 @@ export function TenantsClient({ tenants: initial, rooms }: Props) {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
-        <div className="relative w-full max-w-md">
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative flex-1 min-w-[200px] max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input placeholder={t('tenants_search')} className="pl-9 h-9 bg-muted/50 border-0 focus-visible:ring-1" value={search}
             onChange={(e) => setSearch(e.target.value)} />
         </div>
-        <div className="flex gap-1.5">
-          {(['all', 'active', 'inactive'] as const).map((s) => (
-            <Button key={s} variant={statusFilter === s ? 'default' : 'outline'} size="sm"
-              className="flex-1 sm:flex-none h-11 px-2 sm:px-3 text-xs sm:text-sm"
-              onClick={() => setStatusFilter(s)}>
-              {t(`status_${s}` as Parameters<typeof t>[0])}
-            </Button>
-          ))}
-          {(['all', 'Takmoa', 'Chamkadong'] as const).map((b) => (
-            <Button key={b} variant={branchFilter === b ? 'default' : 'outline'} size="sm"
-              className="flex-1 sm:flex-none h-11 px-2 sm:px-3 text-xs sm:text-sm"
-              onClick={() => setBranchFilter(b)}>
-              {b === 'all' ? <><Building2 className="w-3 h-3 sm:mr-1" /><span className="hidden sm:inline">{t('all')}</span></> : <span className="truncate max-w-[72px]">{b}</span>}
-            </Button>
-          ))}
-        </div>
+        {(['all', 'active', 'inactive'] as const).map((s) => (
+          <Button key={s} variant={statusFilter === s ? 'default' : 'outline'} size="sm"
+            className="h-9 px-3 text-sm"
+            onClick={() => setStatusFilter(s)}>
+            {t(`status_${s}` as Parameters<typeof t>[0])}
+          </Button>
+        ))}
+        {(['all', 'Takmoa', 'Chamkadong'] as const).map((b) => (
+          <Button key={b} variant={branchFilter === b ? 'default' : 'outline'} size="sm"
+            className="h-9 px-3 text-sm"
+            onClick={() => setBranchFilter(b)}>
+            {b === 'all' ? t('all') : b}
+          </Button>
+        ))}
       </div>
 
       {/* Mobile card list — visible on small screens */}

@@ -128,20 +128,18 @@ export function RoomsClient({ rooms: initialRooms }: Props) {
       </div>
 
       {/* Search & Branch filter */}
-      <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 sm:items-center">
-        <div className="relative w-full max-w-md">
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative flex-1 min-w-[200px] max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input placeholder={t('rooms_search')} className="pl-9 h-9 bg-muted/50 border-0 focus-visible:ring-1" value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
-        <div className="flex gap-1.5">
-          {(['all', 'Takmoa', 'Chamkadong'] as const).map((b) => (
-            <Button key={b} variant={branchFilter === b ? 'default' : 'outline'} size="sm"
-              className="flex-1 sm:flex-none h-11 px-2 sm:px-3 text-xs sm:text-sm"
-              onClick={() => setBranchFilter(b)}>
-              {b === 'all' ? t('all_branches') : b}
-            </Button>
-          ))}
-        </div>
+        {(['all', 'Takmoa', 'Chamkadong'] as const).map((b) => (
+          <Button key={b} variant={branchFilter === b ? 'default' : 'outline'} size="sm"
+            className="h-9 px-3 text-sm"
+            onClick={() => setBranchFilter(b)}>
+            {b === 'all' ? t('all_branches') : b}
+          </Button>
+        ))}
       </div>
 
       {/* Room grid */}

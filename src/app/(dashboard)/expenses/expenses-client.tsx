@@ -291,8 +291,8 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
       )}
 
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 items-stretch sm:items-center">
-        <div className="relative w-full max-w-md">
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative flex-1 min-w-[200px] max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
             placeholder={t('expenses_search')}
@@ -301,35 +301,33 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <div className="flex gap-2">
-          <Select value={monthFilter} onValueChange={setMonthFilter}>
-            <SelectTrigger className="flex-1 sm:w-36 h-11">
-              <SelectValue placeholder={t('billing_all_months')} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{t('billing_all_months')}</SelectItem>
-              {months.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger className="flex-1 sm:w-40 h-11">
-              <SelectValue placeholder={t('all')} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{t('all')}</SelectItem>
-              {CATEGORIES.map((c) => (
-                <SelectItem key={c} value={c}>{catLabel(c)}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {(['all', 'Takmoa', 'Chamkadong'] as const).map((b) => (
-            <Button key={b} variant={branchFilter === b ? 'default' : 'outline'} size="sm"
-              className="h-11 px-2 sm:px-3 text-xs sm:text-sm"
-              onClick={() => setBranchFilter(b)}>
-              {b === 'all' ? t('all_branches') : b}
-            </Button>
-          ))}
-        </div>
+        <Select value={monthFilter} onValueChange={setMonthFilter}>
+          <SelectTrigger className="w-36 h-9">
+            <SelectValue placeholder={t('billing_all_months')} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{t('billing_all_months')}</SelectItem>
+            {months.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+          <SelectTrigger className="w-40 h-9">
+            <SelectValue placeholder={t('all')} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{t('all')}</SelectItem>
+            {CATEGORIES.map((c) => (
+              <SelectItem key={c} value={c}>{catLabel(c)}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {(['all', 'Takmoa', 'Chamkadong'] as const).map((b) => (
+          <Button key={b} variant={branchFilter === b ? 'default' : 'outline'} size="sm"
+            className="h-9 px-3 text-sm"
+            onClick={() => setBranchFilter(b)}>
+            {b === 'all' ? t('all_branches') : b}
+          </Button>
+        ))}
       </div>
 
       {/* Mobile card list */}
