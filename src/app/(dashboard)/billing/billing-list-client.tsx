@@ -267,10 +267,11 @@ export function BillingListClient({ billings: initial }: Props) {
       {/* Desktop table — hidden on small screens */}
       <Card className="hidden md:block">
         <div className="overflow-x-auto scrollbar-thin">
-          <table className="w-full min-w-[1150px] text-sm">
+          <table className="w-full min-w-[1250px] text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/30">
                 <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{t('room')}</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{t('branch')}</th>
                 <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{t('tenant')}</th>
                 <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{t('billing_col_month')}</th>
                 <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{t('billing_col_due_date')}</th>
@@ -294,10 +295,8 @@ export function BillingListClient({ billings: initial }: Props) {
                   <tr key={b.id}
                     className={`border-b border-border last:border-0 hover:bg-muted/30 ${i % 2 ? 'bg-muted/10' : ''}`}
                   >
-                    <td className="px-4 py-3 font-medium">
-                      {b.room?.roomNumber ?? '—'}
-                      {b.room?.branch && <p className="text-xs text-muted-foreground">{b.room.branch}</p>}
-                    </td>
+                    <td className="px-4 py-3 font-medium">{b.room?.roomNumber ?? '—'}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{b.room?.branch ?? '—'}</td>
                     <td className="px-4 py-3">
                       <Link href={`/tenants/${b.tenant?.id}`} className="font-medium hover:text-primary">
                         {b.tenant?.fullName ?? '—'}
