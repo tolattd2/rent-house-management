@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import { useSession } from 'next-auth/react'
 import { motion } from 'framer-motion'
 import {
   Building2, Users, DollarSign, AlertTriangle,
@@ -41,6 +42,8 @@ type Branch = typeof BRANCHES[number]
 
 export function DashboardClient({ rooms, tenants, billings, expenses, unpaidBillings }: Props) {
   const { t } = useLanguage()
+  const { data: session } = useSession()
+  const isAdmin = session?.user?.role === 'admin'
   const [branch, setBranch] = useState<Branch>('all')
   const currentMonth = new Date().toISOString().slice(0, 7)
 
@@ -139,12 +142,14 @@ export function DashboardClient({ rooms, tenants, billings, expenses, unpaidBill
               </button>
             ))}
           </div>
-          <Link
-            href="/billing/create"
-            className="hidden sm:inline-flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
-          >
-            <span>+ {t('new_billing')}</span>
-          </Link>
+          {isAdmin && (
+            <Link
+              href="/billing/create"
+              className="hidden sm:inline-flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
+            >
+              <span>+ {t('new_billing')}</span>
+            </Link>
+          )}
         </div>
       </div>
 
