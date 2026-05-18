@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { PaymentDialog } from '@/components/billing/payment-dialog'
 import { BatchDeleteDialog } from '@/components/billing/batch-delete-dialog'
 import { GenerateMonthlyDialog } from '@/components/billing/generate-monthly-dialog'
-import { InvoiceBatchPrintDialog } from '@/components/invoices/batch-print-dialog'
+import { BatchGenerateInvoiceDialog } from '@/components/invoices/batch-generate-dialog'
 import { formatCurrency, formatCompact, exportToCSV, roomLabel, sortRoomsByNumber } from '@/lib/utils'
 import { toast } from '@/hooks/use-toast'
 import { useSession } from 'next-auth/react'
@@ -397,10 +397,11 @@ export function BillingListClient({ billings: initial }: Props) {
       )}
 
       {showBatchInvoice && (
-        <InvoiceBatchPrintDialog
+        <BatchGenerateInvoiceDialog
           months={months}
           branches={branches}
           onClose={() => setShowBatchInvoice(false)}
+          onGenerated={() => setShowBatchInvoice(false)}
         />
       )}
     </div>
