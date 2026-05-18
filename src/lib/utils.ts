@@ -128,7 +128,14 @@ export function roomLabel(room: { roomNumber: string; branch?: string | null }):
 }
 
 export function sortRoomsByNumber<T extends { roomNumber: string }>(rooms: T[]): T[] {
+  const isSpecial = (n: string) => {
+    const d = n.replace(/\D/g, '')
+    return d.length > 0 && new Set(d.split('')).size === 1
+  }
   return [...rooms].sort((a, b) => {
+    const aSpec = isSpecial(a.roomNumber)
+    const bSpec = isSpecial(b.roomNumber)
+    if (aSpec !== bSpec) return aSpec ? -1 : 1
     const numA = parseInt(a.roomNumber.replace(/\D/g, ''), 10) || 0
     const numB = parseInt(b.roomNumber.replace(/\D/g, ''), 10) || 0
     return numA - numB
