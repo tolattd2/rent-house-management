@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
 import { useForm } from 'react-hook-form'
 import { Save, Building2, DollarSign, MessageSquare, Mail, Phone, Users, Plus, Key, Trash2, QrCode, Upload, X } from 'lucide-react'
@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge'
 import { toast } from '@/hooks/use-toast'
 import { useLanguage } from '@/contexts/language-context'
+import { QrCropDialog } from '@/components/settings/qr-crop-dialog'
 
 interface UserRow {
   id: string
@@ -51,9 +52,9 @@ export function SettingsClient({ settings: initial }: Props) {
   const [uploading2, setUploading2] = useState(false)
   const qr1InputRef = useRef<HTMLInputElement>(null)
   const qr2InputRef = useRef<HTMLInputElement>(null)
+  const [cropPending, setCropPending] = useState<{ slot: 1 | 2; file: File } | null>(null)
 
-  async function handleQrUpload(slot: 1 | 2, file: File | undefined) {
-    if (!file) return
+  const handleQrUpload = useCallback(async (slot: 1 | 2, file: File) => {
     slot === 1 ? setUploading1(true) : setUploading2(true)
     const form = new FormData()
     form.append('slot', String(slot))
@@ -67,7 +68,12 @@ export function SettingsClient({ settings: initial }: Props) {
       toast({ title: t('settings_save_error'), description: data.error, variant: 'destructive' })
     }
     slot === 1 ? setUploading1(false) : setUploading2(false)
-  }
+  }, [t])
+
+  const handleFileSelected = useCallback((slot: 1 | 2, file: File | undefined) => {
+    if (!file) return
+    setCropPending({ slot, file })
+  }, [])
 
   async function handleQrClear(slot: 1 | 2) {
     const form = new FormData()
@@ -390,7 +396,7 @@ export function SettingsClient({ settings: initial }: Props) {
                             type="file"
                             accept="image/*"
                             className="sr-only"
-                            onChange={(e) => handleQrUpload(slot, e.target.files?.[0])}
+                            onChange={(e) => { handleFileSelected(slot, e.target.files?.[0]); e.target.value = '' }}
                           />
                         </div>
                         <div className="space-y-1.5">
@@ -545,6 +551,18 @@ export function SettingsClient({ settings: initial }: Props) {
           </div>
         </DialogContent>
       </Dialog>
+
+      {cropPending && (
+        <QrCropDialog
+          file={cropPending.file}
+          onConfirm={(croppedFile) => {
+            const slot = cropPending.slot
+            setCropPending(null)
+            handleQrUpload(slot, croppedFile)
+          }}
+          onCancel={() => setCropPending(null)}
+        />
+      )}
     </div>
   )
 }
