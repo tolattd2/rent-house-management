@@ -11,15 +11,16 @@ export async function POST(req: NextRequest) {
 
   try {
     const form = await req.formData()
-    const slot = form.get('slot') as string
+    const branch = (form.get('branch') as string) || 'takmoa'  // 'takmoa' | 'chamkadong'
+    const slot = form.get('slot') as string                     // '1' | '2'
     const clear = form.get('clear') === 'true'
-    const key = `qr_code_${slot}`
+    const key = `qr_${branch}_${slot}`
 
     if (clear) {
       await db.setting.upsert({
         where: { key },
         update: { value: '' },
-        create: { key, value: '', label: `QR Code ${slot}` },
+        create: { key, value: '', label: `QR Code ${branch} ${slot}` },
       })
       return NextResponse.json({ ok: true, value: '' })
     }
@@ -35,7 +36,7 @@ export async function POST(req: NextRequest) {
     await db.setting.upsert({
       where: { key },
       update: { value: dataUrl },
-      create: { key, value: dataUrl, label: `QR Code ${slot}` },
+      create: { key, value: dataUrl, label: `QR Code ${branch} ${slot}` },
     })
 
     return NextResponse.json({ ok: true, value: dataUrl })

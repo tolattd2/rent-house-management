@@ -252,21 +252,25 @@ export function BatchPrintClient({ billings, settings, month, branch }: Props) {
                     Thank you for your business!<br />
                     {companyName} · {companyPhone}
                   </div>
-                  {(settings.qr_code_1 || settings.qr_code_2) && (
-                    <div style={{ display: 'flex', gap: '3mm', alignItems: 'center' }}>
-                      {[1, 2].map((slot) => {
-                        const src = settings[`qr_code_${slot}`]
-                        const label = settings[`qr_label_${slot}`]
-                        if (!src) return null
-                        return (
+                  {(() => {
+                    const branchKey = b.room?.branch === 'Chamkadong' ? 'chamkadong' : 'takmoa'
+                    const qrs = [1, 2].map((slot) => ({
+                      src: settings[`qr_${branchKey}_${slot}`],
+                      label: settings[`qr_${branchKey}_label_${slot}`],
+                      slot,
+                    })).filter((q) => q.src)
+                    if (qrs.length === 0) return null
+                    return (
+                      <div style={{ display: 'flex', gap: '3mm', alignItems: 'center' }}>
+                        {qrs.map(({ src, label, slot }) => (
                           <div key={slot} style={{ textAlign: 'center' }}>
                             <img src={src} alt={`QR ${slot}`} style={{ width: '13mm', height: '13mm', objectFit: 'contain', display: 'block' }} />
                             {label && <div style={{ fontSize: '5pt', color: '#64748b', marginTop: '0.5mm' }}>{label}</div>}
                           </div>
-                        )
-                      })}
-                    </div>
-                  )}
+                        ))}
+                      </div>
+                    )
+                  })()}
                 </div>
               </div>
             )

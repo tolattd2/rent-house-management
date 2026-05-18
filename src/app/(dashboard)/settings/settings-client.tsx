@@ -45,47 +45,54 @@ export function SettingsClient({ settings: initial }: Props) {
   const [newPassword, setNewPassword] = useState('')
   const [changingPw, setChangingPw] = useState(false)
 
-  // QR code upload state
-  const [qr1, setQr1] = useState(initial.qr_code_1 ?? '')
-  const [qr2, setQr2] = useState(initial.qr_code_2 ?? '')
-  const [uploading1, setUploading1] = useState(false)
-  const [uploading2, setUploading2] = useState(false)
-  const qr1InputRef = useRef<HTMLInputElement>(null)
-  const qr2InputRef = useRef<HTMLInputElement>(null)
-  const [cropPending, setCropPending] = useState<{ slot: 1 | 2; file: File } | null>(null)
+  // QR code upload state — keyed by "branch_slot" e.g. "takmoa_1"
+  type QrBranch = 'takmoa' | 'chamkadong'
+  const [qrImages, setQrImages] = useState<Record<string, string>>({
+    takmoa_1: initial.qr_takmoa_1 ?? '',
+    takmoa_2: initial.qr_takmoa_2 ?? '',
+    chamkadong_1: initial.qr_chamkadong_1 ?? '',
+    chamkadong_2: initial.qr_chamkadong_2 ?? '',
+  })
+  const [uploadingKey, setUploadingKey] = useState<string | null>(null)
+  const qrInputRefs = useRef<Record<string, HTMLInputElement | null>>({})
+  const [cropPending, setCropPending] = useState<{ branch: QrBranch; slot: 1 | 2; file: File } | null>(null)
 
-  const handleQrUpload = useCallback(async (slot: 1 | 2, file: File) => {
-    slot === 1 ? setUploading1(true) : setUploading2(true)
+  const handleQrUpload = useCallback(async (branch: QrBranch, slot: 1 | 2, file: File) => {
+    const key = `${branch}_${slot}`
+    setUploadingKey(key)
     const form = new FormData()
+    form.append('branch', branch)
     form.append('slot', String(slot))
     form.append('file', file)
     const res = await fetch('/api/settings/qr', { method: 'POST', body: form })
     const data = await res.json()
     if (data.ok) {
-      slot === 1 ? setQr1(data.value) : setQr2(data.value)
+      setQrImages(prev => ({ ...prev, [key]: data.value }))
       toast({ title: t('settings_saved') })
     } else {
       toast({ title: t('settings_save_error'), description: data.error, variant: 'destructive' })
     }
-    slot === 1 ? setUploading1(false) : setUploading2(false)
+    setUploadingKey(null)
   }, [t])
 
-  const handleFileSelected = useCallback((slot: 1 | 2, file: File | undefined) => {
+  const handleFileSelected = useCallback((branch: QrBranch, slot: 1 | 2, file: File | undefined) => {
     if (!file) return
-    setCropPending({ slot, file })
+    setCropPending({ branch, slot, file })
   }, [])
 
-  async function handleQrClear(slot: 1 | 2) {
+  const handleQrClear = useCallback(async (branch: QrBranch, slot: 1 | 2) => {
+    const key = `${branch}_${slot}`
     const form = new FormData()
+    form.append('branch', branch)
     form.append('slot', String(slot))
     form.append('clear', 'true')
     const res = await fetch('/api/settings/qr', { method: 'POST', body: form })
     const data = await res.json()
     if (data.ok) {
-      slot === 1 ? setQr1('') : setQr2('')
+      setQrImages(prev => ({ ...prev, [key]: '' }))
       toast({ title: t('settings_saved') })
     }
-  }
+  }, [t])
 
   async function loadUsers() {
     setUsersLoading(true)
@@ -334,84 +341,89 @@ export function SettingsClient({ settings: initial }: Props) {
               </CardContent>
             </Card>
           </TabsContent>
-          <TabsContent value="qr" className="mt-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base flex items-center gap-2">
-                  <QrCode className="w-4 h-4" />{t('settings_qr_codes')}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <p className="text-xs text-muted-foreground">{t('settings_qr_hint')}</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                  {([1, 2] as const).map((slot) => {
-                    const preview = slot === 1 ? qr1 : qr2
-                    const uploading = slot === 1 ? uploading1 : uploading2
-                    const inputRef = slot === 1 ? qr1InputRef : qr2InputRef
-                    return (
-                      <div key={slot} className="space-y-3">
-                        <p className="font-medium text-sm">{t(`settings_qr_slot${slot}` as 'settings_qr_slot1')}</p>
-                        <div className="border-2 border-dashed border-border rounded-xl p-4 flex flex-col items-center gap-3 min-h-[160px] justify-center">
-                          {preview ? (
-                            <>
-                              <img src={preview} alt={`QR ${slot}`} className="w-28 h-28 object-contain rounded" />
-                              <div className="flex gap-2">
+          <TabsContent value="qr" className="mt-4 space-y-4">
+            <p className="text-xs text-muted-foreground">{t('settings_qr_hint')}</p>
+            {([
+              { branch: 'takmoa' as const, label: 'Takmoa Branch' },
+              { branch: 'chamkadong' as const, label: 'Chamkadong Branch' },
+            ]).map(({ branch, label }) => (
+              <Card key={branch}>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <QrCode className="w-4 h-4" />{label}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    {([1, 2] as const).map((slot) => {
+                      const key = `${branch}_${slot}`
+                      const preview = qrImages[key]
+                      const uploading = uploadingKey === key
+                      return (
+                        <div key={slot} className="space-y-3">
+                          <p className="font-medium text-sm">{t(`settings_qr_slot${slot}` as 'settings_qr_slot1')}</p>
+                          <div className="border-2 border-dashed border-border rounded-xl p-4 flex flex-col items-center gap-3 min-h-[160px] justify-center">
+                            {preview ? (
+                              <>
+                                <img src={preview} alt={`QR ${slot}`} className="w-28 h-28 object-contain rounded" />
+                                <div className="flex gap-2">
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => qrInputRefs.current[key]?.click()}
+                                    disabled={uploading}
+                                  >
+                                    <Upload className="w-3.5 h-3.5 mr-1" />{t('settings_qr_upload')}
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    className="text-destructive hover:bg-destructive/10"
+                                    onClick={() => handleQrClear(branch, slot)}
+                                  >
+                                    <X className="w-3.5 h-3.5" />
+                                  </Button>
+                                </div>
+                              </>
+                            ) : (
+                              <>
+                                <QrCode className="w-10 h-10 text-muted-foreground/30" />
                                 <Button
                                   type="button"
                                   variant="outline"
                                   size="sm"
-                                  onClick={() => inputRef.current?.click()}
+                                  onClick={() => qrInputRefs.current[key]?.click()}
                                   disabled={uploading}
                                 >
-                                  <Upload className="w-3.5 h-3.5 mr-1" />{t('settings_qr_upload')}
+                                  <Upload className="w-3.5 h-3.5 mr-1.5" />
+                                  {uploading ? t('saving') : t('settings_qr_upload')}
                                 </Button>
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  className="text-destructive hover:bg-destructive/10"
-                                  onClick={() => handleQrClear(slot)}
-                                >
-                                  <X className="w-3.5 h-3.5" />
-                                </Button>
-                              </div>
-                            </>
-                          ) : (
-                            <>
-                              <QrCode className="w-10 h-10 text-muted-foreground/30" />
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={() => inputRef.current?.click()}
-                                disabled={uploading}
-                              >
-                                <Upload className="w-3.5 h-3.5 mr-1.5" />
-                                {uploading ? t('saving') : t('settings_qr_upload')}
-                              </Button>
-                            </>
-                          )}
-                          <input
-                            ref={inputRef}
-                            type="file"
-                            accept="image/*"
-                            className="sr-only"
-                            onChange={(e) => { handleFileSelected(slot, e.target.files?.[0]); e.target.value = '' }}
-                          />
+                              </>
+                            )}
+                            <input
+                              ref={(el) => { qrInputRefs.current[key] = el }}
+                              type="file"
+                              accept="image/*"
+                              className="sr-only"
+                              onChange={(e) => { handleFileSelected(branch, slot, e.target.files?.[0]); e.target.value = '' }}
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label>{t('settings_qr_label')}</Label>
+                            <Input
+                              {...register(`qr_${branch}_label_${slot}` as 'qr_label_1')}
+                              placeholder={slot === 1 ? 'e.g. ABA Bank' : 'e.g. Wing Money'}
+                            />
+                          </div>
                         </div>
-                        <div className="space-y-1.5">
-                          <Label>{t('settings_qr_label')}</Label>
-                          <Input
-                            {...register(`qr_label_${slot}` as 'qr_label_1')}
-                            placeholder={slot === 1 ? 'e.g. ABA Bank' : 'e.g. Wing Money'}
-                          />
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              </CardContent>
-            </Card>
+                      )
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
           </TabsContent>
 
           <TabsContent value="users" className="mt-4">
@@ -556,9 +568,9 @@ export function SettingsClient({ settings: initial }: Props) {
         <QrCropDialog
           file={cropPending.file}
           onConfirm={(croppedFile) => {
-            const slot = cropPending.slot
+            const { branch, slot } = cropPending
             setCropPending(null)
-            handleQrUpload(slot, croppedFile)
+            handleQrUpload(branch, slot, croppedFile)
           }}
           onCancel={() => setCropPending(null)}
         />

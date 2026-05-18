@@ -236,25 +236,29 @@ export function InvoiceClient({ billing, invoice, settings }: Props) {
           )}
         </div>
 
-        {/* QR Codes */}
-        {(settings.qr_code_1 || settings.qr_code_2) && (
-          <div className="px-8 py-6 print:px-6 print:py-3 border-t border-slate-200">
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4 print:mb-2 text-center">{t('invoice_payment_qr')}</p>
-            <div className="flex gap-8 justify-center flex-wrap">
-              {([1, 2] as const).map((slot) => {
-                const src = settings[`qr_code_${slot}`]
-                const label = settings[`qr_label_${slot}`]
-                if (!src) return null
-                return (
+        {/* QR Codes — branch-specific */}
+        {(() => {
+          const branchKey = billing.room?.branch === 'Chamkadong' ? 'chamkadong' : 'takmoa'
+          const qrs = [1, 2].map((slot) => ({
+            src: settings[`qr_${branchKey}_${slot}`],
+            label: settings[`qr_${branchKey}_label_${slot}`],
+            slot,
+          })).filter((q) => q.src)
+          if (qrs.length === 0) return null
+          return (
+            <div className="px-8 py-6 print:px-6 print:py-3 border-t border-slate-200">
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4 print:mb-2 text-center">{t('invoice_payment_qr')}</p>
+              <div className="flex gap-8 justify-center flex-wrap">
+                {qrs.map(({ src, label, slot }) => (
                   <div key={slot} className="flex flex-col items-center gap-2">
                     <img src={src} alt={`QR ${slot}`} className="w-28 h-28 print:w-20 print:h-20 object-contain border border-slate-200 rounded-lg" />
                     {label && <p className="text-xs text-slate-600 font-medium text-center">{label}</p>}
                   </div>
-                )
-              })}
+                ))}
+              </div>
             </div>
-          </div>
-        )}
+          )
+        })()}
 
         {/* Footer */}
         <div className="px-8 py-4 print:px-6 print:py-2 bg-slate-50 border-t border-slate-200 text-center text-xs text-slate-400">
