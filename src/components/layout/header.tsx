@@ -1,13 +1,9 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { Search, Sun, Moon, Menu } from 'lucide-react'
+import { Sun, Moon, Menu } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { useSession } from 'next-auth/react'
-import { debounce } from '@/lib/utils'
 import { useLanguage } from '@/contexts/language-context'
 
 interface HeaderProps {
@@ -18,15 +14,7 @@ interface HeaderProps {
 export function Header({ onMenuClick, title }: HeaderProps) {
   const { theme, setTheme } = useTheme()
   const { data: session } = useSession()
-  const { language, setLanguage, t } = useLanguage()
-  const [query, setQuery] = useState('')
-  const router = useRouter()
-
-  const handleSearch = debounce((q: string) => {
-    if (q.length >= 2) {
-      router.push(`/search?q=${encodeURIComponent(q)}`)
-    }
-  }, 400)
+  const { language, setLanguage } = useLanguage()
 
   return (
     <header className="h-16 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 flex items-center px-3 sm:px-6 gap-2 sm:gap-4 flex-shrink-0 print:hidden">
@@ -38,20 +26,6 @@ export function Header({ onMenuClick, title }: HeaderProps) {
       {title && (
         <h1 className="text-lg font-semibold text-foreground hidden sm:block">{title}</h1>
       )}
-
-      {/* Search */}
-      <div className="flex-1 max-w-md relative hidden md:block">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input
-          placeholder={t('header_search')}
-          className="pl-9 h-9 bg-muted/50 border-0 focus-visible:ring-1"
-          value={query}
-          onChange={(e) => {
-            setQuery(e.target.value)
-            handleSearch(e.target.value)
-          }}
-        />
-      </div>
 
       <div className="ml-auto flex items-center gap-2">
         {/* Language toggle */}
