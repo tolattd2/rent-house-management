@@ -196,32 +196,6 @@ export function MaintenanceClient({ records: initial, rooms, tenants }: Props) {
         )}
       </div>
 
-      {/* Branch filter tabs */}
-      <div className="flex gap-2 flex-wrap">
-        {(['all', ...branches] as const).map((b) => {
-          const branchRecords = b === 'all' ? records : records.filter((r) => (r.room?.branch ?? 'Takmoa') === b)
-          const openCount = branchRecords.filter((r) => r.status !== 'completed').length
-          return (
-            <button
-              key={b}
-              onClick={() => setBranchFilter(b)}
-              className={`px-4 py-2.5 rounded-lg border text-sm font-medium transition-all min-h-[44px] ${
-                branchFilter === b
-                  ? 'bg-primary text-primary-foreground border-primary shadow-sm'
-                  : 'bg-background border-border text-muted-foreground hover:bg-muted/50'
-              }`}
-            >
-              {b === 'all' ? t('all_branches') : b}
-              {openCount > 0 && (
-                <span className={`ml-2 text-xs rounded-full px-1.5 py-0.5 ${branchFilter === b ? 'bg-white/20' : 'bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300'}`}>
-                  {openCount}
-                </span>
-              )}
-            </button>
-          )
-        })}
-      </div>
-
       {/* Summary cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {(['all', 'pending', 'in_progress', 'completed'] as const).map((s) => {
