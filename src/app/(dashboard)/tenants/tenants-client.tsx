@@ -179,8 +179,9 @@ export function TenantsClient({ tenants: initial, rooms }: Props) {
           <table className="w-full min-w-[1000px] text-sm">
             <thead>
               <tr className="border-b border-border">
-                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{t('tenants_col_tenant')}</th>
                 <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{t('tenants_col_room')}</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{t('tenants_col_tenant')}</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{t('branch')}</th>
                 <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{t('tenants_col_monthly_rent')}</th>
                 <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{t('tenants_col_payday')}</th>
                 <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{t('tenants_col_movein')}</th>
@@ -199,6 +200,14 @@ export function TenantsClient({ tenants: initial, rooms }: Props) {
                     className={`border-b border-border last:border-0 hover:bg-muted/40 ${i % 2 ? 'bg-muted/10' : ''}`}
                   >
                     <td className="px-4 py-3">
+                      {tenant.room ? (
+                        <div className="flex items-center gap-1.5">
+                          <Home className="w-3.5 h-3.5 text-muted-foreground" />
+                          <span>{t('room')} {roomLabel(tenant.room)}</span>
+                        </div>
+                      ) : <span className="text-muted-foreground">—</span>}
+                    </td>
+                    <td className="px-4 py-3">
                       <Link href={`/tenants/${tenant.id}`} className="flex items-center gap-2.5 hover:text-primary">
                         <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
                           <User className="w-4 h-4 text-primary" />
@@ -211,14 +220,7 @@ export function TenantsClient({ tenants: initial, rooms }: Props) {
                         </div>
                       </Link>
                     </td>
-                    <td className="px-4 py-3">
-                      {tenant.room ? (
-                        <div className="flex items-center gap-1.5">
-                          <Home className="w-3.5 h-3.5 text-muted-foreground" />
-                          <span>{t('room')} {roomLabel(tenant.room)}</span>
-                        </div>
-                      ) : <span className="text-muted-foreground">—</span>}
-                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">{tenant.room?.branch ?? '—'}</td>
                     <td className="px-4 py-3">
                       {tenant.room ? formatCurrency(tenant.room.rentPriceUsd) : <span className="text-muted-foreground">—</span>}
                     </td>
