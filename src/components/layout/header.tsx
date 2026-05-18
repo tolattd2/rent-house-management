@@ -29,7 +29,7 @@ export function Header({ onMenuClick, title }: HeaderProps) {
   }, 400)
 
   return (
-    <header className="h-16 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 flex items-center px-6 gap-4 flex-shrink-0 print:hidden">
+    <header className="h-16 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 flex items-center px-3 sm:px-6 gap-2 sm:gap-4 flex-shrink-0 print:hidden">
       {/* Mobile menu button */}
       <Button variant="ghost" size="icon" className="lg:hidden" onClick={onMenuClick}>
         <Menu className="w-5 h-5" />
@@ -59,12 +59,12 @@ export function Header({ onMenuClick, title }: HeaderProps) {
           variant="outline"
           size="sm"
           onClick={() => setLanguage(language === 'en' ? 'kh' : 'en')}
-          className="h-9 px-3 text-xs font-medium gap-1.5"
+          className="h-10 px-2 sm:px-3 text-xs font-medium gap-1"
         >
           {language === 'en' ? (
-            <><span className="text-base leading-none">🇰🇭</span> ខ្មែរ</>
+            <><span className="text-base leading-none">🇰🇭</span><span className="hidden sm:inline"> ខ្មែរ</span></>
           ) : (
-            <><span className="text-base leading-none">🇺🇸</span> English</>
+            <><span className="text-base leading-none">🇺🇸</span><span className="hidden sm:inline"> EN</span></>
           )}
         </Button>
 
@@ -73,7 +73,7 @@ export function Header({ onMenuClick, title }: HeaderProps) {
           variant="ghost"
           size="icon"
           onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-          className="h-9 w-9"
+          className="h-10 w-10"
         >
           <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
           <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />

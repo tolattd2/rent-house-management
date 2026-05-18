@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Plus, Search, Filter, FileText, CheckCircle, AlertTriangle, Calendar } from 'lucide-react'
@@ -142,7 +141,7 @@ export function BillingListClient({ billings: initial }: Props) {
             <button
               key={b}
               onClick={() => setBranchFilter(b)}
-              className={`px-4 py-2 rounded-lg border text-sm font-medium transition-all ${
+              className={`px-4 py-2.5 rounded-lg border text-sm font-medium transition-all min-h-[44px] ${
                 branchFilter === b
                   ? 'bg-primary text-primary-foreground border-primary shadow-sm'
                   : 'bg-background border-border text-muted-foreground hover:bg-muted/50'
@@ -160,39 +159,113 @@ export function BillingListClient({ billings: initial }: Props) {
       </div>
 
       {/* Summary */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <Card><div className="p-4"><p className="text-xs text-muted-foreground">{t('billing_revenue')}</p><p className="text-xl font-bold text-green-600">{formatCurrency(totalRevenue)}</p></div></Card>
-        <Card><div className="p-4"><p className="text-xs text-muted-foreground">{t('billing_outstanding')}</p><p className="text-xl font-bold text-red-600">{formatCurrency(totalOutstanding)}</p></div></Card>
-        <Card><div className="p-4"><p className="text-xs text-muted-foreground">{t('billing_paid_count')}</p><p className="text-xl font-bold">{filtered.filter((b) => b.paymentStatus === 'paid').length}</p></div></Card>
-        <Card><div className="p-4"><p className="text-xs text-muted-foreground">{t('billing_unpaid_count')}</p><p className="text-xl font-bold text-orange-500">{filtered.filter((b) => b.paymentStatus !== 'paid').length}</p></div></Card>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
+        <Card><div className="p-3 sm:p-4"><p className="text-xs text-muted-foreground leading-tight">{t('billing_revenue')}</p><p className="text-base sm:text-xl font-bold text-green-600 mt-0.5 truncate">{formatCurrency(totalRevenue)}</p></div></Card>
+        <Card><div className="p-3 sm:p-4"><p className="text-xs text-muted-foreground leading-tight">{t('billing_outstanding')}</p><p className="text-base sm:text-xl font-bold text-red-600 mt-0.5 truncate">{formatCurrency(totalOutstanding)}</p></div></Card>
+        <Card><div className="p-3 sm:p-4"><p className="text-xs text-muted-foreground leading-tight">{t('billing_paid_count')}</p><p className="text-base sm:text-xl font-bold mt-0.5">{filtered.filter((b) => b.paymentStatus === 'paid').length}</p></div></Card>
+        <Card><div className="p-3 sm:p-4"><p className="text-xs text-muted-foreground leading-tight">{t('billing_unpaid_count')}</p><p className="text-base sm:text-xl font-bold text-orange-500 mt-0.5">{filtered.filter((b) => b.paymentStatus !== 'paid').length}</p></div></Card>
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-3">
-        <div className="relative flex-1 min-w-48 max-w-sm">
+      <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+        <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input placeholder={t('billing_search')} className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <Input placeholder={t('billing_search')} className="pl-9 h-11" value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{t('billing_all_status')}</SelectItem>
-            <SelectItem value="paid">{t('status_paid')}</SelectItem>
-            <SelectItem value="unpaid">{t('status_unpaid')}</SelectItem>
-            <SelectItem value="partial">{t('status_partial')}</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={monthFilter} onValueChange={setMonthFilter}>
-          <SelectTrigger className="w-40"><SelectValue placeholder="All months" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{t('billing_all_months')}</SelectItem>
-            {months.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
-          </SelectContent>
-        </Select>
+        <div className="flex gap-2">
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="flex-1 sm:w-36 h-11"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t('billing_all_status')}</SelectItem>
+              <SelectItem value="paid">{t('status_paid')}</SelectItem>
+              <SelectItem value="unpaid">{t('status_unpaid')}</SelectItem>
+              <SelectItem value="partial">{t('status_partial')}</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={monthFilter} onValueChange={setMonthFilter}>
+            <SelectTrigger className="flex-1 sm:w-40 h-11"><SelectValue placeholder="All months" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t('billing_all_months')}</SelectItem>
+              {months.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
-      {/* Table */}
-      <Card>
+      {/* Mobile card list — visible on small screens */}
+      <div className="md:hidden space-y-3">
+        {filtered.length === 0 && (
+          <div className="text-center py-16 text-muted-foreground">
+            <FileText className="w-12 h-12 mx-auto mb-3 opacity-30" />
+            <p>{t('billing_empty')}</p>
+          </div>
+        )}
+        {filtered.map((b) => {
+          const totalPaid = b.payments.reduce((s, p) => s + p.amountUsd, 0)
+          const balance = Math.max(0, b.totalUsd - totalPaid)
+          const payDay = b.tenant?.payDay ?? 1
+          const { daysLate, isPaid } = getDueInfo(b.billingMonth, payDay, b.paymentStatus)
+          return (
+            <Card key={b.id} className="p-4">
+              <div className="flex items-start justify-between gap-2 mb-3">
+                <div className="min-w-0">
+                  <Link href={`/tenants/${b.tenant?.id}`} className="font-semibold hover:text-primary block truncate">
+                    {b.tenant?.fullName ?? '—'}
+                  </Link>
+                  <p className="text-xs text-muted-foreground">{t('room')} {b.room?.roomNumber ?? '—'} · {b.billingMonth}</p>
+                </div>
+                <Badge variant={b.paymentStatus === 'paid' ? 'success' : b.paymentStatus === 'partial' ? 'warning' : 'error'} className="shrink-0">
+                  {t(b.paymentStatus === 'paid' ? 'status_paid' : b.paymentStatus === 'partial' ? 'status_partial' : 'status_unpaid')}
+                </Badge>
+              </div>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm mb-3">
+                <div>
+                  <p className="text-xs text-muted-foreground">{t('billing_col_total')}</p>
+                  <p className="font-semibold">{formatCurrency(b.totalUsd)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">{t('billing_col_paid')}</p>
+                  <p className="text-green-600 font-medium">{formatCurrency(totalPaid)}</p>
+                  {balance > 0 && <p className="text-xs text-red-500">-{formatCurrency(balance)}</p>}
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">{t('billing_col_rent')}</p>
+                  <p>{formatCurrency(b.roomRentUsd)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">{t('billing_col_due_date')}</p>
+                  {isPaid ? (
+                    <p className="text-xs text-green-600">{t('status_paid')}</p>
+                  ) : daysLate > 0 ? (
+                    <p className="text-xs text-red-500 font-medium">{daysLate}{t('billing_due_days')} {t('billing_late')}</p>
+                  ) : daysLate === 0 ? (
+                    <p className="text-xs text-orange-500 font-medium">{t('billing_due_today')}</p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">{t('billing_due_in')} {-daysLate}{t('billing_due_days')}</p>
+                  )}
+                </div>
+              </div>
+              <div className="flex gap-2 pt-2 border-t border-border">
+                <Link href={`/billing/${b.id}`} className="flex-1">
+                  <Button variant="outline" size="sm" className="w-full h-10">{t('view')}</Button>
+                </Link>
+                {isAdmin && b.paymentStatus !== 'paid' && (
+                  <Button variant="outline" size="sm" className="flex-1 h-10 text-green-600 border-green-200"
+                    onClick={() => setPayDialog(b)}>
+                    {t('billing_pay')}
+                  </Button>
+                )}
+                <Link href={`/invoices/${b.id}`} className="flex-1">
+                  <Button variant="outline" size="sm" className="w-full h-10">{t('billing_invoice')}</Button>
+                </Link>
+              </div>
+            </Card>
+          )
+        })}
+      </div>
+
+      {/* Desktop table — hidden on small screens */}
+      <Card className="hidden md:block">
         <div className="overflow-x-auto scrollbar-thin">
           <table className="w-full min-w-[1050px] text-sm">
             <thead>
@@ -217,7 +290,7 @@ export function BillingListClient({ billings: initial }: Props) {
                 const { dueDate, daysLate, isPaid } = getDueInfo(b.billingMonth, payDay, b.paymentStatus)
                 const dueDateStr = dueDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
                 return (
-                  <motion.tr key={b.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.02 }}
+                  <tr key={b.id}
                     className={`border-b border-border last:border-0 hover:bg-muted/30 ${i % 2 ? 'bg-muted/10' : ''}`}
                   >
                     <td className="px-4 py-3">
@@ -264,20 +337,20 @@ export function BillingListClient({ billings: initial }: Props) {
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-1">
                         <Link href={`/billing/${b.id}`}>
-                          <Button variant="ghost" size="sm" className="text-xs h-7 px-2">{t('view')}</Button>
+                          <Button variant="ghost" size="sm" className="text-xs h-8 px-2">{t('view')}</Button>
                         </Link>
                         {isAdmin && b.paymentStatus !== 'paid' && (
-                          <Button variant="ghost" size="sm" className="text-xs h-7 px-2 text-green-600"
+                          <Button variant="ghost" size="sm" className="text-xs h-8 px-2 text-green-600"
                             onClick={() => setPayDialog(b)}>
                             {t('billing_pay')}
                           </Button>
                         )}
                         <Link href={`/invoices/${b.id}`}>
-                          <Button variant="ghost" size="sm" className="text-xs h-7 px-2">{t('billing_invoice')}</Button>
+                          <Button variant="ghost" size="sm" className="text-xs h-8 px-2">{t('billing_invoice')}</Button>
                         </Link>
                       </div>
                     </td>
-                  </motion.tr>
+                  </tr>
                 )
               })}
             </tbody>

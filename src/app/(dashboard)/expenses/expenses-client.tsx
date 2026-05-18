@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { motion } from 'framer-motion'
 import {
   Plus, Search, TrendingDown, DollarSign, Tag, Calendar,
   Edit, Trash2, Download, Wrench, Zap, Users, Package, FileText, HelpCircle,
@@ -292,39 +291,40 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
       )}
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-3 items-center">
-        <div className="relative flex-1 min-w-48 max-w-sm">
+      <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 items-stretch sm:items-center">
+        <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
             placeholder={t('expenses_search')}
-            className="pl-9"
+            className="pl-9 h-11"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <Select value={monthFilter} onValueChange={setMonthFilter}>
-          <SelectTrigger className="w-36">
-            <SelectValue placeholder={t('billing_all_months')} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{t('billing_all_months')}</SelectItem>
-            {months.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
-          </SelectContent>
-        </Select>
-        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-          <SelectTrigger className="w-44">
-            <SelectValue placeholder={t('all')} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{t('all')}</SelectItem>
-            {CATEGORIES.map((c) => (
-              <SelectItem key={c} value={c}>{catLabel(c)}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
         <div className="flex gap-2">
+          <Select value={monthFilter} onValueChange={setMonthFilter}>
+            <SelectTrigger className="flex-1 sm:w-36 h-11">
+              <SelectValue placeholder={t('billing_all_months')} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t('billing_all_months')}</SelectItem>
+              {months.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+            <SelectTrigger className="flex-1 sm:w-40 h-11">
+              <SelectValue placeholder={t('all')} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t('all')}</SelectItem>
+              {CATEGORIES.map((c) => (
+                <SelectItem key={c} value={c}>{catLabel(c)}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           {(['all', 'Takmoa', 'Chamkadong'] as const).map((b) => (
             <Button key={b} variant={branchFilter === b ? 'default' : 'outline'} size="sm"
+              className="h-11 px-2 sm:px-3 text-xs sm:text-sm"
               onClick={() => setBranchFilter(b)}>
               {b === 'all' ? t('all_branches') : b}
             </Button>
@@ -332,8 +332,54 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
         </div>
       </div>
 
-      {/* Expense list */}
-      <Card>
+      {/* Mobile card list */}
+      <div className="md:hidden space-y-3">
+        {filtered.length === 0 && (
+          <div className="text-center py-16 text-muted-foreground">
+            <TrendingDown className="w-12 h-12 mx-auto mb-3 opacity-30" />
+            <p>{t('expenses_empty')}</p>
+          </div>
+        )}
+        {filtered.map((expense) => {
+          const Icon = categoryIcon[expense.category] ?? HelpCircle
+          return (
+            <Card key={expense.id} className="p-4">
+              <div className="flex items-start justify-between gap-2 mb-2">
+                <div className="min-w-0">
+                  <p className="font-semibold truncate">{expense.title}</p>
+                  {expense.notes && <p className="text-xs text-muted-foreground truncate">{expense.notes}</p>}
+                  {expense.maintenance && <p className="text-xs text-orange-600 mt-0.5">{t('maintenance_expense_auto')}</p>}
+                </div>
+                <p className="font-bold text-red-600 shrink-0">{formatCurrency(expense.amountUsd)}</p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground mb-3">
+                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-medium ${categoryColor[expense.category]}`}>
+                  <Icon className="w-3 h-3" />{catLabel(expense.category)}
+                </span>
+                <span>{expense.expenseDate}</span>
+                {expense.paidTo && <span>{expense.paidTo}</span>}
+                {expense.room && <span>{t('room')} {expense.room.roomNumber}</span>}
+              </div>
+              {isAdmin && (
+                <div className="flex gap-2 pt-2 border-t border-border">
+                  <Button variant="outline" size="sm" className="flex-1 h-10" onClick={() => openEdit(expense)}>
+                    <Edit className="w-3.5 h-3.5 mr-1.5" />{t('edit')}
+                  </Button>
+                  {!expense.maintenanceId && (
+                    <Button variant="outline" size="sm" className="h-10 px-3 text-destructive border-destructive/30"
+                      onClick={() => handleDelete(expense.id)}>
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
+                  )}
+                </div>
+              )}
+            </Card>
+          )
+        })}
+      </div>
+
+      {/* Desktop table */}
+      <Card className="hidden md:block">
         <div className="overflow-x-auto scrollbar-thin">
           <table className="w-full min-w-[780px] text-sm">
             <thead>
@@ -351,11 +397,8 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
               {filtered.map((expense, i) => {
                 const Icon = categoryIcon[expense.category] ?? HelpCircle
                 return (
-                  <motion.tr
+                  <tr
                     key={expense.id}
-                    initial={{ opacity: 0, x: -8 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: i * 0.02 }}
                     className={`border-b border-border last:border-0 hover:bg-muted/30 group ${i % 2 ? 'bg-muted/10' : ''}`}
                   >
                     <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{expense.expenseDate}</td>
@@ -381,19 +424,19 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
                     </td>
                     <td className="px-4 py-3">
                       {isAdmin && (
-                        <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Button variant="ghost" size="sm" onClick={() => openEdit(expense)} className="h-7 w-7 p-0">
+                        <div className="flex items-center justify-center gap-1">
+                          <Button variant="ghost" size="sm" onClick={() => openEdit(expense)} className="h-8 w-8 p-0">
                             <Edit className="w-3.5 h-3.5" />
                           </Button>
                           {!expense.maintenanceId && (
-                            <Button variant="ghost" size="sm" onClick={() => handleDelete(expense.id)} className="h-7 w-7 p-0 text-destructive hover:bg-destructive/10">
+                            <Button variant="ghost" size="sm" onClick={() => handleDelete(expense.id)} className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10">
                               <Trash2 className="w-3.5 h-3.5" />
                             </Button>
                           )}
                         </div>
                       )}
                     </td>
-                  </motion.tr>
+                  </tr>
                 )
               })}
             </tbody>

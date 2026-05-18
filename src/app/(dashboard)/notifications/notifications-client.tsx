@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { motion } from 'framer-motion'
 import { useRouter } from 'next/navigation'
 import { Bell, Send, CheckCircle, XCircle, MessageSquare } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -80,8 +79,7 @@ export function NotificationsClient({ notifications, unpaidBillings }: Props) {
           <CardContent className="p-0">
             <div className="divide-y divide-border">
               {unpaidBillings.map((bill, i) => (
-                <motion.div key={bill.id}
-                  initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.04 }}
+                <div key={bill.id}
                   className="flex items-center justify-between px-4 py-3 hover:bg-muted/30"
                 >
                   <div className="flex items-center gap-3">
@@ -110,7 +108,7 @@ export function NotificationsClient({ notifications, unpaidBillings }: Props) {
                       <MessageSquare className="w-3.5 h-3.5 mr-1.5" />{t('notifications_remind')}
                     </Button>
                   </div>
-                </motion.div>
+                </div>
               ))}
             </div>
           </CardContent>
@@ -123,8 +121,7 @@ export function NotificationsClient({ notifications, unpaidBillings }: Props) {
         <CardContent className="p-0">
           <div className="divide-y divide-border">
             {notifications.map((n, i) => (
-              <motion.div key={n.id}
-                initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.02 }}
+              <div key={n.id}
                 className="flex items-start gap-3 px-4 py-3"
               >
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${n.status === 'sent' ? 'bg-green-100 dark:bg-green-900/30' : 'bg-red-100 dark:bg-red-900/30'}`}>
@@ -143,7 +140,7 @@ export function NotificationsClient({ notifications, unpaidBillings }: Props) {
                     {new Date(n.createdAt).toLocaleString()}
                   </p>
                 </div>
-              </motion.div>
+              </div>
             ))}
             {notifications.length === 0 && (
               <div className="py-12 text-center text-muted-foreground">

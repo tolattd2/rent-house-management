@@ -457,6 +457,15 @@ export const translations = {
     expense_added: 'Expense added',
     expense_delete_confirm: 'Delete this expense?',
     expense_deleted: 'Expense deleted',
+    // QR codes
+    settings_qr_codes: 'QR Codes',
+    settings_qr_slot1: 'QR Code 1',
+    settings_qr_slot2: 'QR Code 2',
+    settings_qr_upload: 'Upload Image',
+    settings_qr_clear: 'Clear',
+    settings_qr_label: 'Label (optional)',
+    settings_qr_hint: 'QR codes appear on printed invoices and PDF exports',
+    invoice_payment_qr: 'Payment QR Codes',
   },
   kh: {
     // Nav
@@ -916,6 +925,15 @@ export const translations = {
     expense_added: 'ការចំណាយបានបន្ថែម',
     expense_delete_confirm: 'លុបការចំណាយនេះ?',
     expense_deleted: 'ការចំណាយបានលុប',
+    // QR codes
+    settings_qr_codes: 'QR Code',
+    settings_qr_slot1: 'QR Code 1',
+    settings_qr_slot2: 'QR Code 2',
+    settings_qr_upload: 'បញ្ចូលរូបភាព',
+    settings_qr_clear: 'លុបចោល',
+    settings_qr_label: 'ស្លាក (ស្រេចចិត្ត)',
+    settings_qr_hint: 'QR Code បង្ហាញក្នុងវិក្កយបត្រ',
+    invoice_payment_qr: 'QR Code សម្រាប់ការទូទាត់',
   },
 }
 

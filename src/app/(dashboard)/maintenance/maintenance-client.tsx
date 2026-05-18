@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { motion } from 'framer-motion'
 import { Plus, Search, Wrench, Trash2, Pencil, CheckCircle2, Clock, AlertCircle } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
@@ -204,7 +203,7 @@ export function MaintenanceClient({ records: initial, rooms, tenants }: Props) {
             <button
               key={b}
               onClick={() => setBranchFilter(b)}
-              className={`px-4 py-2 rounded-lg border text-sm font-medium transition-all ${
+              className={`px-4 py-2.5 rounded-lg border text-sm font-medium transition-all min-h-[44px] ${
                 branchFilter === b
                   ? 'bg-primary text-primary-foreground border-primary shadow-sm'
                   : 'bg-background border-border text-muted-foreground hover:bg-muted/50'
@@ -236,19 +235,77 @@ export function MaintenanceClient({ records: initial, rooms, tenants }: Props) {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-3">
-        <div className="relative flex-1 min-w-48 max-w-sm">
+      <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 sm:items-center">
+        <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input placeholder={t('maintenance_search')} className="pl-9" value={search}
+          <Input placeholder={t('maintenance_search')} className="pl-9 h-11" value={search}
             onChange={(e) => setSearch(e.target.value)} />
         </div>
-        <div className="text-sm text-muted-foreground self-center ml-auto">
+        <p className="text-sm text-muted-foreground">
           {t('maintenance_total_fees')} <span className="font-semibold text-foreground">{formatCurrency(totalFee)}</span>
-        </div>
+        </p>
       </div>
 
-      {/* Table */}
-      <Card>
+      {/* Mobile card list */}
+      <div className="md:hidden space-y-3">
+        {filtered.length === 0 && (
+          <div className="text-center py-16 text-muted-foreground">
+            <Wrench className="w-12 h-12 mx-auto mb-3 opacity-30" />
+            <p>{t('maintenance_empty')}</p>
+          </div>
+        )}
+        {filtered.map((r) => {
+          const sc = statusConfig[r.status]
+          return (
+            <Card key={r.id} className="p-4">
+              <div className="flex items-start justify-between gap-2 mb-2">
+                <div className="min-w-0">
+                  <p className="font-semibold truncate">{r.title}</p>
+                  <p className="text-xs text-muted-foreground capitalize">{r.category}</p>
+                </div>
+                <Badge variant={sc.color} className="flex items-center gap-1 shrink-0">
+                  <sc.icon className="w-3 h-3" />
+                  {t(`status_${r.status}` as Parameters<typeof t>[0])}
+                </Badge>
+              </div>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm mb-3">
+                <div>
+                  <p className="text-xs text-muted-foreground">{t('maintenance_col_room')}</p>
+                  <p>{r.room ? `${t('room')} ${roomLabel(r.room)}` : '—'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">{t('maintenance_col_fee')}</p>
+                  <p className="font-medium">{r.repairFeeUsd > 0 ? formatCurrency(r.repairFeeUsd) : '—'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">{t('maintenance_col_reported')}</p>
+                  <p>{formatDate(r.reportedDate)}</p>
+                </div>
+                {r.tenant && (
+                  <div>
+                    <p className="text-xs text-muted-foreground">{t('maintenance_col_tenant')}</p>
+                    <p>{r.tenant.fullName}</p>
+                  </div>
+                )}
+              </div>
+              {isAdmin && (
+                <div className="flex gap-2 pt-2 border-t border-border">
+                  <Button variant="outline" size="sm" className="flex-1 h-10" onClick={() => openEdit(r)}>
+                    <Pencil className="w-3.5 h-3.5 mr-1.5" />{t('edit')}
+                  </Button>
+                  <Button variant="outline" size="sm" className="h-10 px-3 text-destructive border-destructive/30"
+                    onClick={() => handleDelete(r.id)}>
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
+              )}
+            </Card>
+          )
+        })}
+      </div>
+
+      {/* Desktop table */}
+      <Card className="hidden md:block">
         <div className="overflow-x-auto scrollbar-thin">
           <table className="w-full min-w-[950px] text-sm">
             <thead>
@@ -268,10 +325,7 @@ export function MaintenanceClient({ records: initial, rooms, tenants }: Props) {
               {filtered.map((r, i) => {
                 const sc = statusConfig[r.status]
                 return (
-                  <motion.tr key={r.id}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: i * 0.03 }}
+                  <tr key={r.id}
                     className={`border-b border-border last:border-0 hover:bg-muted/40 ${i % 2 ? 'bg-muted/10' : ''}`}
                   >
                     <td className="px-4 py-3">
@@ -318,7 +372,7 @@ export function MaintenanceClient({ records: initial, rooms, tenants }: Props) {
                         </div>
                       )}
                     </td>
-                  </motion.tr>
+                  </tr>
                 )
               })}
             </tbody>

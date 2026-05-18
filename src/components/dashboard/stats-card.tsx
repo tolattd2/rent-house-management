@@ -35,13 +35,13 @@ export function StatsCard({ title, value, subtitle, icon: Icon, color, trend, in
       transition={{ delay: index * 0.08, duration: 0.4 }}
     >
       <Card className={cn('border', colors.border, 'hover:shadow-md transition-shadow')}>
-        <CardContent className="p-5">
+        <CardContent className="p-3 sm:p-5">
           <div className="flex items-start justify-between">
             <div className="flex-1 min-w-0">
-              <p className="text-sm text-muted-foreground font-medium">{title}</p>
-              <p className="text-2xl font-bold mt-1 text-foreground truncate">{value}</p>
+              <p className="text-xs sm:text-sm text-muted-foreground font-medium leading-tight">{title}</p>
+              <p className="text-lg sm:text-2xl font-bold mt-1 text-foreground truncate">{value}</p>
               {subtitle && (
-                <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>
+                <p className="text-xs text-muted-foreground mt-0.5 leading-tight">{subtitle}</p>
               )}
               {trend && (
                 <div className={cn('flex items-center gap-1 mt-2 text-xs font-medium',
@@ -54,8 +54,8 @@ export function StatsCard({ title, value, subtitle, icon: Icon, color, trend, in
                 </div>
               )}
             </div>
-            <div className={cn('w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 ml-3', colors.bg)}>
-              <Icon className={cn('w-5 h-5', colors.icon)} />
+            <div className={cn('w-8 h-8 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center flex-shrink-0 ml-2 sm:ml-3', colors.bg)}>
+              <Icon className={cn('w-4 h-4 sm:w-5 sm:h-5', colors.icon)} />
             </div>
           </div>
         </CardContent>

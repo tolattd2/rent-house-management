@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { motion } from 'framer-motion'
 import { Plus, Search, Home, Users, DollarSign, Wrench, Edit, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -110,13 +109,13 @@ export function RoomsClient({ rooms: initialRooms }: Props) {
       </div>
 
       {/* Status summary */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-3 gap-2 sm:gap-4">
         {(['occupied', 'vacant', 'maintenance'] as const).map((s) => {
           const Icon = statusIcon[s]
           const colors = { occupied: 'text-green-600 bg-green-50 dark:bg-green-950/30', vacant: 'text-slate-600 bg-slate-50 dark:bg-slate-900/30', maintenance: 'text-yellow-600 bg-yellow-50 dark:bg-yellow-950/30' }
           return (
             <button key={s} onClick={() => setStatusFilter(statusFilter === s ? 'all' : s)}
-              className={`flex items-center gap-3 p-4 rounded-xl border transition-all ${statusFilter === s ? 'ring-2 ring-primary' : 'hover:bg-muted/50'} ${colors[s]}`}
+              className={`flex items-center gap-2 sm:gap-3 p-3 sm:p-4 rounded-xl border transition-all ${statusFilter === s ? 'ring-2 ring-primary' : 'hover:bg-muted/50'} ${colors[s]}`}
             >
               <Icon className="w-5 h-5" />
               <div className="text-left">
@@ -129,14 +128,15 @@ export function RoomsClient({ rooms: initialRooms }: Props) {
       </div>
 
       {/* Search & Branch filter */}
-      <div className="flex flex-wrap gap-3 items-center">
-        <div className="relative flex-1 min-w-48 max-w-sm">
+      <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 sm:items-center">
+        <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input placeholder={t('rooms_search')} className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <Input placeholder={t('rooms_search')} className="pl-9 h-11" value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-1.5">
           {(['all', 'Takmoa', 'Chamkadong'] as const).map((b) => (
             <Button key={b} variant={branchFilter === b ? 'default' : 'outline'} size="sm"
+              className="flex-1 sm:flex-none h-11 px-2 sm:px-3 text-xs sm:text-sm"
               onClick={() => setBranchFilter(b)}>
               {b === 'all' ? t('all_branches') : b}
             </Button>
@@ -150,7 +150,7 @@ export function RoomsClient({ rooms: initialRooms }: Props) {
           const tenant = room.tenants[0]
           const StatusIcon = statusIcon[room.status] ?? Home
           return (
-            <motion.div key={room.id} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: i * 0.04 }}>
+            <div key={room.id}>
               <Card className="hover:shadow-md transition-shadow group">
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between mb-3">
@@ -191,7 +191,7 @@ export function RoomsClient({ rooms: initialRooms }: Props) {
 
                   {/* Actions */}
                   {isAdmin && (
-                    <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex gap-2">
                       <Button variant="outline" size="sm" className="flex-1" onClick={() => { setEditRoom(room); setShowForm(true) }}>
                         <Edit className="w-3.5 h-3.5 mr-1" /> {t('edit')}
                       </Button>
@@ -204,7 +204,7 @@ export function RoomsClient({ rooms: initialRooms }: Props) {
                   )}
                 </CardContent>
               </Card>
-            </motion.div>
+            </div>
           )
         })}
 

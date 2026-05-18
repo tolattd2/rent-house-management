@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useSession } from 'next-auth/react'
 import { useForm } from 'react-hook-form'
-import { Save, Building2, DollarSign, MessageSquare, Mail, Phone, Users, Plus, Key, Trash2 } from 'lucide-react'
+import { Save, Building2, DollarSign, MessageSquare, Mail, Phone, Users, Plus, Key, Trash2, QrCode, Upload, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -43,6 +43,43 @@ export function SettingsClient({ settings: initial }: Props) {
   const [changePwTarget, setChangePwTarget] = useState<UserRow | null>(null)
   const [newPassword, setNewPassword] = useState('')
   const [changingPw, setChangingPw] = useState(false)
+
+  // QR code upload state
+  const [qr1, setQr1] = useState(initial.qr_code_1 ?? '')
+  const [qr2, setQr2] = useState(initial.qr_code_2 ?? '')
+  const [uploading1, setUploading1] = useState(false)
+  const [uploading2, setUploading2] = useState(false)
+  const qr1InputRef = useRef<HTMLInputElement>(null)
+  const qr2InputRef = useRef<HTMLInputElement>(null)
+
+  async function handleQrUpload(slot: 1 | 2, file: File | undefined) {
+    if (!file) return
+    slot === 1 ? setUploading1(true) : setUploading2(true)
+    const form = new FormData()
+    form.append('slot', String(slot))
+    form.append('file', file)
+    const res = await fetch('/api/settings/qr', { method: 'POST', body: form })
+    const data = await res.json()
+    if (data.ok) {
+      slot === 1 ? setQr1(data.value) : setQr2(data.value)
+      toast({ title: t('settings_saved') })
+    } else {
+      toast({ title: t('settings_save_error'), description: data.error, variant: 'destructive' })
+    }
+    slot === 1 ? setUploading1(false) : setUploading2(false)
+  }
+
+  async function handleQrClear(slot: 1 | 2) {
+    const form = new FormData()
+    form.append('slot', String(slot))
+    form.append('clear', 'true')
+    const res = await fetch('/api/settings/qr', { method: 'POST', body: form })
+    const data = await res.json()
+    if (data.ok) {
+      slot === 1 ? setQr1('') : setQr2('')
+      toast({ title: t('settings_saved') })
+    }
+  }
 
   async function loadUsers() {
     setUsersLoading(true)
@@ -123,6 +160,8 @@ export function SettingsClient({ settings: initial }: Props) {
       twilio_sid: initial.twilio_sid ?? '',
       twilio_token: initial.twilio_token ?? '',
       twilio_phone: initial.twilio_phone ?? '',
+      qr_label_1: initial.qr_label_1 ?? '',
+      qr_label_2: initial.qr_label_2 ?? '',
     },
   })
 
@@ -151,14 +190,17 @@ export function SettingsClient({ settings: initial }: Props) {
 
       <form onSubmit={handleSubmit(onSubmit)}>
         <Tabs defaultValue="rates" onValueChange={(v) => { if (v === 'users') loadUsers() }}>
-          <TabsList>
-            <TabsTrigger value="rates"><DollarSign className="w-4 h-4 mr-2" />{t('settings_rates')}</TabsTrigger>
-            <TabsTrigger value="company"><Building2 className="w-4 h-4 mr-2" />{t('settings_company')}</TabsTrigger>
-            <TabsTrigger value="telegram"><MessageSquare className="w-4 h-4 mr-2" />{t('settings_telegram_bot')}</TabsTrigger>
-            <TabsTrigger value="email"><Mail className="w-4 h-4 mr-2" />{t('settings_email_smtp')}</TabsTrigger>
-            <TabsTrigger value="sms"><Phone className="w-4 h-4 mr-2" />{t('settings_twilio_sms')}</TabsTrigger>
-            <TabsTrigger value="users"><Users className="w-4 h-4 mr-2" />{t('settings_users')}</TabsTrigger>
-          </TabsList>
+          <div className="overflow-x-auto">
+            <TabsList className="flex-nowrap w-max min-w-full">
+              <TabsTrigger value="rates"><DollarSign className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">{t('settings_rates')}</span></TabsTrigger>
+              <TabsTrigger value="company"><Building2 className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">{t('settings_company')}</span></TabsTrigger>
+              <TabsTrigger value="telegram"><MessageSquare className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">{t('settings_telegram_bot')}</span></TabsTrigger>
+              <TabsTrigger value="email"><Mail className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">{t('settings_email_smtp')}</span></TabsTrigger>
+              <TabsTrigger value="sms"><Phone className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">{t('settings_twilio_sms')}</span></TabsTrigger>
+              <TabsTrigger value="qr"><QrCode className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">{t('settings_qr_codes')}</span></TabsTrigger>
+              <TabsTrigger value="users"><Users className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">{t('settings_users')}</span></TabsTrigger>
+            </TabsList>
+          </div>
 
           <TabsContent value="rates" className="mt-4">
             <Card>
@@ -286,6 +328,86 @@ export function SettingsClient({ settings: initial }: Props) {
               </CardContent>
             </Card>
           </TabsContent>
+          <TabsContent value="qr" className="mt-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <QrCode className="w-4 h-4" />{t('settings_qr_codes')}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <p className="text-xs text-muted-foreground">{t('settings_qr_hint')}</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  {([1, 2] as const).map((slot) => {
+                    const preview = slot === 1 ? qr1 : qr2
+                    const uploading = slot === 1 ? uploading1 : uploading2
+                    const inputRef = slot === 1 ? qr1InputRef : qr2InputRef
+                    return (
+                      <div key={slot} className="space-y-3">
+                        <p className="font-medium text-sm">{t(`settings_qr_slot${slot}` as 'settings_qr_slot1')}</p>
+                        <div className="border-2 border-dashed border-border rounded-xl p-4 flex flex-col items-center gap-3 min-h-[160px] justify-center">
+                          {preview ? (
+                            <>
+                              <img src={preview} alt={`QR ${slot}`} className="w-28 h-28 object-contain rounded" />
+                              <div className="flex gap-2">
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => inputRef.current?.click()}
+                                  disabled={uploading}
+                                >
+                                  <Upload className="w-3.5 h-3.5 mr-1" />{t('settings_qr_upload')}
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  className="text-destructive hover:bg-destructive/10"
+                                  onClick={() => handleQrClear(slot)}
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </Button>
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              <QrCode className="w-10 h-10 text-muted-foreground/30" />
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => inputRef.current?.click()}
+                                disabled={uploading}
+                              >
+                                <Upload className="w-3.5 h-3.5 mr-1.5" />
+                                {uploading ? t('saving') : t('settings_qr_upload')}
+                              </Button>
+                            </>
+                          )}
+                          <input
+                            ref={inputRef}
+                            type="file"
+                            accept="image/*"
+                            className="sr-only"
+                            onChange={(e) => handleQrUpload(slot, e.target.files?.[0])}
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label>{t('settings_qr_label')}</Label>
+                          <Input
+                            {...register(`qr_label_${slot}` as 'qr_label_1')}
+                            placeholder={slot === 1 ? 'e.g. ABA Bank' : 'e.g. Wing Money'}
+                          />
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
           <TabsContent value="users" className="mt-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">

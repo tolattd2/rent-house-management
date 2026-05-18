@@ -101,7 +101,7 @@ export function ReportsClient({ billings, expenses }: Props) {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">{t('reports_title')}</h1>
           <p className="text-muted-foreground text-sm">{t('reports_subtitle')}</p>
@@ -110,13 +110,14 @@ export function ReportsClient({ billings, expenses }: Props) {
           <div className="flex gap-1">
             {BRANCHES.map((b) => (
               <Button key={b} size="sm" variant={branchFilter === b ? 'default' : 'outline'}
+                className="h-10 px-3 text-xs sm:text-sm"
                 onClick={() => setBranchFilter(b)}>
                 {b === 'all' ? t('all') : b}
               </Button>
             ))}
           </div>
           <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-            <SelectTrigger className="w-40">
+            <SelectTrigger className="flex-1 sm:w-40 h-10">
               <SelectValue placeholder={t('billing_all_months')} />
             </SelectTrigger>
             <SelectContent>
@@ -124,37 +125,37 @@ export function ReportsClient({ billings, expenses }: Props) {
               {months.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
             </SelectContent>
           </Select>
-          <Button variant="outline" onClick={handleExport}>
-            <Download className="w-4 h-4 mr-2" />{t('billing_export')}
+          <Button variant="outline" className="h-10" onClick={handleExport}>
+            <Download className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">{t('billing_export')}</span>
           </Button>
         </div>
       </div>
 
       {/* Summary cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-        <Card><CardContent className="p-4">
-          <p className="text-xs text-muted-foreground">{t('reports_revenue_collected')}</p>
-          <p className="text-xl font-bold text-green-600">{formatCurrency(totalRevenue)}</p>
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+        <Card><CardContent className="p-3 sm:p-4">
+          <p className="text-xs text-muted-foreground leading-tight">{t('reports_revenue_collected')}</p>
+          <p className="text-base sm:text-xl font-bold text-green-600 mt-0.5 truncate">{formatCurrency(totalRevenue)}</p>
         </CardContent></Card>
-        <Card><CardContent className="p-4">
-          <p className="text-xs text-muted-foreground">{t('dashboard_outstanding')}</p>
-          <p className="text-xl font-bold text-red-600">{formatCurrency(totalOutstanding)}</p>
+        <Card><CardContent className="p-3 sm:p-4">
+          <p className="text-xs text-muted-foreground leading-tight">{t('dashboard_outstanding')}</p>
+          <p className="text-base sm:text-xl font-bold text-red-600 mt-0.5 truncate">{formatCurrency(totalOutstanding)}</p>
         </CardContent></Card>
-        <Card><CardContent className="p-4">
-          <p className="text-xs text-muted-foreground">{t('reports_total_expenses')}</p>
-          <p className="text-xl font-bold text-orange-600">{formatCurrency(totalExpenses)}</p>
+        <Card><CardContent className="p-3 sm:p-4">
+          <p className="text-xs text-muted-foreground leading-tight">{t('reports_total_expenses')}</p>
+          <p className="text-base sm:text-xl font-bold text-orange-600 mt-0.5 truncate">{formatCurrency(totalExpenses)}</p>
         </CardContent></Card>
-        <Card><CardContent className="p-4">
-          <p className="text-xs text-muted-foreground">{t('reports_net_income')}</p>
-          <p className={`text-xl font-bold ${netIncome >= 0 ? 'text-green-600' : 'text-red-600'}`}>{formatCurrency(netIncome)}</p>
+        <Card><CardContent className="p-3 sm:p-4">
+          <p className="text-xs text-muted-foreground leading-tight">{t('reports_net_income')}</p>
+          <p className={`text-base sm:text-xl font-bold mt-0.5 truncate ${netIncome >= 0 ? 'text-green-600' : 'text-red-600'}`}>{formatCurrency(netIncome)}</p>
         </CardContent></Card>
-        <Card><CardContent className="p-4">
-          <p className="text-xs text-muted-foreground">{t('reports_paid_billings')}</p>
-          <p className="text-xl font-bold">{monthBillings.filter((b) => b.paymentStatus === 'paid').length}</p>
+        <Card><CardContent className="p-3 sm:p-4">
+          <p className="text-xs text-muted-foreground leading-tight">{t('reports_paid_billings')}</p>
+          <p className="text-base sm:text-xl font-bold mt-0.5">{monthBillings.filter((b) => b.paymentStatus === 'paid').length}</p>
         </CardContent></Card>
-        <Card><CardContent className="p-4">
-          <p className="text-xs text-muted-foreground">{t('reports_unpaid_billings')}</p>
-          <p className="text-xl font-bold text-orange-600">{monthBillings.filter((b) => b.paymentStatus !== 'paid').length}</p>
+        <Card><CardContent className="p-3 sm:p-4">
+          <p className="text-xs text-muted-foreground leading-tight">{t('reports_unpaid_billings')}</p>
+          <p className="text-base sm:text-xl font-bold text-orange-600 mt-0.5">{monthBillings.filter((b) => b.paymentStatus !== 'paid').length}</p>
         </CardContent></Card>
       </div>
 
@@ -162,7 +163,7 @@ export function ReportsClient({ billings, expenses }: Props) {
       <Card>
         <CardHeader><CardTitle className="text-base">{t('reports_chart_title')}</CardTitle></CardHeader>
         <CardContent>
-          <ResponsiveContainer width="100%" height={280}>
+          <ResponsiveContainer width="100%" height={220}>
             <BarChart data={revenueChart} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
               <XAxis dataKey="label" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />

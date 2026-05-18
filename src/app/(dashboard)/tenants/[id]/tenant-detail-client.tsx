@@ -79,18 +79,18 @@ export function TenantDetailClient({ tenant, rooms }: Props) {
   return (
     <div className="space-y-6 animate-fade-in max-w-5xl">
       {/* Header */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-2 sm:gap-4">
         <Link href="/tenants">
-          <Button variant="ghost" size="sm"><ArrowLeft className="w-4 h-4 mr-1" />{t('back')}</Button>
+          <Button variant="ghost" size="sm" className="h-10"><ArrowLeft className="w-4 h-4 sm:mr-1" /><span className="hidden sm:inline">{t('back')}</span></Button>
         </Link>
         <div className="flex-1" />
         {isAdmin && tenant.status === 'active' && (
           <>
-            <Button variant="outline" onClick={() => setShowEdit(true)}>
-              <Edit className="w-4 h-4 mr-2" />{t('edit')}
+            <Button variant="outline" size="sm" className="h-10" onClick={() => setShowEdit(true)}>
+              <Edit className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">{t('edit')}</span>
             </Button>
-            <Button variant="outline" onClick={handleMoveOut} className="text-destructive border-destructive/40 hover:bg-destructive/10">
-              <LogOut className="w-4 h-4 mr-2" />{t('tenants_move_out')}
+            <Button variant="outline" size="sm" className="h-10 text-destructive border-destructive/40 hover:bg-destructive/10" onClick={handleMoveOut}>
+              <LogOut className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">{t('tenants_move_out')}</span>
             </Button>
           </>
         )}
@@ -138,26 +138,26 @@ export function TenantDetailClient({ tenant, rooms }: Props) {
       </Card>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-        <Card><CardContent className="p-4 text-center">
-          <p className="text-xs text-muted-foreground">{t('room')}</p>
-          <p className="text-xl font-bold mt-1">{tenant.room ? `${t('room')} ${roomLabel(tenant.room)}` : '—'}</p>
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-4">
+        <Card><CardContent className="p-3 sm:p-4 text-center">
+          <p className="text-xs text-muted-foreground leading-tight">{t('room')}</p>
+          <p className="text-base sm:text-xl font-bold mt-0.5 truncate">{tenant.room ? `${t('room')} ${roomLabel(tenant.room)}` : '—'}</p>
         </CardContent></Card>
-        <Card><CardContent className="p-4 text-center">
-          <p className="text-xs text-muted-foreground">{t('monthly_rent')}</p>
-          <p className="text-xl font-bold mt-1">{formatCurrency(tenant.monthlyRent > 0 ? tenant.monthlyRent : (tenant.room?.rentPriceUsd ?? 0))}</p>
+        <Card><CardContent className="p-3 sm:p-4 text-center">
+          <p className="text-xs text-muted-foreground leading-tight">{t('monthly_rent')}</p>
+          <p className="text-base sm:text-xl font-bold mt-0.5 truncate">{formatCurrency(tenant.monthlyRent > 0 ? tenant.monthlyRent : (tenant.room?.rentPriceUsd ?? 0))}</p>
         </CardContent></Card>
-        <Card><CardContent className="p-4 text-center">
-          <p className="text-xs text-muted-foreground">{t('tenants_col_deposit')}</p>
-          <p className="text-xl font-bold mt-1">{formatCurrency(tenant.depositAmount)}</p>
+        <Card><CardContent className="p-3 sm:p-4 text-center">
+          <p className="text-xs text-muted-foreground leading-tight">{t('tenants_col_deposit')}</p>
+          <p className="text-base sm:text-xl font-bold mt-0.5 truncate">{formatCurrency(tenant.depositAmount)}</p>
         </CardContent></Card>
-        <Card><CardContent className="p-4 text-center">
-          <p className="text-xs text-muted-foreground">{t('total_paid')}</p>
-          <p className="text-xl font-bold mt-1 text-green-600">{formatCurrency(totalPaid)}</p>
+        <Card><CardContent className="p-3 sm:p-4 text-center">
+          <p className="text-xs text-muted-foreground leading-tight">{t('total_paid')}</p>
+          <p className="text-base sm:text-xl font-bold mt-0.5 text-green-600 truncate">{formatCurrency(totalPaid)}</p>
         </CardContent></Card>
-        <Card><CardContent className="p-4 text-center">
-          <p className="text-xs text-muted-foreground">{t('dashboard_outstanding')}</p>
-          <p className={`text-xl font-bold mt-1 ${outstanding > 0 ? 'text-red-600' : 'text-green-600'}`}>
+        <Card><CardContent className="p-3 sm:p-4 text-center">
+          <p className="text-xs text-muted-foreground leading-tight">{t('dashboard_outstanding')}</p>
+          <p className={`text-base sm:text-xl font-bold mt-0.5 truncate ${outstanding > 0 ? 'text-red-600' : 'text-green-600'}`}>
             {formatCurrency(outstanding)}
           </p>
         </CardContent></Card>
@@ -165,15 +165,15 @@ export function TenantDetailClient({ tenant, rooms }: Props) {
 
       {/* Tabs */}
       <Tabs defaultValue="billing">
-        <TabsList>
-          <TabsTrigger value="billing">
-            <FileText className="w-4 h-4 mr-2" />{t('tenant_billing_tab')} ({tenant.billings.length})
+        <TabsList className="w-full sm:w-auto">
+          <TabsTrigger value="billing" className="flex-1 sm:flex-none text-xs sm:text-sm">
+            <FileText className="w-4 h-4 hidden sm:block sm:mr-2" />{t('tenant_billing_tab')} ({tenant.billings.length})
           </TabsTrigger>
-          <TabsTrigger value="info">
-            <User className="w-4 h-4 mr-2" />{t('tenant_personal_info')}
+          <TabsTrigger value="info" className="flex-1 sm:flex-none text-xs sm:text-sm">
+            <User className="w-4 h-4 hidden sm:block sm:mr-2" />{t('tenant_personal_info')}
           </TabsTrigger>
-          <TabsTrigger value="contract">
-            <CreditCard className="w-4 h-4 mr-2" />{t('tenant_contracts_tab')}
+          <TabsTrigger value="contract" className="flex-1 sm:flex-none text-xs sm:text-sm">
+            <CreditCard className="w-4 h-4 hidden sm:block sm:mr-2" />{t('tenant_contracts_tab')}
           </TabsTrigger>
         </TabsList>
 

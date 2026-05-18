@@ -57,17 +57,21 @@ export function InvoiceClient({ billing, invoice, settings }: Props) {
   return (
     <div className="space-y-4 animate-fade-in max-w-3xl">
       {/* Toolbar */}
-      <div className="flex items-center gap-3 no-print">
-        <Link href="/billing"><Button variant="ghost" size="sm"><ArrowLeft className="w-4 h-4 mr-1" />{t('back')}</Button></Link>
+      <div className="flex items-center gap-2 no-print">
+        <Link href="/billing">
+          <Button variant="ghost" size="sm" className="h-10">
+            <ArrowLeft className="w-4 h-4 sm:mr-1" /><span className="hidden sm:inline">{t('back')}</span>
+          </Button>
+        </Link>
         <div className="flex-1" />
         {isAdmin && (
-          <Button variant="outline" size="sm" onClick={handleSendTelegram} disabled={sending === 'telegram'}>
-            <MessageSquare className="w-4 h-4 mr-2" />
-            {invoice.sentTelegram ? t('invoice_resend_telegram') : t('invoice_send_telegram')}
+          <Button variant="outline" size="sm" className="h-10" onClick={handleSendTelegram} disabled={sending === 'telegram'}>
+            <MessageSquare className="w-4 h-4 sm:mr-2" />
+            <span className="hidden sm:inline">{invoice.sentTelegram ? t('invoice_resend_telegram') : t('invoice_send_telegram')}</span>
           </Button>
         )}
-        <Button onClick={handlePrint}>
-          <Download className="w-4 h-4 mr-2" />{t('invoice_print')}
+        <Button className="h-10" onClick={handlePrint}>
+          <Download className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">{t('invoice_print')}</span>
         </Button>
       </div>
 
@@ -231,6 +235,26 @@ export function InvoiceClient({ billing, invoice, settings }: Props) {
             </div>
           )}
         </div>
+
+        {/* QR Codes */}
+        {(settings.qr_code_1 || settings.qr_code_2) && (
+          <div className="px-8 py-6 border-t border-slate-200">
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4 text-center">{t('invoice_payment_qr')}</p>
+            <div className="flex gap-8 justify-center flex-wrap">
+              {([1, 2] as const).map((slot) => {
+                const src = settings[`qr_code_${slot}`]
+                const label = settings[`qr_label_${slot}`]
+                if (!src) return null
+                return (
+                  <div key={slot} className="flex flex-col items-center gap-2">
+                    <img src={src} alt={`QR ${slot}`} className="w-28 h-28 object-contain border border-slate-200 rounded-lg" />
+                    {label && <p className="text-xs text-slate-600 font-medium text-center">{label}</p>}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Footer */}
         <div className="px-8 py-4 bg-slate-50 border-t border-slate-200 text-center text-xs text-slate-400">

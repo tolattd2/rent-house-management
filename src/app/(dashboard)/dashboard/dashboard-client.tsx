@@ -119,26 +119,26 @@ export function DashboardClient({ rooms, tenants, billings, expenses, unpaidBill
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Page header */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h1 className="text-2xl font-bold">{t('dashboard_title')}</h1>
           <p className="text-muted-foreground text-sm">{formatMonth(currentMonth)} {t('overview')}</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 flex-wrap">
           {/* Branch filter */}
-          <div className="flex items-center bg-muted rounded-lg p-1 gap-1">
+          <div className="flex items-center bg-muted rounded-lg p-1 gap-0.5">
             {BRANCHES.map(b => (
               <button
                 key={b}
                 onClick={() => setBranch(b)}
                 className={cn(
-                  'px-3 py-1.5 rounded-md text-sm font-medium transition-all',
+                  'px-2.5 sm:px-3 py-2 rounded-md text-xs sm:text-sm font-medium transition-all min-h-[36px]',
                   branch === b
                     ? 'bg-background text-foreground shadow-sm'
                     : 'text-muted-foreground hover:text-foreground'
                 )}
               >
-                {b === 'all' ? t('billing_all_months').split(' ')[0] === 'All' ? 'All' : 'ទាំងអស់' : b}
+                {b === 'all' ? (t('billing_all_months').split(' ')[0] === 'All' ? 'All' : 'ទាំងអស់') : b}
               </button>
             ))}
           </div>
@@ -171,7 +171,7 @@ export function DashboardClient({ rooms, tenants, billings, expenses, unpaidBill
       </div>
 
       {/* Room status row */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-3 gap-2 sm:gap-4">
         <StatsCard title={t('dashboard_occupied')} value={stats.occupied} icon={Home} color="green" index={4} />
         <StatsCard title={t('dashboard_vacant')} value={stats.vacant} icon={Home} color="indigo" index={5} />
         <StatsCard title={t('status_maintenance')} value={stats.maintenance} icon={Wrench} color="yellow" index={6} />

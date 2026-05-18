@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { motion } from 'framer-motion'
 import { Plus, Search, User, Phone, Home, AlertCircle, Building2 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -84,32 +83,98 @@ export function TenantsClient({ tenants: initial, rooms }: Props) {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-3">
-        <div className="relative flex-1 min-w-48 max-w-sm">
+      <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+        <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input placeholder={t('tenants_search')} className="pl-9" value={search}
+          <Input placeholder={t('tenants_search')} className="pl-9 h-11" value={search}
             onChange={(e) => setSearch(e.target.value)} />
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-1.5">
           {(['all', 'active', 'inactive'] as const).map((s) => (
             <Button key={s} variant={statusFilter === s ? 'default' : 'outline'} size="sm"
+              className="flex-1 sm:flex-none h-11 px-2 sm:px-3 text-xs sm:text-sm"
               onClick={() => setStatusFilter(s)}>
               {t(`status_${s}` as Parameters<typeof t>[0])}
             </Button>
           ))}
-        </div>
-        <div className="flex gap-2">
           {(['all', 'Takmoa', 'Chamkadong'] as const).map((b) => (
             <Button key={b} variant={branchFilter === b ? 'default' : 'outline'} size="sm"
+              className="flex-1 sm:flex-none h-11 px-2 sm:px-3 text-xs sm:text-sm"
               onClick={() => setBranchFilter(b)}>
-              {b === 'all' ? <><Building2 className="w-3.5 h-3.5 mr-1" />{t('all')}</> : b}
+              {b === 'all' ? <><Building2 className="w-3 h-3 sm:mr-1" /><span className="hidden sm:inline">{t('all')}</span></> : <span className="truncate max-w-[72px]">{b}</span>}
             </Button>
           ))}
         </div>
       </div>
 
-      {/* Table */}
-      <Card>
+      {/* Mobile card list — visible on small screens */}
+      <div className="md:hidden space-y-3">
+        {filtered.length === 0 && (
+          <div className="text-center py-16 text-muted-foreground">
+            <User className="w-12 h-12 mx-auto mb-3 opacity-30" />
+            <p>{t('tenants_empty')}</p>
+          </div>
+        )}
+        {filtered.map((tenant) => {
+          const outstanding = tenant.billings.reduce((s, b) => s + b.totalUsd, 0)
+          return (
+            <Card key={tenant.id} className="p-4">
+              <div className="flex items-start justify-between gap-2 mb-3">
+                <Link href={`/tenants/${tenant.id}`} className="flex items-center gap-2.5 hover:text-primary min-w-0">
+                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                    <User className="w-5 h-5 text-primary" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-semibold truncate">{tenant.fullName}</p>
+                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+                      <Phone className="w-3 h-3" />{tenant.phone || '—'}
+                    </p>
+                  </div>
+                </Link>
+                <Badge variant={tenant.status === 'active' ? 'success' : 'secondary'} className="shrink-0">
+                  {t(tenant.status === 'active' ? 'status_active' : 'status_inactive')}
+                </Badge>
+              </div>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm mb-3">
+                <div>
+                  <p className="text-xs text-muted-foreground">{t('tenants_col_room')}</p>
+                  <p>{tenant.room ? `${t('room')} ${roomLabel(tenant.room)}` : '—'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">{t('tenants_col_monthly_rent')}</p>
+                  <p>{tenant.room ? formatCurrency(tenant.room.rentPriceUsd) : '—'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">{t('tenants_col_movein')}</p>
+                  <p>{formatDate(tenant.moveInDate)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">{t('tenants_col_outstanding')}</p>
+                  {outstanding > 0 ? (
+                    <span className="flex items-center gap-1 text-red-600 font-semibold text-sm">
+                      <AlertCircle className="w-3.5 h-3.5" />{formatCurrency(outstanding)}
+                    </span>
+                  ) : <span className="text-green-600 text-xs">{t('tenants_paid_up')}</span>}
+                </div>
+              </div>
+              <div className="flex gap-2 pt-2 border-t border-border">
+                <Link href={`/tenants/${tenant.id}`} className="flex-1">
+                  <Button variant="outline" size="sm" className="w-full h-10">{t('view')}</Button>
+                </Link>
+                {isAdmin && tenant.status === 'active' && (
+                  <Button variant="outline" size="sm" className="flex-1 h-10"
+                    onClick={() => handleMoveOut(tenant.id)}>
+                    {t('tenants_move_out')}
+                  </Button>
+                )}
+              </div>
+            </Card>
+          )
+        })}
+      </div>
+
+      {/* Desktop table — hidden on small screens */}
+      <Card className="hidden md:block">
         <div className="overflow-x-auto scrollbar-thin">
           <table className="w-full min-w-[1000px] text-sm">
             <thead>
@@ -130,10 +195,7 @@ export function TenantsClient({ tenants: initial, rooms }: Props) {
               {filtered.map((tenant, i) => {
                 const outstanding = tenant.billings.reduce((s, b) => s + b.totalUsd, 0)
                 return (
-                  <motion.tr key={tenant.id}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: i * 0.03 }}
+                  <tr key={tenant.id}
                     className={`border-b border-border last:border-0 hover:bg-muted/40 ${i % 2 ? 'bg-muted/10' : ''}`}
                   >
                     <td className="px-4 py-3">
@@ -193,7 +255,7 @@ export function TenantsClient({ tenants: initial, rooms }: Props) {
                         )}
                       </div>
                     </td>
-                  </motion.tr>
+                  </tr>
                 )
               })}
             </tbody>
