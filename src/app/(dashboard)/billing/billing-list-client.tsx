@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Plus, Search, Filter, FileText, CheckCircle, AlertTriangle, Calendar } from 'lucide-react'
+import { Plus, Search, Filter, FileText, CheckCircle, AlertTriangle, Calendar, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -109,6 +109,18 @@ export function BillingListClient({ billings: initial }: Props) {
     if (data.ok) {
       setBillings((prev) => prev.map((b) => b.id === id ? { ...b, paymentStatus: 'paid', paymentDate: new Date().toISOString().slice(0, 10) } : b))
       toast({ title: 'Marked as paid' })
+    }
+  }
+
+  const handleDelete = async (id: string) => {
+    if (!confirm(t('billing_delete_confirm'))) return
+    const res = await fetch(`/api/billing/${id}`, { method: 'DELETE' })
+    const data = await res.json()
+    if (data.ok) {
+      setBillings((prev) => prev.filter((b) => b.id !== id))
+      toast({ title: t('billing_deleted') })
+    } else {
+      toast({ title: 'Error', description: data.error, variant: 'destructive' })
     }
   }
 
@@ -258,6 +270,12 @@ export function BillingListClient({ billings: initial }: Props) {
                 <Link href={`/invoices/${b.id}`} className="flex-1">
                   <Button variant="outline" size="sm" className="w-full h-10">{t('billing_invoice')}</Button>
                 </Link>
+                {isAdmin && (
+                  <Button variant="outline" size="sm" className="h-10 text-destructive border-destructive/30 hover:bg-destructive/10"
+                    onClick={() => handleDelete(b.id)}>
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                )}
               </div>
             </Card>
           )
@@ -351,6 +369,12 @@ export function BillingListClient({ billings: initial }: Props) {
                         <Link href={`/invoices/${b.id}`}>
                           <Button variant="ghost" size="sm" className="text-xs h-8 px-2">{t('billing_invoice')}</Button>
                         </Link>
+                        {isAdmin && (
+                          <Button variant="ghost" size="sm" className="text-xs h-8 px-2 text-destructive hover:bg-destructive/10"
+                            onClick={() => handleDelete(b.id)}>
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        )}
                       </div>
                     </td>
                   </tr>
