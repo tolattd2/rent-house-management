@@ -28,6 +28,11 @@ type Billing = {
 
 interface Props { billings: Billing[] }
 
+function formatRoomLabel(roomNumber: string | undefined | null, branch: string | null | undefined) {
+  if (!roomNumber) return '—'
+  return (branch ?? 'Takmoa') === 'Chamkadong' ? `Rckd ${roomNumber}` : `Room ${roomNumber}`
+}
+
 function getDueInfo(billingMonth: string, payDay: number, paymentStatus: string) {
   const [year, month] = billingMonth.split('-').map(Number)
   const dueDate = new Date(year, month - 1, payDay)
@@ -238,7 +243,7 @@ export function BillingListClient({ billings: initial }: Props) {
                   <Link href={`/tenants/${b.tenant?.id}`} className="font-semibold hover:text-primary block truncate">
                     {b.tenant?.fullName ?? '—'}
                   </Link>
-                  <p className="text-xs text-muted-foreground">{t('room')} {b.room?.roomNumber ?? '—'} · {b.billingMonth}</p>
+                  <p className="text-xs text-muted-foreground">{formatRoomLabel(b.room?.roomNumber, b.room?.branch)} · {b.billingMonth}</p>
                 </div>
                 <Badge variant={b.paymentStatus === 'paid' ? 'success' : b.paymentStatus === 'partial' ? 'warning' : 'error'} className="shrink-0">
                   {t(b.paymentStatus === 'paid' ? 'status_paid' : b.paymentStatus === 'partial' ? 'status_partial' : 'status_unpaid')}
@@ -327,7 +332,7 @@ export function BillingListClient({ billings: initial }: Props) {
                   <tr key={b.id}
                     className={`border-b border-border last:border-0 hover:bg-muted/30 ${i % 2 ? 'bg-muted/10' : ''}`}
                   >
-                    <td className="px-4 py-3 font-medium">{b.room?.roomNumber ?? '—'}</td>
+                    <td className="px-4 py-3 font-medium">{formatRoomLabel(b.room?.roomNumber, b.room?.branch)}</td>
                     <td className="px-4 py-3 text-muted-foreground">{b.room?.branch ?? '—'}</td>
                     <td className="px-4 py-3">
                       <Link href={`/tenants/${b.tenant?.id}`} className="font-medium hover:text-primary">
