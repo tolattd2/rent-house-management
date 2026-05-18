@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { PaymentDialog } from '@/components/billing/payment-dialog'
-import { formatCurrency, exportToCSV } from '@/lib/utils'
+import { formatCurrency, exportToCSV, roomLabel, sortRoomsByNumber } from '@/lib/utils'
 import { toast } from '@/hooks/use-toast'
 import { useSession } from 'next-auth/react'
 import { useLanguage } from '@/contexts/language-context'
@@ -27,11 +27,6 @@ type Billing = {
 }
 
 interface Props { billings: Billing[] }
-
-function formatRoomLabel(roomNumber: string | undefined | null, branch: string | null | undefined) {
-  if (!roomNumber) return '—'
-  return (branch ?? 'Takmoa') === 'Chamkadong' ? `Rckd ${roomNumber}` : `Room ${roomNumber}`
-}
 
 function getDueInfo(billingMonth: string, payDay: number, paymentStatus: string) {
   const [year, month] = billingMonth.split('-').map(Number)
@@ -57,16 +52,18 @@ export function BillingListClient({ billings: initial }: Props) {
 
   const branches = [...new Set(billings.map((b) => b.room?.branch ?? 'Takmoa'))].sort()
 
-  const filtered = billings.filter((b) => {
-    const matchSearch =
-      (b.tenant?.fullName ?? '').toLowerCase().includes(search.toLowerCase()) ||
-      (b.room?.roomNumber ?? '').includes(search) ||
-      b.billingMonth.includes(search)
-    const matchStatus = statusFilter === 'all' || b.paymentStatus === statusFilter
-    const matchMonth = monthFilter === 'all' || b.billingMonth === monthFilter
-    const matchBranch = branchFilter === 'all' || (b.room?.branch ?? 'Takmoa') === branchFilter
-    return matchSearch && matchStatus && matchMonth && matchBranch
-  })
+  const filtered = sortRoomsByNumber(
+    billings.filter((b) => {
+      const matchSearch =
+        (b.tenant?.fullName ?? '').toLowerCase().includes(search.toLowerCase()) ||
+        (b.room?.roomNumber ?? '').includes(search) ||
+        b.billingMonth.includes(search)
+      const matchStatus = statusFilter === 'all' || b.paymentStatus === statusFilter
+      const matchMonth = monthFilter === 'all' || b.billingMonth === monthFilter
+      const matchBranch = branchFilter === 'all' || (b.room?.branch ?? 'Takmoa') === branchFilter
+      return matchSearch && matchStatus && matchMonth && matchBranch
+    }).map((b) => ({ ...b, roomNumber: b.room?.roomNumber ?? '' }))
+  )
 
   const totalRevenue = filtered
     .filter((b) => b.paymentStatus === 'paid')
@@ -243,7 +240,7 @@ export function BillingListClient({ billings: initial }: Props) {
                   <Link href={`/tenants/${b.tenant?.id}`} className="font-semibold hover:text-primary block truncate">
                     {b.tenant?.fullName ?? '—'}
                   </Link>
-                  <p className="text-xs text-muted-foreground">{formatRoomLabel(b.room?.roomNumber, b.room?.branch)} · {b.billingMonth}</p>
+                  <p className="text-xs text-muted-foreground">{b.room ? `${t('room')} ${roomLabel(b.room)}` : '—'} · {b.billingMonth}</p>
                 </div>
                 <Badge variant={b.paymentStatus === 'paid' ? 'success' : b.paymentStatus === 'partial' ? 'warning' : 'error'} className="shrink-0">
                   {t(b.paymentStatus === 'paid' ? 'status_paid' : b.paymentStatus === 'partial' ? 'status_partial' : 'status_unpaid')}
@@ -332,7 +329,7 @@ export function BillingListClient({ billings: initial }: Props) {
                   <tr key={b.id}
                     className={`border-b border-border last:border-0 hover:bg-muted/30 ${i % 2 ? 'bg-muted/10' : ''}`}
                   >
-                    <td className="px-4 py-3 font-medium">{formatRoomLabel(b.room?.roomNumber, b.room?.branch)}</td>
+                    <td className="px-4 py-3 font-medium">{b.room ? roomLabel(b.room) : '—'}</td>
                     <td className="px-4 py-3 text-muted-foreground">{b.room?.branch ?? '—'}</td>
                     <td className="px-4 py-3">
                       <Link href={`/tenants/${b.tenant?.id}`} className="font-medium hover:text-primary">

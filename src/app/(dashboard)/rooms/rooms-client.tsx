@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { RoomFormDialog } from '@/components/rooms/room-form-dialog'
-import { formatCurrency, roomLabel } from '@/lib/utils'
+import { formatCurrency, roomLabel, sortRoomsByNumber } from '@/lib/utils'
 import { toast } from '@/hooks/use-toast'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
@@ -55,13 +55,13 @@ export function RoomsClient({ rooms: initialRooms }: Props) {
   const [showForm, setShowForm] = useState(false)
   const [editRoom, setEditRoom] = useState<Room | null>(null)
 
-  const filtered = rooms.filter((r) => {
+  const filtered = sortRoomsByNumber(rooms.filter((r) => {
     const matchSearch = r.roomNumber.toLowerCase().includes(search.toLowerCase()) ||
       r.roomType.toLowerCase().includes(search.toLowerCase())
     const matchStatus = statusFilter === 'all' || r.status === statusFilter
     const matchBranch = branchFilter === 'all' || r.branch === branchFilter
     return matchSearch && matchStatus && matchBranch
-  })
+  }))
 
   const handleDelete = async (id: string) => {
     if (!confirm(t('room_delete_confirm'))) return

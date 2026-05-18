@@ -126,3 +126,11 @@ export function usdToKhr(usd: number, rate: number): number {
 export function roomLabel(room: { roomNumber: string; branch?: string | null }): string {
   return room.branch === 'Chamkadong' ? `Rckd${room.roomNumber}` : room.roomNumber
 }
+
+export function sortRoomsByNumber<T extends { roomNumber: string }>(rooms: T[]): T[] {
+  return [...rooms].sort((a, b) => {
+    const numA = parseInt(a.roomNumber.replace(/\D/g, ''), 10) || 0
+    const numB = parseInt(b.roomNumber.replace(/\D/g, ''), 10) || 0
+    return numA - numB
+  })
+}

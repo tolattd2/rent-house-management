@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from '@/hooks/use-toast'
-import { roomLabel } from '@/lib/utils'
+import { roomLabel, sortRoomsByNumber } from '@/lib/utils'
 import { useLanguage } from '@/contexts/language-context'
 
 const schema = z.object({
@@ -75,9 +75,9 @@ export function TenantFormDialog({ rooms, tenant, onClose, onSave }: Props) {
   })
 
   const branches = [...new Set(rooms.map((r) => r.branch ?? 'Takmoa'))].sort()
-  const branchRooms = selectedBranch
-    ? rooms.filter((r) => (r.branch ?? 'Takmoa') === selectedBranch)
-    : []
+  const branchRooms = sortRoomsByNumber(
+    selectedBranch ? rooms.filter((r) => (r.branch ?? 'Takmoa') === selectedBranch) : []
+  )
 
   const selectedRoomId = watch('roomId')
   const selectedRoom = rooms.find((r) => r.id === selectedRoomId)

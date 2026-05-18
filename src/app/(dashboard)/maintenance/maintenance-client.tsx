@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { formatCurrency, formatDate, roomLabel } from '@/lib/utils'
+import { formatCurrency, formatDate, roomLabel, sortRoomsByNumber } from '@/lib/utils'
 import { toast } from '@/hooks/use-toast'
 import { useLanguage } from '@/contexts/language-context'
 
@@ -87,7 +87,9 @@ export function MaintenanceClient({ records: initial, rooms, tenants }: Props) {
   const totalFee = filtered.reduce((s, r) => s + r.repairFeeUsd, 0)
 
   const branches = [...new Set(rooms.map((r) => r.branch ?? 'Takmoa'))].sort()
-  const filteredRooms = form.branch ? rooms.filter((r) => (r.branch ?? 'Takmoa') === form.branch) : []
+  const filteredRooms = sortRoomsByNumber(
+    form.branch ? rooms.filter((r) => (r.branch ?? 'Takmoa') === form.branch) : []
+  )
 
   function openNew() {
     setEditing(null)
