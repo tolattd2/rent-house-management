@@ -5,6 +5,7 @@ import { motion } from 'framer-motion'
 import { Plus, Search, User, Phone, Home, AlertCircle, Building2 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { useSession } from 'next-auth/react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -30,6 +31,8 @@ interface Props { tenants: Tenant[]; rooms: Room[] }
 
 export function TenantsClient({ tenants: initial, rooms }: Props) {
   const router = useRouter()
+  const { data: session } = useSession()
+  const isAdmin = session?.user?.role === 'admin'
   const { t } = useLanguage()
   const [tenants, setTenants] = useState(initial)
   const [search, setSearch] = useState('')
@@ -73,9 +76,11 @@ export function TenantsClient({ tenants: initial, rooms }: Props) {
             {tenants.filter((t) => t.status === 'active').length} {t('tenants_active_count')}
           </p>
         </div>
-        <Button onClick={() => setShowForm(true)}>
-          <Plus className="w-4 h-4 mr-2" /> {t('tenants_add')}
-        </Button>
+        {isAdmin && (
+          <Button onClick={() => setShowForm(true)}>
+            <Plus className="w-4 h-4 mr-2" /> {t('tenants_add')}
+          </Button>
+        )}
       </div>
 
       {/* Filters */}
@@ -182,7 +187,7 @@ export function TenantsClient({ tenants: initial, rooms }: Props) {
                         <Link href={`/tenants/${tenant.id}`}>
                           <Button variant="ghost" size="sm">{t('view')}</Button>
                         </Link>
-                        {tenant.status === 'active' && (
+                        {isAdmin && tenant.status === 'active' && (
                           <Button variant="outline" size="sm" onClick={() => handleMoveOut(tenant.id)}
                             className="text-xs">{t('tenants_move_out')}</Button>
                         )}

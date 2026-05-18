@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { useRouter } from 'next/navigation'
+import { useSession } from 'next-auth/react'
 import Link from 'next/link'
 import {
   User, Phone, Calendar,
@@ -46,6 +47,8 @@ interface Props {
 
 export function TenantDetailClient({ tenant, rooms }: Props) {
   const router = useRouter()
+  const { data: session } = useSession()
+  const isAdmin = session?.user?.role === 'admin'
   const { t } = useLanguage()
   const [showEdit, setShowEdit] = useState(false)
 
@@ -81,7 +84,7 @@ export function TenantDetailClient({ tenant, rooms }: Props) {
           <Button variant="ghost" size="sm"><ArrowLeft className="w-4 h-4 mr-1" />{t('back')}</Button>
         </Link>
         <div className="flex-1" />
-        {tenant.status === 'active' && (
+        {isAdmin && tenant.status === 'active' && (
           <>
             <Button variant="outline" onClick={() => setShowEdit(true)}>
               <Edit className="w-4 h-4 mr-2" />{t('edit')}

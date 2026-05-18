@@ -6,6 +6,7 @@ import { sendTelegramMessage, buildReminderMessage } from '@/lib/notifications'
 export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth()
   if (!session) return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 })
+  if (session.user.role !== 'admin') return NextResponse.json({ ok: false, error: 'Forbidden' }, { status: 403 })
   const { id } = await params
 
   const billing = await db.billing.findUnique({

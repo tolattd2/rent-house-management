@@ -1,6 +1,7 @@
 'use client'
 
 import { useRef, useState } from 'react'
+import { useSession } from 'next-auth/react'
 import { motion } from 'framer-motion'
 import { ArrowLeft, Download, MessageSquare } from 'lucide-react'
 import Link from 'next/link'
@@ -35,6 +36,8 @@ interface Props {
 
 export function InvoiceClient({ billing, invoice, settings }: Props) {
   const { t } = useLanguage()
+  const { data: session } = useSession()
+  const isAdmin = session?.user?.role === 'admin'
   const printRef = useRef<HTMLDivElement>(null)
   const [sending, setSending] = useState<string | null>(null)
   const xRate = billing.exchangeRate || parseFloat(settings.exchange_rate ?? '4100')
@@ -57,10 +60,12 @@ export function InvoiceClient({ billing, invoice, settings }: Props) {
       <div className="flex items-center gap-3 no-print">
         <Link href="/billing"><Button variant="ghost" size="sm"><ArrowLeft className="w-4 h-4 mr-1" />{t('back')}</Button></Link>
         <div className="flex-1" />
-        <Button variant="outline" size="sm" onClick={handleSendTelegram} disabled={sending === 'telegram'}>
-          <MessageSquare className="w-4 h-4 mr-2" />
-          {invoice.sentTelegram ? t('invoice_resend_telegram') : t('invoice_send_telegram')}
-        </Button>
+        {isAdmin && (
+          <Button variant="outline" size="sm" onClick={handleSendTelegram} disabled={sending === 'telegram'}>
+            <MessageSquare className="w-4 h-4 mr-2" />
+            {invoice.sentTelegram ? t('invoice_resend_telegram') : t('invoice_send_telegram')}
+          </Button>
+        )}
         <Button onClick={handlePrint}>
           <Download className="w-4 h-4 mr-2" />{t('invoice_print')}
         </Button>

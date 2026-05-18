@@ -11,6 +11,7 @@ import { RoomFormDialog } from '@/components/rooms/room-form-dialog'
 import { formatCurrency, roomLabel } from '@/lib/utils'
 import { toast } from '@/hooks/use-toast'
 import { useRouter } from 'next/navigation'
+import { useSession } from 'next-auth/react'
 import Link from 'next/link'
 import { useLanguage } from '@/contexts/language-context'
 
@@ -45,6 +46,8 @@ interface Props { rooms: Room[] }
 
 export function RoomsClient({ rooms: initialRooms }: Props) {
   const router = useRouter()
+  const { data: session } = useSession()
+  const isAdmin = session?.user?.role === 'admin'
   const { t } = useLanguage()
   const [rooms, setRooms] = useState(initialRooms)
   const [search, setSearch] = useState('')
@@ -99,9 +102,11 @@ export function RoomsClient({ rooms: initialRooms }: Props) {
           <h1 className="text-2xl font-bold">{t('rooms_title')}</h1>
           <p className="text-muted-foreground text-sm">{rooms.length} {t('rooms_total')}</p>
         </div>
-        <Button onClick={() => { setEditRoom(null); setShowForm(true) }}>
-          <Plus className="w-4 h-4 mr-2" /> {t('rooms_add')}
-        </Button>
+        {isAdmin && (
+          <Button onClick={() => { setEditRoom(null); setShowForm(true) }}>
+            <Plus className="w-4 h-4 mr-2" /> {t('rooms_add')}
+          </Button>
+        )}
       </div>
 
       {/* Status summary */}
@@ -185,16 +190,18 @@ export function RoomsClient({ rooms: initialRooms }: Props) {
                   </div>
 
                   {/* Actions */}
-                  <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Button variant="outline" size="sm" className="flex-1" onClick={() => { setEditRoom(room); setShowForm(true) }}>
-                      <Edit className="w-3.5 h-3.5 mr-1" /> {t('edit')}
-                    </Button>
-                    {!tenant && (
-                      <Button variant="outline" size="sm" onClick={() => handleDelete(room.id)} className="text-destructive hover:bg-destructive/10">
-                        <Trash2 className="w-3.5 h-3.5" />
+                  {isAdmin && (
+                    <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button variant="outline" size="sm" className="flex-1" onClick={() => { setEditRoom(room); setShowForm(true) }}>
+                        <Edit className="w-3.5 h-3.5 mr-1" /> {t('edit')}
                       </Button>
-                    )}
-                  </div>
+                      {!tenant && (
+                        <Button variant="outline" size="sm" onClick={() => handleDelete(room.id)} className="text-destructive hover:bg-destructive/10">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      )}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </motion.div>

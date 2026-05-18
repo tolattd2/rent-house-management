@@ -17,6 +17,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { toast } from '@/hooks/use-toast'
 import { formatCurrency, exportToCSV } from '@/lib/utils'
 import { useRouter } from 'next/navigation'
+import { useSession } from 'next-auth/react'
 import { useLanguage } from '@/contexts/language-context'
 
 type Expense = {
@@ -77,6 +78,8 @@ const emptyForm = {
 
 export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
   const router = useRouter()
+  const { data: session } = useSession()
+  const isAdmin = session?.user?.role === 'admin'
   const { t } = useLanguage()
   const [expenses, setExpenses] = useState(initialExpenses)
   const [search, setSearch] = useState('')
@@ -210,9 +213,11 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
           <Button variant="outline" onClick={handleExport}>
             <Download className="w-4 h-4 mr-2" />{t('billing_export')}
           </Button>
-          <Button onClick={openAdd}>
-            <Plus className="w-4 h-4 mr-2" />{t('expenses_add')}
-          </Button>
+          {isAdmin && (
+            <Button onClick={openAdd}>
+              <Plus className="w-4 h-4 mr-2" />{t('expenses_add')}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -375,16 +380,18 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
                       {formatCurrency(expense.amountUsd)}
                     </td>
                     <td className="px-4 py-3">
-                      <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Button variant="ghost" size="sm" onClick={() => openEdit(expense)} className="h-7 w-7 p-0">
-                          <Edit className="w-3.5 h-3.5" />
-                        </Button>
-                        {!expense.maintenanceId && (
-                          <Button variant="ghost" size="sm" onClick={() => handleDelete(expense.id)} className="h-7 w-7 p-0 text-destructive hover:bg-destructive/10">
-                            <Trash2 className="w-3.5 h-3.5" />
+                      {isAdmin && (
+                        <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button variant="ghost" size="sm" onClick={() => openEdit(expense)} className="h-7 w-7 p-0">
+                            <Edit className="w-3.5 h-3.5" />
                           </Button>
-                        )}
-                      </div>
+                          {!expense.maintenanceId && (
+                            <Button variant="ghost" size="sm" onClick={() => handleDelete(expense.id)} className="h-7 w-7 p-0 text-destructive hover:bg-destructive/10">
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </Button>
+                          )}
+                        </div>
+                      )}
                     </td>
                   </motion.tr>
                 )

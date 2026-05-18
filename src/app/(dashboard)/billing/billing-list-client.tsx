@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { PaymentDialog } from '@/components/billing/payment-dialog'
 import { formatCurrency, exportToCSV } from '@/lib/utils'
 import { toast } from '@/hooks/use-toast'
+import { useSession } from 'next-auth/react'
 import { useLanguage } from '@/contexts/language-context'
 
 type Billing = {
@@ -40,6 +41,8 @@ function getDueInfo(billingMonth: string, payDay: number, paymentStatus: string)
 
 export function BillingListClient({ billings: initial }: Props) {
   const router = useRouter()
+  const { data: session } = useSession()
+  const isAdmin = session?.user?.role === 'admin'
   const { t } = useLanguage()
   const [billings, setBillings] = useState(initial)
   const [search, setSearch] = useState('')
@@ -119,10 +122,14 @@ export function BillingListClient({ billings: initial }: Props) {
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" size="sm" onClick={handleExport}>{t('billing_export')}</Button>
-          <Button variant="outline" size="sm" onClick={handleGenerateMonthly}>
-            <Calendar className="w-4 h-4 mr-2" />{t('billing_generate')}
-          </Button>
-          <Link href="/billing/create"><Button><Plus className="w-4 h-4 mr-2" />{t('billing_create')}</Button></Link>
+          {isAdmin && (
+            <>
+              <Button variant="outline" size="sm" onClick={handleGenerateMonthly}>
+                <Calendar className="w-4 h-4 mr-2" />{t('billing_generate')}
+              </Button>
+              <Link href="/billing/create"><Button><Plus className="w-4 h-4 mr-2" />{t('billing_create')}</Button></Link>
+            </>
+          )}
         </div>
       </div>
 
@@ -259,7 +266,7 @@ export function BillingListClient({ billings: initial }: Props) {
                         <Link href={`/billing/${b.id}`}>
                           <Button variant="ghost" size="sm" className="text-xs h-7 px-2">{t('view')}</Button>
                         </Link>
-                        {b.paymentStatus !== 'paid' && (
+                        {isAdmin && b.paymentStatus !== 'paid' && (
                           <Button variant="ghost" size="sm" className="text-xs h-7 px-2 text-green-600"
                             onClick={() => setPayDialog(b)}>
                             {t('billing_pay')}

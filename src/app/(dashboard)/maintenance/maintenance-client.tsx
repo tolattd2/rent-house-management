@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Plus, Search, Wrench, Trash2, Pencil, CheckCircle2, Clock, AlertCircle } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import { useSession } from 'next-auth/react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -61,6 +62,8 @@ const emptyForm: {
 
 export function MaintenanceClient({ records: initial, rooms, tenants }: Props) {
   const router = useRouter()
+  const { data: session } = useSession()
+  const isAdmin = session?.user?.role === 'admin'
   const { t } = useLanguage()
   const [records, setRecords] = useState(initial)
   const [search, setSearch] = useState('')
@@ -185,9 +188,11 @@ export function MaintenanceClient({ records: initial, rooms, tenants }: Props) {
             {records.filter((r) => r.status !== 'completed').length} {t('maintenance_open_count')}
           </p>
         </div>
-        <Button onClick={openNew}>
-          <Plus className="w-4 h-4 mr-2" /> {t('maintenance_add')}
-        </Button>
+        {isAdmin && (
+          <Button onClick={openNew}>
+            <Plus className="w-4 h-4 mr-2" /> {t('maintenance_add')}
+          </Button>
+        )}
       </div>
 
       {/* Branch filter tabs */}
@@ -301,15 +306,17 @@ export function MaintenanceClient({ records: initial, rooms, tenants }: Props) {
                       </Badge>
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <Button variant="ghost" size="sm" onClick={() => openEdit(r)}>
-                          <Pencil className="w-3.5 h-3.5" />
-                        </Button>
-                        <Button variant="ghost" size="sm" onClick={() => handleDelete(r.id)}
-                          className="text-red-500 hover:text-red-600">
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </Button>
-                      </div>
+                      {isAdmin && (
+                        <div className="flex items-center justify-end gap-2">
+                          <Button variant="ghost" size="sm" onClick={() => openEdit(r)}>
+                            <Pencil className="w-3.5 h-3.5" />
+                          </Button>
+                          <Button variant="ghost" size="sm" onClick={() => handleDelete(r.id)}
+                            className="text-red-500 hover:text-red-600">
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
+                      )}
                     </td>
                   </motion.tr>
                 )

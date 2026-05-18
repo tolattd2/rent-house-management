@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useSession } from 'next-auth/react'
 import { useForm } from 'react-hook-form'
 import { Save, Building2, DollarSign, MessageSquare, Mail, Phone, Users, Plus, Key, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -27,6 +28,8 @@ interface Props { settings: Record<string, string> }
 
 export function SettingsClient({ settings: initial }: Props) {
   const { t } = useLanguage()
+  const { data: session } = useSession()
+  const isAdmin = session?.user?.role === 'admin'
   const [loading, setLoading] = useState(false)
 
   // Users state
@@ -289,9 +292,11 @@ export function SettingsClient({ settings: initial }: Props) {
                 <CardTitle className="text-base flex items-center gap-2">
                   <Users className="w-4 h-4" />{t('settings_users_title')}
                 </CardTitle>
-                <Button type="button" size="sm" onClick={() => setShowAddUser(true)}>
-                  <Plus className="w-4 h-4 mr-1" />{t('settings_add_user')}
-                </Button>
+                {isAdmin && (
+                  <Button type="button" size="sm" onClick={() => setShowAddUser(true)}>
+                    <Plus className="w-4 h-4 mr-1" />{t('settings_add_user')}
+                  </Button>
+                )}
               </CardHeader>
               <CardContent>
                 {usersLoading ? (
@@ -311,23 +316,27 @@ export function SettingsClient({ settings: initial }: Props) {
                           <Badge variant={u.role === 'admin' ? 'default' : 'secondary'} className="text-xs capitalize">
                             {u.role}
                           </Badge>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            onClick={() => { setChangePwTarget(u); setShowChangePw(true) }}
-                          >
-                            <Key className="w-3 h-3 mr-1" />{t('settings_change_password')}
-                          </Button>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            className="text-destructive hover:text-destructive"
-                            onClick={() => handleDeleteUser(u)}
-                          >
-                            <Trash2 className="w-3 h-3" />
-                          </Button>
+                          {isAdmin && (
+                            <>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={() => { setChangePwTarget(u); setShowChangePw(true) }}
+                              >
+                                <Key className="w-3 h-3 mr-1" />{t('settings_change_password')}
+                              </Button>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                className="text-destructive hover:text-destructive"
+                                onClick={() => handleDeleteUser(u)}
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </Button>
+                            </>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -339,11 +348,13 @@ export function SettingsClient({ settings: initial }: Props) {
         </Tabs>
 
         {/* Only show save button when not on users tab */}
-        <div className="mt-6 flex justify-end">
-          <Button type="submit" loading={loading}>
-            <Save className="w-4 h-4 mr-2" />{t('settings_save')}
-          </Button>
-        </div>
+        {isAdmin && (
+          <div className="mt-6 flex justify-end">
+            <Button type="submit" loading={loading}>
+              <Save className="w-4 h-4 mr-2" />{t('settings_save')}
+            </Button>
+          </div>
+        )}
       </form>
 
       {/* Add User Dialog */}
