@@ -22,3 +22,6 @@ yarn-error.log*
 
 # Prisma
 prisma/generated/
+
+# Claude Code local settings
+.claude/settings.local.json
