@@ -10,6 +10,7 @@ export const TAGS = {
   payments: 'payments',
   settings: 'settings',
   maintenance: 'maintenance',
+  notifications: 'notifications',
 } as const
 
 const REVALIDATE_SECONDS = 300
@@ -168,4 +169,80 @@ export const getSettingsMap = unstable_cache(
   },
   ['settings-map'],
   { tags: [TAGS.settings], revalidate: REVALIDATE_SECONDS },
+)
+
+export const getMaintenanceData = unstable_cache(
+  async () => {
+    const [records, rooms, tenants] = await Promise.all([
+      db.maintenance.findMany({
+        include: {
+          room: { select: { id: true, roomNumber: true, branch: true } },
+          tenant: { select: { id: true, fullName: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+      db.room.findMany({
+        select: { id: true, roomNumber: true, branch: true },
+        orderBy: { roomNumber: 'asc' },
+      }),
+      db.tenant.findMany({
+        where: { status: 'active' },
+        select: { id: true, fullName: true },
+        orderBy: { fullName: 'asc' },
+      }),
+    ])
+    return { records, rooms, tenants }
+  },
+  ['maintenance-data'],
+  { tags: [TAGS.maintenance, TAGS.rooms, TAGS.tenants], revalidate: REVALIDATE_SECONDS },
+)
+
+export const getReportsData = unstable_cache(
+  async () => {
+    const [billings, expenses] = await Promise.all([
+      db.billing.findMany({
+        include: {
+          tenant: { select: { id: true, fullName: true } },
+          room: { select: { id: true, roomNumber: true, branch: true } },
+          payments: true,
+        },
+        orderBy: { billingMonth: 'desc' },
+      }),
+      db.expense.findMany({
+        include: { room: { select: { id: true, roomNumber: true, branch: true } } },
+        orderBy: { expenseDate: 'desc' },
+      }),
+    ])
+    return { billings, expenses }
+  },
+  ['reports-data'],
+  {
+    tags: [TAGS.billings, TAGS.expenses, TAGS.payments, TAGS.tenants, TAGS.rooms],
+    revalidate: REVALIDATE_SECONDS,
+  },
+)
+
+export const getNotificationsData = unstable_cache(
+  async () => {
+    const [notifications, unpaidBillings] = await Promise.all([
+      db.notification.findMany({
+        include: { tenant: { select: { id: true, fullName: true, phone: true } } },
+        orderBy: { createdAt: 'desc' },
+        take: 100,
+      }),
+      db.billing.findMany({
+        where: { paymentStatus: { in: ['unpaid', 'partial'] } },
+        include: {
+          tenant: { select: { id: true, fullName: true, phone: true } },
+          room: { select: { id: true, roomNumber: true } },
+        },
+      }),
+    ])
+    return { notifications, unpaidBillings }
+  },
+  ['notifications-data'],
+  {
+    tags: [TAGS.notifications, TAGS.billings, TAGS.tenants, TAGS.rooms],
+    revalidate: REVALIDATE_SECONDS,
+  },
 )

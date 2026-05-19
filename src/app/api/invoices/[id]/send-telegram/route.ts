@@ -42,6 +42,7 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
     })
   }
 
-  if (invoice) invalidate('invoices')
+  if (invoice) invalidate('invoices', 'notifications')
+  else if (billing.tenantId) invalidate('notifications')
   return NextResponse.json(result)
 }

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { sendTelegramMessage, buildReminderMessage } from '@/lib/notifications'
+import { invalidate } from '@/lib/revalidate'
 
 export async function POST() {
   const session = await auth()
@@ -40,5 +41,6 @@ export async function POST() {
     result.ok ? sent++ : failed++
   }
 
+  if (sent > 0 || failed > 0) invalidate('notifications')
   return NextResponse.json({ ok: true, sent, failed })
 }

@@ -1,25 +1,9 @@
-import { db } from '@/lib/db'
+import { getNotificationsData } from '@/lib/cached-queries'
 import { NotificationsClient } from './notifications-client'
 
-async function getData() {
-  const [notifications, unpaidBillings] = await Promise.all([
-    db.notification.findMany({
-      include: { tenant: { select: { id: true, fullName: true, phone: true } } },
-      orderBy: { createdAt: 'desc' },
-      take: 100,
-    }),
-    db.billing.findMany({
-      where: { paymentStatus: { in: ['unpaid', 'partial'] } },
-      include: {
-        tenant: { select: { id: true, fullName: true, phone: true } },
-        room: { select: { id: true, roomNumber: true } },
-      },
-    }),
-  ])
-  return { notifications, unpaidBillings }
-}
+export const dynamic = 'force-dynamic'
 
 export default async function NotificationsPage() {
-  const data = await getData()
+  const data = await getNotificationsData()
   return <NotificationsClient {...data} />
 }
