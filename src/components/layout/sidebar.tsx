@@ -1,7 +1,8 @@
 'use client'
 
+import { useRef } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   LayoutDashboard, Users, DoorOpen, FileText, Receipt,
@@ -41,8 +42,19 @@ interface SidebarProps {
 
 export function Sidebar({ collapsed, onCollapse }: SidebarProps) {
   const pathname = usePathname()
+  const router = useRouter()
   const { data: session } = useSession()
   const { t } = useLanguage()
+  const warmed = useRef<Set<string>>(new Set())
+
+  function warmCache(href: string) {
+    if (warmed.current.has(href) || href === pathname) return
+    warmed.current.add(href)
+    router.prefetch(href)
+    fetch(href, { credentials: 'include', cache: 'no-store' }).catch(() => {
+      warmed.current.delete(href)
+    })
+  }
 
   return (
     <motion.aside
@@ -83,6 +95,10 @@ export function Sidebar({ collapsed, onCollapse }: SidebarProps) {
               <li key={item.href}>
                 <Link
                   href={item.href}
+                  prefetch
+                  onMouseEnter={() => warmCache(item.href)}
+                  onTouchStart={() => warmCache(item.href)}
+                  onFocus={() => warmCache(item.href)}
                   className={cn(
                     'flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-all duration-150',
                     'hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
