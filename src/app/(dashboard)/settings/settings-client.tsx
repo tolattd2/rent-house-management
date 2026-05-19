@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
 import { useForm } from 'react-hook-form'
-import { Save, Building2, DollarSign, MessageSquare, Mail, Phone, Users, Plus, Key, Trash2, QrCode, Upload, X } from 'lucide-react'
+import { Save, Building2, DollarSign, MessageSquare, Mail, Phone, Users, Plus, Key, Trash2, QrCode, Upload, X, Send } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -155,7 +155,9 @@ export function SettingsClient({ settings: initial }: Props) {
     })
   }
 
-  const { register, handleSubmit } = useForm({
+  const [testingTelegram, setTestingTelegram] = useState(false)
+
+  const { register, handleSubmit, getValues } = useForm({
     defaultValues: {
       exchange_rate: initial.exchange_rate ?? '4100',
       water_rate_riel: initial.water_rate_riel ?? '2000',
@@ -184,6 +186,25 @@ export function SettingsClient({ settings: initial }: Props) {
       qr_chamkadong_label_2: initial.qr_chamkadong_label_2 ?? '',
     },
   })
+
+  async function handleTelegramTest() {
+    setTestingTelegram(true)
+    const res = await fetch('/api/settings/telegram-test', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        token: getValues('telegram_token'),
+        chat_id: getValues('telegram_chat_id'),
+      }),
+    })
+    const data = await res.json()
+    if (data.ok) {
+      toast({ title: t('settings_telegram_test_success') })
+    } else {
+      toast({ title: t('settings_telegram_test_failed'), description: data.error, variant: 'destructive' })
+    }
+    setTestingTelegram(false)
+  }
 
   const onSubmit = async (data: Record<string, string>) => {
     setLoading(true)
@@ -304,6 +325,19 @@ export function SettingsClient({ settings: initial }: Props) {
                   <Label>{t('settings_telegram_chat')}</Label>
                   <Input {...register('telegram_chat_id')} placeholder="-100123456789" />
                 </div>
+                {isAdmin && (
+                  <div className="pt-2 border-t">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      loading={testingTelegram}
+                      onClick={handleTelegramTest}
+                    >
+                      <Send className="w-4 h-4 mr-2" />{t('settings_telegram_test')}
+                    </Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
