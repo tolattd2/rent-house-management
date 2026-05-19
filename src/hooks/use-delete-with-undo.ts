@@ -11,10 +11,50 @@ interface DeleteOptions {
   onSuccess?: () => void
 }
 
+interface RunDeleteOptions extends DeleteOptions {
+  toastTitle?: string
+  toastDescription?: string
+}
+
 interface DialogState {
   open: boolean
   itemName?: string
   onConfirm: () => void
+}
+
+export function runDeleteWithUndo(options: RunDeleteOptions) {
+  const {
+    onRemove, onRestore, onExecute, onSuccess,
+    toastTitle = 'Deleted',
+    toastDescription = 'Click Undo to restore.',
+  } = options
+
+  onRemove?.()
+
+  let cancelled = false
+  const timerId = setTimeout(async () => {
+    if (cancelled) return
+    const result = await onExecute()
+    if (!result.ok) {
+      onRestore?.()
+      toast({ title: 'Error', description: result.error, variant: 'destructive' })
+    } else {
+      onSuccess?.()
+    }
+  }, 5000)
+
+  toast({
+    title: toastTitle,
+    description: toastDescription,
+    action: {
+      label: 'Undo',
+      onClick: () => {
+        cancelled = true
+        clearTimeout(timerId)
+        onRestore?.()
+      },
+    },
+  })
 }
 
 export function useDeleteWithUndo() {
@@ -24,39 +64,11 @@ export function useDeleteWithUndo() {
   })
 
   const triggerDelete = useCallback((options: DeleteOptions) => {
-    const { itemName, onRemove, onRestore, onExecute, onSuccess } = options
-
+    const { itemName } = options
     setDialogState({
       open: true,
       itemName,
-      onConfirm: () => {
-        onRemove?.()
-
-        let cancelled = false
-        const timerId = setTimeout(async () => {
-          if (cancelled) return
-          const result = await onExecute()
-          if (!result.ok) {
-            onRestore?.()
-            toast({ title: 'Error', description: result.error, variant: 'destructive' })
-          } else {
-            onSuccess?.()
-          }
-        }, 5000)
-
-        toast({
-          title: 'Deleted',
-          description: 'Click Undo to restore.',
-          action: {
-            label: 'Undo',
-            onClick: () => {
-              cancelled = true
-              clearTimeout(timerId)
-              onRestore?.()
-            },
-          },
-        })
-      },
+      onConfirm: () => runDeleteWithUndo(options),
     })
   }, [])
 

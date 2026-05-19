@@ -15,7 +15,7 @@ import { useSession } from 'next-auth/react'
 import { toast } from '@/hooks/use-toast'
 import { InvoiceBatchPrintDialog } from '@/components/invoices/batch-print-dialog'
 import { InvoiceBatchDeleteDialog } from '@/components/invoices/batch-delete-dialog'
-import { useDeleteWithUndo } from '@/hooks/use-delete-with-undo'
+import { useDeleteWithUndo, runDeleteWithUndo } from '@/hooks/use-delete-with-undo'
 import { DeleteConfirmDialog } from '@/components/ui/delete-confirm-dialog'
 
 interface Invoice {
@@ -75,6 +75,28 @@ export function InvoicesClient({ invoices: initial }: Props) {
       onRemove: () => setInvoices((prev) => prev.filter((i) => i.id !== inv.id)),
       onRestore: () => setInvoices((prev) => [inv, ...prev]),
       onExecute: () => fetch(`/api/invoices/${inv.id}`, { method: 'DELETE' }).then((r) => r.json()),
+    })
+  }
+
+  const handleBatchDelete = (month: string, branch: string, count: number) => {
+    const affected = invoices.filter(
+      (inv) =>
+        inv.billing?.billingMonth === month &&
+        (branch === 'all' || (inv.billing?.room?.branch ?? 'Takmoa') === branch)
+    )
+    if (affected.length === 0) return
+    const ids = new Set(affected.map((i) => i.id))
+    runDeleteWithUndo({
+      onRemove: () => setInvoices((prev) => prev.filter((i) => !ids.has(i.id))),
+      onRestore: () => setInvoices((prev) => [...affected, ...prev]),
+      onExecute: () =>
+        fetch('/api/invoices/batch-delete', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ month, branch }),
+        }).then((r) => r.json()),
+      onSuccess: () => router.refresh(),
+      toastTitle: `Deleted ${count} invoice${count !== 1 ? 's' : ''}`,
     })
   }
 
@@ -247,7 +269,7 @@ export function InvoicesClient({ invoices: initial }: Props) {
           months={months}
           branches={branches}
           onClose={() => setShowBatchDelete(false)}
-          onDeleted={() => { setShowBatchDelete(false); router.refresh() }}
+          onConfirm={handleBatchDelete}
         />
       )}
     </div>

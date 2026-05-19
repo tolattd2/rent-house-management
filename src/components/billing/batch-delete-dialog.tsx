@@ -6,21 +6,19 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { toast } from '@/hooks/use-toast'
 
 interface Props {
   months: string[]
   branches: string[]
   onClose: () => void
-  onDeleted: () => void
+  onConfirm: (month: string, branch: string, count: number) => void
 }
 
-export function BatchDeleteDialog({ months, branches, onClose, onDeleted }: Props) {
+export function BatchDeleteDialog({ months, branches, onClose, onConfirm }: Props) {
   const [month, setMonth] = useState(months[0] ?? '')
   const [branch, setBranch] = useState('all')
   const [count, setCount] = useState<number | null>(null)
   const [loading, setLoading] = useState(false)
-  const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
     if (!month) return
@@ -33,22 +31,10 @@ export function BatchDeleteDialog({ months, branches, onClose, onDeleted }: Prop
       .finally(() => setLoading(false))
   }, [month, branch])
 
-  const handleDelete = async () => {
-    if (!month || count === 0) return
-    setDeleting(true)
-    const res = await fetch('/api/billing/batch-delete', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ month, branch }),
-    })
-    const data = await res.json()
-    if (data.ok) {
-      toast({ title: `Deleted ${data.deleted} billing record${data.deleted !== 1 ? 's' : ''}` })
-      onDeleted()
-    } else {
-      toast({ title: 'Error', description: data.error, variant: 'destructive' })
-    }
-    setDeleting(false)
+  const handleDelete = () => {
+    if (!month || !count) return
+    onConfirm(month, branch, count)
+    onClose()
   }
 
   return (
@@ -111,10 +97,10 @@ export function BatchDeleteDialog({ months, branches, onClose, onDeleted }: Prop
             type="button"
             variant="destructive"
             onClick={handleDelete}
-            disabled={deleting || loading || !count}
+            disabled={loading || !count}
           >
             <Trash2 className="w-3.5 h-3.5 mr-1.5" />
-            {deleting ? 'Deleting…' : `Delete ${count ?? '…'}`}
+            Delete {count ?? '…'}
           </Button>
         </div>
       </DialogContent>

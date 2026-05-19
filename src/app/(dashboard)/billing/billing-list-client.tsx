@@ -17,7 +17,7 @@ import { formatCurrency, formatCompact, exportToCSV, roomLabel, sortRoomsByNumbe
 import { toast } from '@/hooks/use-toast'
 import { useSession } from 'next-auth/react'
 import { useLanguage } from '@/contexts/language-context'
-import { useDeleteWithUndo } from '@/hooks/use-delete-with-undo'
+import { useDeleteWithUndo, runDeleteWithUndo } from '@/hooks/use-delete-with-undo'
 import { DeleteConfirmDialog } from '@/components/ui/delete-confirm-dialog'
 
 type Billing = {
@@ -106,6 +106,26 @@ export function BillingListClient({ billings: initial }: Props) {
       onRemove: () => setBillings((prev) => prev.filter((b) => b.id !== billing.id)),
       onRestore: () => setBillings((prev) => [billing, ...prev]),
       onExecute: () => fetch(`/api/billing/${billing.id}`, { method: 'DELETE' }).then((r) => r.json()),
+    })
+  }
+
+  const handleBatchDelete = (month: string, branch: string, count: number) => {
+    const affected = billings.filter(
+      (b) => b.billingMonth === month && (branch === 'all' || (b.room?.branch ?? 'Takmoa') === branch)
+    )
+    if (affected.length === 0) return
+    const ids = new Set(affected.map((b) => b.id))
+    runDeleteWithUndo({
+      onRemove: () => setBillings((prev) => prev.filter((b) => !ids.has(b.id))),
+      onRestore: () => setBillings((prev) => [...affected, ...prev]),
+      onExecute: () =>
+        fetch('/api/billing/batch-delete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ month, branch }),
+        }).then((r) => r.json()),
+      onSuccess: () => router.refresh(),
+      toastTitle: `Deleted ${count} billing record${count !== 1 ? 's' : ''}`,
     })
   }
 
@@ -391,7 +411,7 @@ export function BillingListClient({ billings: initial }: Props) {
           months={months}
           branches={branches}
           onClose={() => setShowBatchDelete(false)}
-          onDeleted={() => { setShowBatchDelete(false); router.refresh() }}
+          onConfirm={handleBatchDelete}
         />
       )}
 
