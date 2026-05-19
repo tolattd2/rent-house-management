@@ -12,6 +12,8 @@ import { PaymentDialog } from '@/components/billing/payment-dialog'
 import { formatCurrency, formatDate, roomLabel } from '@/lib/utils'
 import { toast } from '@/hooks/use-toast'
 import { useLanguage } from '@/contexts/language-context'
+import { useDeleteWithUndo } from '@/hooks/use-delete-with-undo'
+import { DeleteConfirmDialog } from '@/components/ui/delete-confirm-dialog'
 
 interface Billing {
   id: string; billingMonth: string; roomRentUsd: number
@@ -33,17 +35,17 @@ export function BillingDetailClient({ billing }: { billing: Billing }) {
   const router = useRouter()
   const { t } = useLanguage()
   const [showPay, setShowPay] = useState(false)
+  const { triggerDelete, dialogState, closeDialog } = useDeleteWithUndo()
 
   const totalPaid = billing.payments.reduce((s, p) => s + p.amountUsd, 0)
   const balance = Math.max(0, billing.totalUsd - totalPaid)
 
-  const handleDelete = async () => {
-    if (!confirm(t('billing_delete_confirm'))) return
-    const res = await fetch(`/api/billing/${billing.id}`, { method: 'DELETE' })
-    if ((await res.json()).ok) {
-      toast({ title: t('billing_deleted') })
-      router.push('/billing')
-    }
+  const handleDelete = () => {
+    triggerDelete({
+      itemName: `${billing.billingMonth} — ${billing.tenant?.fullName ?? ''}`,
+      onExecute: () => fetch(`/api/billing/${billing.id}`, { method: 'DELETE' }).then((r) => r.json()),
+      onSuccess: () => router.push('/billing'),
+    })
   }
 
   return (
@@ -179,6 +181,13 @@ export function BillingDetailClient({ billing }: { billing: Billing }) {
           </div>
         </Card>
       )}
+
+      <DeleteConfirmDialog
+        open={dialogState.open}
+        itemName={dialogState.itemName}
+        onClose={closeDialog}
+        onConfirm={dialogState.onConfirm}
+      />
 
       {showPay && (
         <PaymentDialog

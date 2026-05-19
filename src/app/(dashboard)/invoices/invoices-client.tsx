@@ -15,6 +15,8 @@ import { useSession } from 'next-auth/react'
 import { toast } from '@/hooks/use-toast'
 import { InvoiceBatchPrintDialog } from '@/components/invoices/batch-print-dialog'
 import { InvoiceBatchDeleteDialog } from '@/components/invoices/batch-delete-dialog'
+import { useDeleteWithUndo } from '@/hooks/use-delete-with-undo'
+import { DeleteConfirmDialog } from '@/components/ui/delete-confirm-dialog'
 
 interface Invoice {
   id: string
@@ -46,6 +48,7 @@ export function InvoicesClient({ invoices: initial }: Props) {
   const [branchFilter, setBranchFilter] = useState('all')
   const [showBatchPrint, setShowBatchPrint] = useState(false)
   const [showBatchDelete, setShowBatchDelete] = useState(false)
+  const { triggerDelete, dialogState, closeDialog } = useDeleteWithUndo()
 
   const branches = [...new Set(invoices.map((inv) => inv.billing?.room?.branch ?? 'Takmoa'))].sort()
   const months = [...new Set(invoices.map((inv) => inv.billing?.billingMonth).filter(Boolean) as string[])].sort().reverse()
@@ -66,16 +69,13 @@ export function InvoicesClient({ invoices: initial }: Props) {
   const paidCount = filtered.filter((inv) => inv.billing?.paymentStatus === 'paid').length
   const unpaidCount = filtered.filter((inv) => inv.billing?.paymentStatus !== 'paid').length
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Delete this invoice? This cannot be undone.')) return
-    const res = await fetch(`/api/invoices/${id}`, { method: 'DELETE' })
-    const data = await res.json()
-    if (data.ok) {
-      setInvoices((prev) => prev.filter((inv) => inv.id !== id))
-      toast({ title: 'Invoice deleted' })
-    } else {
-      toast({ title: 'Error', description: data.error, variant: 'destructive' })
-    }
+  const handleDelete = (inv: Invoice) => {
+    triggerDelete({
+      itemName: `Invoice ${inv.invoiceNumber}`,
+      onRemove: () => setInvoices((prev) => prev.filter((i) => i.id !== inv.id)),
+      onRestore: () => setInvoices((prev) => [inv, ...prev]),
+      onExecute: () => fetch(`/api/invoices/${inv.id}`, { method: 'DELETE' }).then((r) => r.json()),
+    })
   }
 
   return (
@@ -206,7 +206,7 @@ export function InvoicesClient({ invoices: initial }: Props) {
                       </Button>
                       {isAdmin && (
                         <Button variant="ghost" size="sm" className="text-xs h-8 px-2 text-destructive hover:bg-destructive/10"
-                          onClick={() => handleDelete(inv.id)}>
+                          onClick={() => handleDelete(inv)}>
                           <Trash2 className="w-3.5 h-3.5" />
                         </Button>
                       )}
@@ -226,6 +226,13 @@ export function InvoicesClient({ invoices: initial }: Props) {
           </table>
         </div>
       </Card>
+
+      <DeleteConfirmDialog
+        open={dialogState.open}
+        itemName={dialogState.itemName}
+        onClose={closeDialog}
+        onConfirm={dialogState.onConfirm}
+      />
 
       {showBatchPrint && (
         <InvoiceBatchPrintDialog

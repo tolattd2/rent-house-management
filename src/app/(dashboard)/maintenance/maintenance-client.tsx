@@ -15,6 +15,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { formatCurrency, formatDate, roomLabel, sortRoomsByNumber } from '@/lib/utils'
 import { toast } from '@/hooks/use-toast'
 import { useLanguage } from '@/contexts/language-context'
+import { useDeleteWithUndo } from '@/hooks/use-delete-with-undo'
+import { DeleteConfirmDialog } from '@/components/ui/delete-confirm-dialog'
 
 type MaintenanceRecord = {
   id: string
@@ -72,6 +74,7 @@ export function MaintenanceClient({ records: initial, rooms, tenants }: Props) {
   const [editing, setEditing] = useState<MaintenanceRecord | null>(null)
   const [form, setForm] = useState(emptyForm)
   const [saving, setSaving] = useState(false)
+  const { triggerDelete, dialogState, closeDialog } = useDeleteWithUndo()
 
   const filtered = records.filter((r) => {
     const matchSearch =
@@ -167,16 +170,13 @@ export function MaintenanceClient({ records: initial, rooms, tenants }: Props) {
     router.refresh()
   }
 
-  async function handleDelete(id: string) {
-    if (!confirm(t('maintenance_delete_confirm'))) return
-    const res = await fetch(`/api/maintenance/${id}`, { method: 'DELETE' })
-    const data = await res.json()
-    if (data.ok) {
-      setRecords((prev) => prev.filter((r) => r.id !== id))
-      toast({ title: t('maintenance_deleted') })
-    } else {
-      toast({ title: 'Error', description: data.error, variant: 'destructive' })
-    }
+  function handleDelete(record: MaintenanceRecord) {
+    triggerDelete({
+      itemName: record.title,
+      onRemove: () => setRecords((prev) => prev.filter((r) => r.id !== record.id)),
+      onRestore: () => setRecords((prev) => [record, ...prev]),
+      onExecute: () => fetch(`/api/maintenance/${record.id}`, { method: 'DELETE' }).then((r) => r.json()),
+    })
   }
 
   return (
@@ -277,7 +277,7 @@ export function MaintenanceClient({ records: initial, rooms, tenants }: Props) {
                     <Pencil className="w-3.5 h-3.5 mr-1.5" />{t('edit')}
                   </Button>
                   <Button variant="outline" size="sm" className="h-10 px-3 text-destructive border-destructive/30"
-                    onClick={() => handleDelete(r.id)}>
+                    onClick={() => handleDelete(r)}>
                     <Trash2 className="w-3.5 h-3.5" />
                   </Button>
                 </div>
@@ -348,7 +348,7 @@ export function MaintenanceClient({ records: initial, rooms, tenants }: Props) {
                           <Button variant="ghost" size="sm" onClick={() => openEdit(r)}>
                             <Pencil className="w-3.5 h-3.5" />
                           </Button>
-                          <Button variant="ghost" size="sm" onClick={() => handleDelete(r.id)}
+                          <Button variant="ghost" size="sm" onClick={() => handleDelete(r)}
                             className="text-red-500 hover:text-red-600">
                             <Trash2 className="w-3.5 h-3.5" />
                           </Button>
@@ -368,6 +368,13 @@ export function MaintenanceClient({ records: initial, rooms, tenants }: Props) {
           )}
         </div>
       </Card>
+
+      <DeleteConfirmDialog
+        open={dialogState.open}
+        itemName={dialogState.itemName}
+        onClose={closeDialog}
+        onConfirm={dialogState.onConfirm}
+      />
 
       {/* Form Dialog */}
       <Dialog open={showForm} onOpenChange={setShowForm}>

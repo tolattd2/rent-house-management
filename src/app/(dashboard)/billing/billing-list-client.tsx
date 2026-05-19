@@ -17,6 +17,8 @@ import { formatCurrency, formatCompact, exportToCSV, roomLabel, sortRoomsByNumbe
 import { toast } from '@/hooks/use-toast'
 import { useSession } from 'next-auth/react'
 import { useLanguage } from '@/contexts/language-context'
+import { useDeleteWithUndo } from '@/hooks/use-delete-with-undo'
+import { DeleteConfirmDialog } from '@/components/ui/delete-confirm-dialog'
 
 type Billing = {
   id: string; billingMonth: string; roomRentUsd: number
@@ -57,6 +59,7 @@ export function BillingListClient({ billings: initial }: Props) {
   const [showBatchDelete, setShowBatchDelete] = useState(false)
   const [showGenerate, setShowGenerate] = useState(false)
   const [showBatchInvoice, setShowBatchInvoice] = useState(false)
+  const { triggerDelete, dialogState, closeDialog } = useDeleteWithUndo()
 
   const branches = [...new Set(billings.map((b) => b.room?.branch ?? 'Takmoa'))].sort()
 
@@ -97,16 +100,13 @@ export function BillingListClient({ billings: initial }: Props) {
     exportToCSV(headers, rows, `billing-${monthFilter || 'all'}.csv`)
   }
 
-  const handleDelete = async (id: string) => {
-    if (!confirm(t('billing_delete_confirm'))) return
-    const res = await fetch(`/api/billing/${id}`, { method: 'DELETE' })
-    const data = await res.json()
-    if (data.ok) {
-      setBillings((prev) => prev.filter((b) => b.id !== id))
-      toast({ title: t('billing_deleted') })
-    } else {
-      toast({ title: 'Error', description: data.error, variant: 'destructive' })
-    }
+  const handleDelete = (billing: Billing) => {
+    triggerDelete({
+      itemName: `${billing.billingMonth} — ${billing.tenant?.fullName ?? ''}`,
+      onRemove: () => setBillings((prev) => prev.filter((b) => b.id !== billing.id)),
+      onRestore: () => setBillings((prev) => [billing, ...prev]),
+      onExecute: () => fetch(`/api/billing/${billing.id}`, { method: 'DELETE' }).then((r) => r.json()),
+    })
   }
 
   return (
@@ -252,7 +252,7 @@ export function BillingListClient({ billings: initial }: Props) {
                 </Link>
                 {isAdmin && (
                   <Button variant="outline" size="sm" className="h-10 text-destructive border-destructive/30 hover:bg-destructive/10"
-                    onClick={() => handleDelete(b.id)}>
+                    onClick={() => handleDelete(b)}>
                     <Trash2 className="w-4 h-4" />
                   </Button>
                 )}
@@ -351,7 +351,7 @@ export function BillingListClient({ billings: initial }: Props) {
                         </Link>
                         {isAdmin && (
                           <Button variant="ghost" size="sm" className="text-xs h-8 px-2 text-destructive hover:bg-destructive/10"
-                            onClick={() => handleDelete(b.id)}>
+                            onClick={() => handleDelete(b)}>
                             <Trash2 className="w-3.5 h-3.5" />
                           </Button>
                         )}
@@ -378,6 +378,13 @@ export function BillingListClient({ billings: initial }: Props) {
           onSave={() => { setPayDialog(null); router.refresh() }}
         />
       )}
+
+      <DeleteConfirmDialog
+        open={dialogState.open}
+        itemName={dialogState.itemName}
+        onClose={closeDialog}
+        onConfirm={dialogState.onConfirm}
+      />
 
       {showBatchDelete && (
         <BatchDeleteDialog

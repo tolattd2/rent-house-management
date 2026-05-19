@@ -15,6 +15,8 @@ import { Badge } from '@/components/ui/badge'
 import { toast } from '@/hooks/use-toast'
 import { useLanguage } from '@/contexts/language-context'
 import { QrCropDialog } from '@/components/settings/qr-crop-dialog'
+import { useDeleteWithUndo } from '@/hooks/use-delete-with-undo'
+import { DeleteConfirmDialog } from '@/components/ui/delete-confirm-dialog'
 
 interface UserRow {
   id: string
@@ -42,6 +44,7 @@ export function SettingsClient({ settings: initial }: Props) {
 
   const [showChangePw, setShowChangePw] = useState(false)
   const [changePwTarget, setChangePwTarget] = useState<UserRow | null>(null)
+  const { triggerDelete, dialogState, closeDialog } = useDeleteWithUndo()
   const [newPassword, setNewPassword] = useState('')
   const [changingPw, setChangingPw] = useState(false)
 
@@ -142,16 +145,14 @@ export function SettingsClient({ settings: initial }: Props) {
     setChangingPw(false)
   }
 
-  async function handleDeleteUser(user: UserRow) {
-    if (!confirm(t('settings_user_delete_confirm'))) return
-    const res = await fetch(`/api/users/${user.id}`, { method: 'DELETE' })
-    const data = await res.json()
-    if (data.ok) {
-      toast({ title: t('settings_user_deleted') })
-      loadUsers()
-    } else {
-      toast({ title: data.error, variant: 'destructive' })
-    }
+  function handleDeleteUser(user: UserRow) {
+    triggerDelete({
+      itemName: user.name,
+      onRemove: () => setUsers((prev) => prev.filter((u) => u.id !== user.id)),
+      onRestore: () => setUsers((prev) => [user, ...prev]),
+      onExecute: () => fetch(`/api/users/${user.id}`, { method: 'DELETE' }).then((r) => r.json()),
+      onSuccess: () => loadUsers(),
+    })
   }
 
   const { register, handleSubmit } = useForm({
@@ -578,6 +579,13 @@ export function SettingsClient({ settings: initial }: Props) {
           </div>
         </DialogContent>
       </Dialog>
+
+      <DeleteConfirmDialog
+        open={dialogState.open}
+        itemName={dialogState.itemName}
+        onClose={closeDialog}
+        onConfirm={dialogState.onConfirm}
+      />
 
       {cropPending && (
         <QrCropDialog

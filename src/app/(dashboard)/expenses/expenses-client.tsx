@@ -18,6 +18,8 @@ import { formatCurrency, formatCompact, exportToCSV } from '@/lib/utils'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { useLanguage } from '@/contexts/language-context'
+import { useDeleteWithUndo } from '@/hooks/use-delete-with-undo'
+import { DeleteConfirmDialog } from '@/components/ui/delete-confirm-dialog'
 
 type Expense = {
   id: string
@@ -89,6 +91,7 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
   const [editExpense, setEditExpense] = useState<Expense | null>(null)
   const [loading, setLoading] = useState(false)
   const [form, setForm] = useState(emptyForm)
+  const { triggerDelete, dialogState, closeDialog } = useDeleteWithUndo()
 
   const currentMonth = new Date().toISOString().slice(0, 7)
 
@@ -174,16 +177,13 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
     setLoading(false)
   }
 
-  async function handleDelete(id: string) {
-    if (!confirm(t('expense_delete_confirm'))) return
-    const res = await fetch(`/api/expenses/${id}`, { method: 'DELETE' })
-    const data = await res.json()
-    if (data.ok) {
-      setExpenses((prev) => prev.filter((e) => e.id !== id))
-      toast({ title: t('expense_deleted') })
-    } else {
-      toast({ title: 'Error', description: data.error, variant: 'destructive' })
-    }
+  function handleDelete(expense: Expense) {
+    triggerDelete({
+      itemName: expense.title,
+      onRemove: () => setExpenses((prev) => prev.filter((e) => e.id !== expense.id)),
+      onRestore: () => setExpenses((prev) => [expense, ...prev]),
+      onExecute: () => fetch(`/api/expenses/${expense.id}`, { method: 'DELETE' }).then((r) => r.json()),
+    })
   }
 
   function handleExport() {
@@ -365,7 +365,7 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
                   </Button>
                   {!expense.maintenanceId && (
                     <Button variant="outline" size="sm" className="h-10 px-3 text-destructive border-destructive/30"
-                      onClick={() => handleDelete(expense.id)}>
+                      onClick={() => handleDelete(expense)}>
                       <Trash2 className="w-3.5 h-3.5" />
                     </Button>
                   )}
@@ -427,7 +427,7 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
                             <Edit className="w-3.5 h-3.5" />
                           </Button>
                           {!expense.maintenanceId && (
-                            <Button variant="ghost" size="sm" onClick={() => handleDelete(expense.id)} className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10">
+                            <Button variant="ghost" size="sm" onClick={() => handleDelete(expense)} className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10">
                               <Trash2 className="w-3.5 h-3.5" />
                             </Button>
                           )}
@@ -448,6 +448,13 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
           )}
         </div>
       </Card>
+
+      <DeleteConfirmDialog
+        open={dialogState.open}
+        itemName={dialogState.itemName}
+        onClose={closeDialog}
+        onConfirm={dialogState.onConfirm}
+      />
 
       {/* Add/Edit dialog */}
       {showForm && (

@@ -13,6 +13,8 @@ import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import Link from 'next/link'
 import { useLanguage } from '@/contexts/language-context'
+import { useDeleteWithUndo } from '@/hooks/use-delete-with-undo'
+import { DeleteConfirmDialog } from '@/components/ui/delete-confirm-dialog'
 
 type Room = {
   id: string
@@ -54,6 +56,7 @@ export function RoomsClient({ rooms: initialRooms }: Props) {
   const [branchFilter, setBranchFilter] = useState<string>('all')
   const [showForm, setShowForm] = useState(false)
   const [editRoom, setEditRoom] = useState<Room | null>(null)
+  const { triggerDelete, dialogState, closeDialog } = useDeleteWithUndo()
 
   const filtered = sortRoomsByNumber(rooms.filter((r) => {
     const matchSearch = r.roomNumber.toLowerCase().includes(search.toLowerCase()) ||
@@ -63,16 +66,13 @@ export function RoomsClient({ rooms: initialRooms }: Props) {
     return matchSearch && matchStatus && matchBranch
   }))
 
-  const handleDelete = async (id: string) => {
-    if (!confirm(t('room_delete_confirm'))) return
-    const res = await fetch(`/api/rooms/${id}`, { method: 'DELETE' })
-    const data = await res.json()
-    if (data.ok) {
-      setRooms((prev) => prev.filter((r) => r.id !== id))
-      toast({ title: t('room_deleted') })
-    } else {
-      toast({ title: 'Error', description: data.error, variant: 'destructive' })
-    }
+  const handleDelete = (room: Room) => {
+    triggerDelete({
+      itemName: roomLabel(room),
+      onRemove: () => setRooms((prev) => prev.filter((r) => r.id !== room.id)),
+      onRestore: () => setRooms((prev) => [room, ...prev]),
+      onExecute: () => fetch(`/api/rooms/${room.id}`, { method: 'DELETE' }).then((r) => r.json()),
+    })
   }
 
   const handleSave = () => {
@@ -194,7 +194,7 @@ export function RoomsClient({ rooms: initialRooms }: Props) {
                         <Edit className="w-3.5 h-3.5 mr-1" /> {t('edit')}
                       </Button>
                       {!tenant && (
-                        <Button variant="outline" size="sm" onClick={() => handleDelete(room.id)} className="text-destructive hover:bg-destructive/10">
+                        <Button variant="outline" size="sm" onClick={() => handleDelete(room)} className="text-destructive hover:bg-destructive/10">
                           <Trash2 className="w-3.5 h-3.5" />
                         </Button>
                       )}
@@ -213,6 +213,13 @@ export function RoomsClient({ rooms: initialRooms }: Props) {
           </div>
         )}
       </div>
+
+      <DeleteConfirmDialog
+        open={dialogState.open}
+        itemName={dialogState.itemName}
+        onClose={closeDialog}
+        onConfirm={dialogState.onConfirm}
+      />
 
       {/* Form dialog */}
       {showForm && (
