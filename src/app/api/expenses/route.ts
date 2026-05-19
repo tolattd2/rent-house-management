@@ -1,6 +1,7 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
+import { invalidate } from '@/lib/revalidate'
 import { z } from 'zod'
 
 const schema = z.object({
@@ -63,6 +64,7 @@ export async function POST(req: NextRequest) {
         maintenance: { select: { id: true, title: true } },
       },
     })
+    invalidate('expenses')
     return NextResponse.json({ ok: true, data: expense })
   } catch (e) {
     return NextResponse.json({ ok: false, error: String(e) }, { status: 500 })

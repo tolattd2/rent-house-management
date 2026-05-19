@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
+import { invalidate } from '@/lib/revalidate'
 
 export async function POST(req: NextRequest) {
   const session = await auth()
@@ -20,6 +21,7 @@ export async function POST(req: NextRequest) {
     }
 
     const { count } = await db.billing.deleteMany({ where })
+    if (count > 0) invalidate('billings', 'tenants', 'invoices')
     return NextResponse.json({ ok: true, deleted: count })
   } catch (e) {
     return NextResponse.json({ ok: false, error: e instanceof Error ? e.message : 'Error' }, { status: 500 })

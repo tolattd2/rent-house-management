@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { sendTelegramMessage, buildReminderMessage } from '@/lib/notifications'
+import { invalidate } from '@/lib/revalidate'
 
 export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth()
@@ -41,5 +42,6 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
     })
   }
 
+  if (invoice) invalidate('invoices')
   return NextResponse.json(result)
 }

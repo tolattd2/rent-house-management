@@ -1,22 +1,9 @@
-import { db } from '@/lib/db'
+import { getInvoicesList } from '@/lib/cached-queries'
 import { InvoicesClient } from './invoices-client'
 
-async function getInvoices() {
-  return db.invoice.findMany({
-    include: {
-      tenant: { select: { id: true, fullName: true } },
-      billing: {
-        select: {
-          billingMonth: true, totalUsd: true, paymentStatus: true,
-          room: { select: { id: true, roomNumber: true, branch: true } },
-        },
-      },
-    },
-    orderBy: { createdAt: 'desc' },
-  })
-}
+export const dynamic = 'force-dynamic'
 
 export default async function InvoicesPage() {
-  const invoices = await getInvoices()
+  const invoices = await getInvoicesList()
   return <InvoicesClient invoices={invoices} />
 }

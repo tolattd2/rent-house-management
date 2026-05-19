@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { generateInvoiceNumber } from '@/lib/utils'
+import { invalidate } from '@/lib/revalidate'
 
 function billingFilter(month: string, branch: string) {
   const base: Record<string, unknown> = {
@@ -62,5 +63,6 @@ export async function POST(req: NextRequest) {
     )
   )
 
+  invalidate('invoices')
   return NextResponse.json({ ok: true, created: billings.length })
 }

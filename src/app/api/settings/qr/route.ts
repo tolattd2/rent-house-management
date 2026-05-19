@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
+import { invalidate } from '@/lib/revalidate'
 
 export async function POST(req: NextRequest) {
   const session = await auth()
@@ -22,6 +23,7 @@ export async function POST(req: NextRequest) {
         update: { value: '' },
         create: { key, value: '', label: `QR Code ${branch} ${slot}` },
       })
+      invalidate('settings')
       return NextResponse.json({ ok: true, value: '' })
     }
 
@@ -39,6 +41,7 @@ export async function POST(req: NextRequest) {
       create: { key, value: dataUrl, label: `QR Code ${branch} ${slot}` },
     })
 
+    invalidate('settings')
     return NextResponse.json({ ok: true, value: dataUrl })
   } catch (e) {
     return NextResponse.json({ ok: false, error: e instanceof Error ? e.message : 'Error' }, { status: 400 })

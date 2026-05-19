@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
+import { invalidate } from '@/lib/revalidate'
 
 function buildWhere(month: string, branch: string) {
   const where: Record<string, unknown> = {
@@ -33,5 +34,6 @@ export async function DELETE(req: NextRequest) {
   if (!month) return NextResponse.json({ ok: false, error: 'Month required' }, { status: 400 })
 
   const { count } = await db.invoice.deleteMany({ where: buildWhere(month, branch) })
+  if (count > 0) invalidate('invoices')
   return NextResponse.json({ ok: true, deleted: count })
 }
