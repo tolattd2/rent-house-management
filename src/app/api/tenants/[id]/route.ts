@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
+import { invalidate } from '@/lib/revalidate'
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth()
@@ -59,6 +60,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         : { disconnect: true }
     }
     await db.tenant.update({ where: { id }, data: updateData })
+    invalidate('tenants', 'rooms')
     return NextResponse.json({ ok: true })
   } catch (e) {
     return NextResponse.json({ ok: false, error: e instanceof Error ? e.message : 'Error' }, { status: 400 })
@@ -76,5 +78,6 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
     await db.room.update({ where: { id: tenant.roomId }, data: { status: 'vacant' } })
   }
   await db.tenant.delete({ where: { id } })
+  invalidate('tenants', 'rooms', 'billings')
   return NextResponse.json({ ok: true })
 }

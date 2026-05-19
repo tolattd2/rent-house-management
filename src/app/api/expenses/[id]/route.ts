@@ -1,6 +1,7 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
+import { invalidate } from '@/lib/revalidate'
 import { z } from 'zod'
 
 const schema = z.object({
@@ -44,6 +45,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         maintenance: { select: { id: true, title: true } },
       },
     })
+    invalidate('expenses')
     return NextResponse.json({ ok: true, data: expense })
   } catch (e) {
     return NextResponse.json({ ok: false, error: String(e) }, { status: 500 })
@@ -57,6 +59,7 @@ export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id:
   try {
     const { id } = await params
     await db.expense.delete({ where: { id } })
+    invalidate('expenses')
     return NextResponse.json({ ok: true })
   } catch (e) {
     return NextResponse.json({ ok: false, error: String(e) }, { status: 500 })

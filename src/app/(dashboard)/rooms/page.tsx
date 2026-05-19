@@ -1,20 +1,7 @@
-import { db } from '@/lib/db'
+import { getRoomsList } from '@/lib/cached-queries'
 import { RoomsClient } from './rooms-client'
 
-async function getRooms() {
-  return db.room.findMany({
-    include: {
-      tenants: {
-        where: { status: 'active' },
-        select: { id: true, fullName: true, phone: true, moveInDate: true },
-        take: 1,
-      },
-    },
-    orderBy: [{ roomNumber: 'asc' }],
-  })
-}
-
 export default async function RoomsPage() {
-  const rooms = await getRooms()
+  const rooms = await getRoomsList()
   return <RoomsClient rooms={rooms} />
 }

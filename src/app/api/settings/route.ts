@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
+import { invalidate } from '@/lib/revalidate'
 
 const SETTING_LABELS: Record<string, string> = {
   exchange_rate: 'USD to KHR Rate',
@@ -51,6 +52,7 @@ export async function POST(req: NextRequest) {
       )
     )
 
+    invalidate('settings')
     return NextResponse.json({ ok: true })
   } catch (e) {
     return NextResponse.json({ ok: false, error: e instanceof Error ? e.message : 'Error' }, { status: 400 })

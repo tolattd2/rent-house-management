@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
+import { invalidate } from '@/lib/revalidate'
 import { z } from 'zod'
 
 const roomSchema = z.object({
@@ -40,6 +41,7 @@ export async function POST(req: NextRequest) {
     if (existing) return NextResponse.json({ ok: false, error: 'Room number already exists in this branch' }, { status: 400 })
 
     const room = await db.room.create({ data })
+    invalidate('rooms')
     return NextResponse.json({ ok: true, id: room.id })
   } catch (e) {
     return NextResponse.json({ ok: false, error: e instanceof Error ? e.message : 'Error' }, { status: 400 })
