@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { invalidate } from '@/lib/revalidate'
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth()
@@ -28,7 +27,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       data: { status: 'terminated' },
     })
 
-    invalidate('tenants', 'rooms')
     return NextResponse.json({ ok: true })
   } catch (e) {
     return NextResponse.json({ ok: false, error: e instanceof Error ? e.message : 'Error' }, { status: 400 })

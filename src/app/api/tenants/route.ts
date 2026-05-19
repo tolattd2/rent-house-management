@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { invalidate } from '@/lib/revalidate'
 import { z } from 'zod'
 
 const tenantSchema = z.object({
@@ -60,7 +59,6 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    invalidate('tenants', 'rooms')
     return NextResponse.json({ ok: true, id: tenant.id })
   } catch (e) {
     return NextResponse.json({ ok: false, error: e instanceof Error ? e.message : 'Error' }, { status: 400 })

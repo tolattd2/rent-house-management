@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { calculateBilling } from '@/lib/billing'
-import { invalidate } from '@/lib/revalidate'
 
 // GET — preview: how many tenants would get invoices for month+branch
 export async function GET(req: NextRequest) {
@@ -116,7 +115,6 @@ export async function POST(req: NextRequest) {
       })
     )
 
-    if (toCreate.length > 0) invalidate('billings', 'tenants')
     return NextResponse.json({ ok: true, created: toCreate.length, skipped })
   } catch (e) {
     return NextResponse.json({ ok: false, error: e instanceof Error ? e.message : 'Error' }, { status: 400 })

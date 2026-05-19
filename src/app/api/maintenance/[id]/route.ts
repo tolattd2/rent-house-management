@@ -1,7 +1,6 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
-import { invalidate } from '@/lib/revalidate'
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth()
@@ -65,7 +64,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       }
     }
 
-    invalidate('maintenance', 'expenses')
     return NextResponse.json({ ok: true, record })
   } catch (e) {
     return NextResponse.json({ error: String(e) }, { status: 500 })
@@ -79,7 +77,6 @@ export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id:
   try {
     const { id } = await params
     await db.maintenance.delete({ where: { id } })
-    invalidate('maintenance', 'expenses')
     return NextResponse.json({ ok: true })
   } catch {
     return NextResponse.json({ error: 'Failed to delete maintenance record' }, { status: 500 })

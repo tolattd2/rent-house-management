@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { calculateBilling } from '@/lib/billing'
-import { invalidate } from '@/lib/revalidate'
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth()
@@ -66,7 +65,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     }
 
     await db.billing.update({ where: { id }, data: body })
-    invalidate('billings', 'tenants', 'invoices')
     return NextResponse.json({ ok: true })
   } catch (e) {
     return NextResponse.json({ ok: false, error: e instanceof Error ? e.message : 'Error' }, { status: 400 })
@@ -80,6 +78,5 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   const { id } = await params
 
   await db.billing.delete({ where: { id } })
-  invalidate('billings', 'tenants', 'invoices')
   return NextResponse.json({ ok: true })
 }

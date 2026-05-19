@@ -1,7 +1,6 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
-import { invalidate } from '@/lib/revalidate'
 
 export async function GET() {
   try {
@@ -47,7 +46,6 @@ export async function POST(req: NextRequest) {
       },
     })
 
-    invalidate('maintenance')
     return NextResponse.json({ ok: true, record })
   } catch {
     return NextResponse.json({ error: 'Failed to create maintenance record' }, { status: 500 })
