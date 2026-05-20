@@ -131,6 +131,7 @@
     max-height: calc(100vh - 20rem);
     scrollbar-width: auto;
     scrollbar-color: hsl(var(--muted-foreground) / 0.5) hsl(var(--muted));
+    -webkit-overflow-scrolling: touch;
   }
   .table-scroll::-webkit-scrollbar {
     width: 14px;
@@ -163,6 +164,7 @@
     height: 14px;
     scrollbar-width: auto;
     scrollbar-color: hsl(var(--muted-foreground) / 0.5) hsl(var(--muted));
+    -webkit-overflow-scrolling: touch;
   }
   .table-scroll-top::-webkit-scrollbar {
     height: 14px;
@@ -177,6 +179,32 @@
   }
   .table-scroll-top::-webkit-scrollbar-thumb:hover {
     background-color: hsl(var(--muted-foreground) / 0.8);
+  }
+  /* Touch devices (phones/tablets): hand vertical scrolling back to the page so
+     a finger on the table doesn't get stuck in a nested scroll box, keep native
+     momentum scrolling, slim the scrollbars, stop horizontal swipes from
+     triggering the browser back gesture, and drop the synced top scrollbar
+     since a thin bar can't be grabbed without a mouse. */
+  @media (hover: none) and (pointer: coarse) {
+    .table-scroll {
+      max-height: none;
+      overscroll-behavior-x: contain;
+      scrollbar-width: thin;
+    }
+    .table-scroll::-webkit-scrollbar {
+      width: 0;
+      height: 6px;
+    }
+    .table-scroll::-webkit-scrollbar-thumb {
+      border: none;
+      border-radius: 3px;
+    }
+    .table-scroll thead th {
+      position: static;
+    }
+    .table-scroll-top {
+      display: none !important;
+    }
   }
   .animate-fade-in {
     animation: fade-in 0.4s ease-out;
