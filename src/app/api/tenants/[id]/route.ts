@@ -44,6 +44,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       fullName: body.fullName,
       gender: body.gender ?? '',
       phone: body.phone ?? '',
+      telegramChatId: body.telegramChatId ?? '',
       nationalId: body.nationalId ?? '',
       emergencyContact: body.emergencyContact ?? '',
       occupation: body.occupation ?? '',

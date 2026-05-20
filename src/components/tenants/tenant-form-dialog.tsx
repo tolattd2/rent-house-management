@@ -19,6 +19,7 @@ const schema = z.object({
   fullName: z.string().min(1, 'Full name required'),
   gender: z.string().default(''),
   phone: z.string().default(''),
+  telegramChatId: z.string().default(''),
   nationalId: z.string().default(''),
   emergencyContact: z.string().default(''),
   occupation: z.string().default(''),
@@ -60,6 +61,7 @@ export function TenantFormDialog({ rooms, tenant, onClose, onSave }: Props) {
       fullName: tenant?.fullName ?? '',
       gender: tenant?.gender ?? '',
       phone: tenant?.phone ?? '',
+      telegramChatId: tenant?.telegramChatId ?? '',
       nationalId: tenant?.nationalId ?? '',
       emergencyContact: tenant?.emergencyContact ?? '',
       occupation: tenant?.occupation ?? '',
@@ -147,6 +149,13 @@ export function TenantFormDialog({ rooms, tenant, onClose, onSave }: Props) {
                 <div className="space-y-1.5">
                   <Label>{t('tenant_occupation')}</Label>
                   <Input {...register('occupation')} placeholder={t('tenant_form_occupation_ph')} />
+                </div>
+                <div className="col-span-2 space-y-1.5">
+                  <Label>Telegram Chat ID</Label>
+                  <Input {...register('telegramChatId')} placeholder="Auto-filled when the tenant links via the bot" />
+                  <p className="text-xs text-muted-foreground">
+                    Tenants link automatically by sharing their phone in the Telegram bot — you can also paste or clear it here.
+                  </p>
                 </div>
                 <div className="col-span-2 space-y-1.5">
                   <Label>{t('tenant_emergency_contact')}</Label>

@@ -8,6 +8,7 @@ const tenantSchema = z.object({
   fullName: z.string().min(1),
   gender: z.string().default(''),
   phone: z.string().default(''),
+  telegramChatId: z.string().default(''),
   nationalId: z.string().default(''),
   emergencyContact: z.string().default(''),
   occupation: z.string().default(''),

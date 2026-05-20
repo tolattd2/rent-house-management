@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { sendTelegramMessage, buildReminderMessage } from '@/lib/notifications'
+import { sendTelegramTo, buildReminderMessage } from '@/lib/notifications'
 import { invalidate } from '@/lib/revalidate'
 
 export async function POST() {
@@ -15,9 +15,12 @@ export async function POST() {
 
   let sent = 0
   let failed = 0
+  let skipped = 0
 
   for (const billing of unpaid) {
     if (!billing.tenant) { failed++; continue }
+    // Tenants who haven't linked their Telegram yet are skipped, not failed.
+    if (!billing.tenant.telegramChatId) { skipped++; continue }
 
     const msg = buildReminderMessage({
       tenantName: billing.tenant.fullName,
@@ -27,7 +30,7 @@ export async function POST() {
       totalRiel: billing.totalRiel,
     })
 
-    const result = await sendTelegramMessage(msg)
+    const result = await sendTelegramTo(billing.tenant.telegramChatId, msg)
 
     await db.notification.create({
       data: {
@@ -38,9 +41,10 @@ export async function POST() {
       },
     })
 
-    result.ok ? sent++ : failed++
+    if (result.ok) sent++
+    else failed++
   }
 
   if (sent > 0 || failed > 0) invalidate('notifications')
-  return NextResponse.json({ ok: true, sent, failed })
+  return NextResponse.json({ ok: true, sent, failed, skipped })
 }

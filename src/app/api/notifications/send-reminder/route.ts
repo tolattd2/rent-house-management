@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { sendTelegramMessage, buildReminderMessage } from '@/lib/notifications'
+import { sendTelegramTo, buildReminderMessage } from '@/lib/notifications'
 import { invalidate } from '@/lib/revalidate'
 
 export async function POST(req: NextRequest) {
@@ -20,6 +20,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, error: 'Tenant or billing not found' }, { status: 404 })
     }
 
+    if (!tenant.telegramChatId) {
+      return NextResponse.json(
+        { ok: false, error: 'This tenant has not linked their Telegram yet.' },
+        { status: 400 },
+      )
+    }
+
     const msg = buildReminderMessage({
       tenantName: tenant.fullName,
       roomNumber: billing.room?.roomNumber ?? '—',
@@ -28,7 +35,7 @@ export async function POST(req: NextRequest) {
       totalRiel: billing.totalRiel,
     })
 
-    const result = await sendTelegramMessage(msg)
+    const result = await sendTelegramTo(tenant.telegramChatId, msg)
 
     await db.notification.create({
       data: {

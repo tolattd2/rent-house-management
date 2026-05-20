@@ -158,6 +158,7 @@ export function SettingsClient({ settings: initial }: Props) {
 
   const [testingTelegram, setTestingTelegram] = useState(false)
   const [lateAlertEnabled, setLateAlertEnabled] = useState(initial.late_alert_enabled !== 'false')
+  const [settingUpWebhook, setSettingUpWebhook] = useState(false)
 
   const { register, handleSubmit, getValues } = useForm({
     defaultValues: {
@@ -206,6 +207,18 @@ export function SettingsClient({ settings: initial }: Props) {
       toast({ title: t('settings_telegram_test_failed'), description: data.error, variant: 'destructive' })
     }
     setTestingTelegram(false)
+  }
+
+  async function handleSetupWebhook() {
+    setSettingUpWebhook(true)
+    const res = await fetch('/api/telegram/setup-webhook', { method: 'POST' })
+    const data = await res.json()
+    if (data.ok) {
+      toast({ title: 'Tenant linking enabled', description: 'Tenants can now link by messaging the bot.' })
+    } else {
+      toast({ title: 'Failed to enable', description: data.error, variant: 'destructive' })
+    }
+    setSettingUpWebhook(false)
   }
 
   const onSubmit = async (data: Record<string, string>) => {
@@ -337,16 +350,30 @@ export function SettingsClient({ settings: initial }: Props) {
                   <Switch checked={lateAlertEnabled} onCheckedChange={setLateAlertEnabled} />
                 </div>
                 {isAdmin && (
-                  <div className="pt-2 border-t">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      loading={testingTelegram}
-                      onClick={handleTelegramTest}
-                    >
-                      <Send className="w-4 h-4 mr-2" />{t('settings_telegram_test')}
-                    </Button>
+                  <div className="pt-2 border-t space-y-2">
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        loading={testingTelegram}
+                        onClick={handleTelegramTest}
+                      >
+                        <Send className="w-4 h-4 mr-2" />{t('settings_telegram_test')}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        loading={settingUpWebhook}
+                        onClick={handleSetupWebhook}
+                      >
+                        <MessageSquare className="w-4 h-4 mr-2" />Enable tenant linking
+                      </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      &quot;Enable tenant linking&quot; registers the bot so tenants can link their account — they message the bot and tap &quot;Share my phone number&quot;, then get reminders on their own Telegram.
+                    </p>
                   </div>
                 )}
               </CardContent>

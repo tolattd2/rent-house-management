@@ -22,6 +22,35 @@ export async function sendTelegramMessage(message: string): Promise<{ ok: boolea
   }
 }
 
+/** Low-level Telegram Bot API call using the shared bot token from settings/env. */
+export async function telegramApi(
+  method: string,
+  payload: Record<string, unknown>,
+): Promise<{ ok: boolean; result?: unknown; error?: string }> {
+  const settings = await getSettingsMap()
+  const token = settings.telegram_token || process.env.TELEGRAM_BOT_TOKEN
+  if (!token) return { ok: false, error: 'Telegram not configured.' }
+
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${token}/${method}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    const data = await res.json()
+    return data.ok ? { ok: true, result: data.result } : { ok: false, error: data.description }
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : 'Unknown error' }
+  }
+}
+
+/** Send a plain HTML message to a specific Telegram chat (e.g. a tenant's own chat). */
+export async function sendTelegramTo(chatId: string, message: string): Promise<{ ok: boolean; error?: string }> {
+  if (!chatId) return { ok: false, error: 'Tenant has not linked their Telegram.' }
+  const r = await telegramApi('sendMessage', { chat_id: chatId, text: message, parse_mode: 'HTML' })
+  return { ok: r.ok, error: r.error }
+}
+
 export async function sendSMS(to: string, message: string): Promise<{ ok: boolean; error?: string }> {
   const settings = await getSettingsMap()
   const sid = settings.twilio_sid || process.env.TWILIO_ACCOUNT_SID

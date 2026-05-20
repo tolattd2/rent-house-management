@@ -17,7 +17,7 @@ interface Props {
   }>
   unpaidBillings: Array<{
     id: string; billingMonth: string; totalUsd: number; totalRiel: number; paymentStatus: string
-    tenant: { id: string; fullName: string; phone: string } | null
+    tenant: { id: string; fullName: string; phone: string; telegramChatId: string } | null
     room: { id: string; roomNumber: string } | null
   }>
 }
@@ -50,7 +50,7 @@ export function NotificationsClient({ notifications, unpaidBillings }: Props) {
     const res = await fetch('/api/notifications/send-bulk', { method: 'POST' })
     const data = await res.json()
     if (data.ok) {
-      toast({ title: `Sent ${data.sent} reminders, ${data.failed} failed` })
+      toast({ title: `Sent ${data.sent}, ${data.failed} failed, ${data.skipped ?? 0} not linked` })
       router.refresh()
     } else {
       toast({ title: 'Error', description: data.error, variant: 'destructive' })
@@ -100,13 +100,16 @@ export function NotificationsClient({ notifications, unpaidBillings }: Props) {
                         {t(bill.paymentStatus === 'partial' ? 'status_partial' : 'status_unpaid')}
                       </Badge>
                     </div>
-                    <Button size="sm" variant="outline"
-                      onClick={() => handleSendReminder(bill.tenant!.id, bill.id)}
-                      loading={sending === bill.id}
-                      disabled={!bill.tenant}
-                    >
-                      <MessageSquare className="w-3.5 h-3.5 mr-1.5" />{t('notifications_remind')}
-                    </Button>
+                    {bill.tenant?.telegramChatId ? (
+                      <Button size="sm" variant="outline"
+                        onClick={() => handleSendReminder(bill.tenant!.id, bill.id)}
+                        loading={sending === bill.id}
+                      >
+                        <MessageSquare className="w-3.5 h-3.5 mr-1.5" />{t('notifications_remind')}
+                      </Button>
+                    ) : (
+                      <span className="text-xs text-muted-foreground whitespace-nowrap">Not linked</span>
+                    )}
                   </div>
                 </div>
               ))}
