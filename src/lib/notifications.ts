@@ -51,6 +51,25 @@ export async function sendTelegramTo(chatId: string, message: string): Promise<{
   return { ok: r.ok, error: r.error }
 }
 
+/**
+ * Send a photo or video (referenced by a public URL) to a Telegram chat, with an
+ * optional caption. Telegram fetches the media itself from the URL.
+ */
+export async function sendTelegramMediaTo(
+  chatId: string,
+  media: { kind: 'photo' | 'video'; url: string; caption?: string },
+): Promise<{ ok: boolean; error?: string }> {
+  if (!chatId) return { ok: false, error: 'Tenant has not linked their Telegram.' }
+  const method = media.kind === 'video' ? 'sendVideo' : 'sendPhoto'
+  const payload: Record<string, unknown> = { chat_id: chatId, [media.kind]: media.url }
+  if (media.caption) {
+    payload.caption = media.caption
+    payload.parse_mode = 'HTML'
+  }
+  const r = await telegramApi(method, payload)
+  return { ok: r.ok, error: r.error }
+}
+
 export async function sendSMS(to: string, message: string): Promise<{ ok: boolean; error?: string }> {
   const settings = await getSettingsMap()
   const sid = settings.twilio_sid || process.env.TWILIO_ACCOUNT_SID

@@ -234,7 +234,7 @@ export const getReportsData = unstable_cache(
 
 export const getNotificationsData = unstable_cache(
   async () => {
-    const [notifications, unpaidBillings] = await Promise.all([
+    const [notifications, unpaidBillings, linkedTenants] = await Promise.all([
       db.notification.findMany({
         include: {
           tenant: {
@@ -254,8 +254,12 @@ export const getNotificationsData = unstable_cache(
           room: { select: { id: true, roomNumber: true, branch: true } },
         },
       }),
+      db.tenant.findMany({
+        where: { status: 'active', telegramChatId: { not: '' } },
+        select: { id: true, room: { select: { branch: true } } },
+      }),
     ])
-    return { notifications, unpaidBillings }
+    return { notifications, unpaidBillings, linkedTenants }
   },
   ['notifications-data'],
   {

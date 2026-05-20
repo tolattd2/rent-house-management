@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { Bell, Send, CheckCircle, XCircle, MessageSquare, Search } from 'lucide-react'
+import { Bell, Send, CheckCircle, XCircle, MessageSquare, Search, ImagePlus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -11,6 +11,7 @@ import { formatCurrency } from '@/lib/utils'
 import { toast } from '@/hooks/use-toast'
 import { useLanguage } from '@/contexts/language-context'
 import { useBranches } from '@/contexts/branches-context'
+import { CustomReminderDialog } from '@/components/notifications/custom-reminder-dialog'
 
 interface Props {
   notifications: Array<{
@@ -22,17 +23,25 @@ interface Props {
     tenant: { id: string; fullName: string; phone: string; telegramChatId: string } | null
     room: { id: string; roomNumber: string; branch: string } | null
   }>
+  linkedTenants: Array<{ id: string; room: { branch: string } | null }>
 }
 
-export function NotificationsClient({ notifications, unpaidBillings }: Props) {
+export function NotificationsClient({ notifications, unpaidBillings, linkedTenants }: Props) {
   const router = useRouter()
   const { t } = useLanguage()
   const [sending, setSending] = useState<string | null>(null)
   const [sendingBulk, setSendingBulk] = useState<'en' | 'km' | null>(null)
   const [branchFilter, setBranchFilter] = useState('all')
   const [search, setSearch] = useState('')
+  const [showCustom, setShowCustom] = useState(false)
 
   const branches = useBranches().map((b) => b.name)
+
+  const linkedCount = useMemo(() => (
+    branchFilter === 'all'
+      ? linkedTenants.length
+      : linkedTenants.filter((tn) => tn.room?.branch === branchFilter).length
+  ), [linkedTenants, branchFilter])
 
   const filteredUnpaid = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -101,24 +110,32 @@ export function NotificationsClient({ notifications, unpaidBillings }: Props) {
           <h1 className="text-2xl font-bold">{t('notifications_title')}</h1>
           <p className="text-muted-foreground text-sm">{filteredUnpaid.length} {t('notifications_unpaid')}</p>
         </div>
-        <div className="flex flex-col items-end gap-1">
-          <span className="text-xs text-muted-foreground">{t('notifications_send_all')}</span>
-          <div className="flex gap-2">
-            <Button
-              size="sm"
-              onClick={() => handleBulkReminder('en')}
-              loading={sendingBulk === 'en'}
-              disabled={filteredUnpaid.length === 0 || sendingBulk !== null}
-            >
-              <Send className="w-3.5 h-3.5 mr-1.5" />English ({filteredUnpaid.length})
-            </Button>
-            <Button
-              size="sm"
-              onClick={() => handleBulkReminder('km')}
-              loading={sendingBulk === 'km'}
-              disabled={filteredUnpaid.length === 0 || sendingBulk !== null}
-            >
-              <Send className="w-3.5 h-3.5 mr-1.5" />ខ្មែរ ({filteredUnpaid.length})
+        <div className="flex flex-wrap items-end gap-x-5 gap-y-3">
+          <div className="flex flex-col items-end gap-1">
+            <span className="text-xs text-muted-foreground">{t('notifications_invoice_reminder')}</span>
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                onClick={() => handleBulkReminder('en')}
+                loading={sendingBulk === 'en'}
+                disabled={filteredUnpaid.length === 0 || sendingBulk !== null}
+              >
+                <Send className="w-3.5 h-3.5 mr-1.5" />English ({filteredUnpaid.length})
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => handleBulkReminder('km')}
+                loading={sendingBulk === 'km'}
+                disabled={filteredUnpaid.length === 0 || sendingBulk !== null}
+              >
+                <Send className="w-3.5 h-3.5 mr-1.5" />ខ្មែរ ({filteredUnpaid.length})
+              </Button>
+            </div>
+          </div>
+          <div className="flex flex-col items-end gap-1">
+            <span className="text-xs text-muted-foreground">{t('notifications_custom_reminder')}</span>
+            <Button size="sm" variant="outline" onClick={() => setShowCustom(true)}>
+              <ImagePlus className="w-3.5 h-3.5 mr-1.5" />{t('notifications_custom_compose')}
             </Button>
           </div>
         </div>
@@ -257,6 +274,16 @@ export function NotificationsClient({ notifications, unpaidBillings }: Props) {
           </div>
         </CardContent>
       </Card>
+
+      {showCustom && (
+        <CustomReminderDialog
+          mode="bulk"
+          branch={branchFilter}
+          recipientCount={linkedCount}
+          onClose={() => setShowCustom(false)}
+          onSent={() => router.refresh()}
+        />
+      )}
     </div>
   )
 }
