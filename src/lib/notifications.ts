@@ -118,3 +118,37 @@ export function buildReminderMessage(params: {
     closingEn
   )
 }
+
+/**
+ * Bilingual (Khmer + English) overdue warning sent to a late tenant by the
+ * daily auto-alert cron. Warns how many days late they are and the late-fee
+ * penalty they will be charged next month.
+ */
+export function buildLateReminderMessage(params: {
+  tenantName: string
+  roomNumber: string
+  billingMonth: string
+  totalUsd: number
+  totalRiel: number
+  lateDays: number
+  penaltyUsd: number
+}): string {
+  const riel = Math.round(params.totalRiel).toLocaleString()
+  const usd = params.totalUsd.toFixed(2)
+  const penalty = params.penaltyUsd.toFixed(2)
+
+  return (
+    `🏠 <b>ការរំលឹកការទូទាត់ប្រាក់ / Payment Reminder — Takmao Rental</b>\n\n` +
+    `អ្នកជួល / Tenant៖ ${params.tenantName}\n` +
+    `បន្ទប់ / Room៖ ${params.roomNumber}\n` +
+    `ខែ / Month៖ ${params.billingMonth}\n` +
+    `ត្រូវបង់ / Amount Due៖ $${usd} / ${riel} ៛\n\n` +
+    `⚠️ <b>ខ្មែរ</b>\n` +
+    `អ្នកបានទូទាត់ថ្លៃខែនេះយឺត រហូតមកដល់ពេលនេះ ចំនួន ${params.lateDays} ថ្ងៃ។ ` +
+    `ដូច្នេះ សូមមេត្តាទូទាត់ថ្លៃឈ្នួលឥឡូវនេះ បើមិនដូច្នោះទេ ` +
+    `អ្នកនឹងត្រូវបង់ប្រាក់ពិន័យសម្រាប់ការទូទាត់យឺតនៅខែបន្ទាប់ ចំនួន $${penalty}។\n\n` +
+    `⚠️ <b>English</b>\n` +
+    `You have been paying late for this month's fee until now — ${params.lateDays} days. ` +
+    `So please pay your fee now, or you will be charged a late-fee penalty in the upcoming month — $${penalty}.`
+  )
+}

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { sendTelegramMessage } from '@/lib/notifications'
+import { sendTelegramTo, buildLateReminderMessage } from '@/lib/notifications'
 
 export const dynamic = 'force-dynamic'
 
@@ -17,9 +17,11 @@ function daysLate(billingMonth: string, payDay: number): number {
 }
 
 /**
- * Daily job: pushes a Telegram alert for invoices that are more than
- * LATE_THRESHOLD_DAYS overdue. Each invoice is alerted once; the set of
- * already-alerted invoices is tracked in the `late_alert_sent` setting.
+ * Daily job: for every invoice more than LATE_THRESHOLD_DAYS overdue, send the
+ * late tenant a bilingual (Khmer + English) overdue warning on their own
+ * Telegram. Each invoice is alerted once; the set of already-alerted invoices
+ * is tracked in the `late_alert_sent` setting. Tenants who haven't linked
+ * their Telegram are skipped and retried daily until they link.
  * Honors the `late_alert_enabled` on/off setting.
  */
 export async function GET(req: NextRequest) {
@@ -30,13 +32,16 @@ export async function GET(req: NextRequest) {
   }
 
   const settingRows = await db.setting.findMany({
-    where: { key: { in: ['late_alert_enabled', 'late_alert_sent'] } },
+    where: { key: { in: ['late_alert_enabled', 'late_alert_sent', 'late_penalty_usd'] } },
   })
   const settings = Object.fromEntries(settingRows.map((r) => [r.key, r.value]))
 
   if (settings.late_alert_enabled === 'false') {
     return NextResponse.json({ ok: true, skipped: 'disabled' })
   }
+
+  // Late-fee penalty rate, charged per day overdue.
+  const penaltyPerDay = Number(settings.late_penalty_usd) || 0
 
   let alreadySent: string[] = []
   try {
@@ -50,7 +55,7 @@ export async function GET(req: NextRequest) {
   const billings = await db.billing.findMany({
     where: { paymentStatus: { not: 'paid' } },
     include: {
-      tenant: { select: { id: true, fullName: true, payDay: true } },
+      tenant: { select: { id: true, fullName: true, payDay: true, telegramChatId: true } },
       room: { select: { roomNumber: true } },
     },
   })
@@ -60,45 +65,53 @@ export async function GET(req: NextRequest) {
     .map((b) => ({ b, days: daysLate(b.billingMonth, b.tenant!.payDay) }))
     .filter((x) => x.days > LATE_THRESHOLD_DAYS)
 
-  const lateIds = late.map((x) => x.b.id)
   const newly = late.filter((x) => !alreadySentSet.has(x.b.id))
 
-  let sendOk = true
-  if (newly.length > 0) {
-    const lines = newly
-      .map((x) => {
-        const room = x.b.room?.roomNumber ?? '—'
-        return `• Room ${room} — ${x.b.tenant!.fullName} (${x.b.billingMonth}) — $${x.b.totalUsd.toFixed(2)} · ${x.days} days late`
-      })
-      .join('\n')
-    const msg =
-      `⚠️ <b>Overdue Invoices — Takmao Rental</b>\n\n` +
-      `${newly.length} invoice(s) are more than ${LATE_THRESHOLD_DAYS} days overdue:\n\n` +
-      lines
-    const result = await sendTelegramMessage(msg)
-    sendOk = result.ok
+  let alerted = 0
+  let skippedUnlinked = 0
+  const successIds: string[] = []
 
-    await Promise.all(
-      newly.map((x) =>
-        db.notification
-          .create({
-            data: {
-              tenantId: x.b.tenant!.id,
-              type: 'late_alert',
-              message: `Invoice ${x.b.billingMonth} for ${x.b.tenant!.fullName} is ${x.days} days overdue.`,
-              status: result.ok ? 'sent' : 'failed',
-            },
-          })
-          .catch(() => null)
-      )
-    )
+  for (const x of newly) {
+    const tenant = x.b.tenant!
+
+    // Can't message a tenant who hasn't linked Telegram — retry tomorrow.
+    if (!tenant.telegramChatId) {
+      skippedUnlinked++
+      continue
+    }
+
+    const msg = buildLateReminderMessage({
+      tenantName: tenant.fullName,
+      roomNumber: x.b.room?.roomNumber ?? '—',
+      billingMonth: x.b.billingMonth,
+      totalUsd: x.b.totalUsd,
+      totalRiel: x.b.totalRiel,
+      lateDays: x.days,
+      penaltyUsd: penaltyPerDay * x.days,
+    })
+
+    const result = await sendTelegramTo(tenant.telegramChatId, msg)
+    if (result.ok) {
+      alerted++
+      successIds.push(x.b.id)
+    }
+
+    await db.notification
+      .create({
+        data: {
+          tenantId: tenant.id,
+          type: 'late_alert',
+          message: msg,
+          status: result.ok ? 'sent' : 'failed',
+        },
+      })
+      .catch(() => null)
   }
 
-  // Keep still-overdue invoices that were already alerted; add the new ones
-  // only if the Telegram send succeeded (so a failed send retries tomorrow).
-  const newSent = lateIds.filter(
-    (id) => alreadySentSet.has(id) || (sendOk && newly.some((n) => n.b.id === id))
-  )
+  // Keep already-alerted invoices that are still overdue, plus the ones sent
+  // just now. Unlinked / failed sends are left out so they retry tomorrow.
+  const lateIds = new Set(late.map((x) => x.b.id))
+  const newSent = [...alreadySent.filter((id) => lateIds.has(id)), ...successIds]
   await db.setting.upsert({
     where: { key: 'late_alert_sent' },
     update: { value: JSON.stringify(newSent) },
@@ -108,6 +121,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     ok: true,
     overdue: late.length,
-    alerted: sendOk ? newly.length : 0,
+    alerted,
+    skippedUnlinked,
   })
 }

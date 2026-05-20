@@ -350,7 +350,8 @@ export function SettingsClient({ settings: initial }: Props) {
                   <div>
                     <Label>Auto overdue alerts</Label>
                     <p className="text-xs text-muted-foreground">
-                      Push a Telegram alert when an invoice is more than 10 days overdue (checked daily).
+                      Message the tenant directly (Khmer + English) when their invoice is more than
+                      10 days overdue — checked daily. Penalty uses the Late Penalty rate.
                     </p>
                   </div>
                   <Switch checked={lateAlertEnabled} onCheckedChange={setLateAlertEnabled} />
