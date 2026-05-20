@@ -1,5 +1,13 @@
 import { formatCurrency, formatMonth } from '@/lib/utils'
 
+/**
+ * Same font stack the app uses (see tailwind.config.ts `font-sans`): Inter for
+ * Latin, with Noto Sans Khmer as the per-glyph fallback for Khmer text. Set
+ * explicitly here so printed invoices use the exact Khmer font as the rest of
+ * the app instead of the browser/printer default.
+ */
+const FONT_STACK = 'var(--font-inter), var(--font-khmer), Hanuman, system-ui, sans-serif'
+
 export type InvoiceCardData = {
   invoiceNumber: string
   billingMonth: string
@@ -60,7 +68,7 @@ export function InvoiceCard({ data, settings, xRate }: InvoiceCardProps) {
         overflow: 'hidden',
         display: 'flex',
         flexDirection: 'column',
-        fontFamily: 'sans-serif',
+        fontFamily: FONT_STACK,
         fontSize: '8pt',
         color: '#0f172a',
         background: 'white',
