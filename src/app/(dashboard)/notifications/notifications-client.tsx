@@ -34,6 +34,7 @@ export function NotificationsClient({ notifications, unpaidBillings, linkedTenan
   const [branchFilter, setBranchFilter] = useState('all')
   const [search, setSearch] = useState('')
   const [showCustom, setShowCustom] = useState(false)
+  const [composeTenant, setComposeTenant] = useState<{ id: string; name: string } | null>(null)
 
   const branches = useBranches().map((b) => b.name)
 
@@ -225,6 +226,12 @@ export function NotificationsClient({ notifications, unpaidBillings, linkedTenan
                         >
                           <MessageSquare className="w-3.5 h-3.5 mr-1" />ខ្មែរ
                         </Button>
+                        <Button size="sm" variant="outline"
+                          title={t('notifications_custom_reminder')}
+                          onClick={() => setComposeTenant({ id: bill.tenant!.id, name: bill.tenant!.fullName })}
+                        >
+                          <ImagePlus className="w-3.5 h-3.5 mr-1" />{t('notifications_custom_compose')}
+                        </Button>
                       </div>
                     ) : (
                       <span className="text-xs text-muted-foreground whitespace-nowrap">Not linked</span>
@@ -281,6 +288,16 @@ export function NotificationsClient({ notifications, unpaidBillings, linkedTenan
           branch={branchFilter}
           recipientCount={linkedCount}
           onClose={() => setShowCustom(false)}
+          onSent={() => router.refresh()}
+        />
+      )}
+
+      {composeTenant && (
+        <CustomReminderDialog
+          mode="single"
+          tenantId={composeTenant.id}
+          tenantName={composeTenant.name}
+          onClose={() => setComposeTenant(null)}
           onSent={() => router.refresh()}
         />
       )}
