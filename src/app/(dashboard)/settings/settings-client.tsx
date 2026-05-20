@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
+import { Switch } from '@/components/ui/switch'
 import { toast } from '@/hooks/use-toast'
 import { useLanguage } from '@/contexts/language-context'
 import { QrCropDialog } from '@/components/settings/qr-crop-dialog'
@@ -156,6 +157,7 @@ export function SettingsClient({ settings: initial }: Props) {
   }
 
   const [testingTelegram, setTestingTelegram] = useState(false)
+  const [lateAlertEnabled, setLateAlertEnabled] = useState(initial.late_alert_enabled !== 'false')
 
   const { register, handleSubmit, getValues } = useForm({
     defaultValues: {
@@ -211,7 +213,7 @@ export function SettingsClient({ settings: initial }: Props) {
     const res = await fetch('/api/settings', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
+      body: JSON.stringify({ ...data, late_alert_enabled: lateAlertEnabled ? 'true' : 'false' }),
     })
     const result = await res.json()
     if (result.ok) {
@@ -324,6 +326,15 @@ export function SettingsClient({ settings: initial }: Props) {
                 <div className="space-y-1.5">
                   <Label>{t('settings_telegram_chat')}</Label>
                   <Input {...register('telegram_chat_id')} placeholder="-100123456789" />
+                </div>
+                <div className="flex items-center justify-between gap-4 pt-3 border-t">
+                  <div>
+                    <Label>Auto overdue alerts</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Push a Telegram alert when an invoice is more than 10 days overdue (checked daily).
+                    </p>
+                  </div>
+                  <Switch checked={lateAlertEnabled} onCheckedChange={setLateAlertEnabled} />
                 </div>
                 {isAdmin && (
                   <div className="pt-2 border-t">
