@@ -111,13 +111,13 @@ export function InvoicesClient({ invoices: initial }: Props) {
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" size="sm" onClick={() => setShowBatchPrint(true)}>
-            <Printer className="w-4 h-4 mr-2" />Batch Print
+            <Printer className="w-4 h-4 mr-2" />{t('batch_print')}
           </Button>
           {isAdmin && (
             <Button variant="outline" size="sm"
               className="text-destructive border-destructive/30 hover:bg-destructive/10"
               onClick={() => setShowBatchDelete(true)}>
-              <Trash2 className="w-4 h-4 mr-2" />Batch Delete
+              <Trash2 className="w-4 h-4 mr-2" />{t('batch_delete')}
             </Button>
           )}
         </div>

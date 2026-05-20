@@ -140,7 +140,7 @@ export function BillingListClient({ billings: initial }: Props) {
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" size="sm" onClick={handleExport}>{t('billing_export')}</Button>
           <Button variant="outline" size="sm" onClick={() => setShowBatchInvoice(true)}>
-            <Printer className="w-4 h-4 mr-2" />Batch Invoice
+            <Printer className="w-4 h-4 mr-2" />{t('batch_invoice')}
           </Button>
           {isAdmin && (
             <>
@@ -149,7 +149,7 @@ export function BillingListClient({ billings: initial }: Props) {
               </Button>
               <Button variant="outline" size="sm" className="text-destructive border-destructive/30 hover:bg-destructive/10"
                 onClick={() => setShowBatchDelete(true)}>
-                <Trash2 className="w-4 h-4 mr-2" />Batch Delete
+                <Trash2 className="w-4 h-4 mr-2" />{t('batch_delete')}
               </Button>
               <Link href="/billing/create"><Button><Plus className="w-4 h-4 mr-2" />{t('billing_create')}</Button></Link>
             </>

@@ -352,6 +352,10 @@ export const translations = {
     invoices_generated: 'invoices generated',
     invoices_col_invoice: 'Invoice #',
     invoices_empty: 'No invoices yet',
+    // Batch actions
+    batch_print: 'Batch Print',
+    batch_invoice: 'Batch Invoice',
+    batch_delete: 'Batch Delete',
     // Billing due date column
     billing_col_due_date: 'Due Date',
     billing_due_today: 'Due today',
@@ -824,6 +828,10 @@ export const translations = {
     invoices_generated: 'វិក្កយបត្របានបង្កើត',
     invoices_col_invoice: 'វិក្កយបត្រ #',
     invoices_empty: 'មិនទាន់មានវិក្កយបត្រ',
+    // Batch actions
+    batch_print: 'ព្រីនជាកញ្ចប់',
+    batch_invoice: 'ចេញវិក័យប័ត្រជាកញ្ចប់',
+    batch_delete: 'លុបជាកញ្ចប់',
     // Billing due date column
     billing_col_due_date: 'ថ្ងៃកំណត់',
     billing_due_today: 'ដល់ថ្ងៃបង់ថ្ងៃនេះ',
