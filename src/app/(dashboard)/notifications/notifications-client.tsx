@@ -14,7 +14,7 @@ import { useLanguage } from '@/contexts/language-context'
 interface Props {
   notifications: Array<{
     id: string; type: string; message: string; status: string; createdAt: Date
-    tenant: { id: string; fullName: string; phone: string } | null
+    tenant: { id: string; fullName: string; phone: string; room: { branch: string } | null } | null
   }>
   unpaidBillings: Array<{
     id: string; billingMonth: string; totalUsd: number; totalRiel: number; paymentStatus: string
@@ -30,16 +30,28 @@ export function NotificationsClient({ notifications, unpaidBillings }: Props) {
   const [sendingBulk, setSendingBulk] = useState(false)
   const [branchFilter, setBranchFilter] = useState('all')
 
-  const branches = useMemo(
-    () => [...new Set(unpaidBillings.map((b) => b.room?.branch ?? 'Takmoa'))].sort(),
-    [unpaidBillings]
-  )
+  const branches = useMemo(() => {
+    const set = new Set<string>()
+    unpaidBillings.forEach((b) => set.add(b.room?.branch ?? 'Takmoa'))
+    notifications.forEach((n) => {
+      if (n.tenant) set.add(n.tenant.room?.branch ?? 'Takmoa')
+    })
+    return [...set].sort()
+  }, [unpaidBillings, notifications])
+
   const filteredUnpaid = useMemo(
     () =>
       branchFilter === 'all'
         ? unpaidBillings
         : unpaidBillings.filter((b) => (b.room?.branch ?? 'Takmoa') === branchFilter),
     [unpaidBillings, branchFilter]
+  )
+  const filteredNotifications = useMemo(
+    () =>
+      branchFilter === 'all'
+        ? notifications
+        : notifications.filter((n) => (n.tenant?.room?.branch ?? 'Takmoa') === branchFilter),
+    [notifications, branchFilter]
   )
 
   const handleSendReminder = async (tenantId: string, billingId: string) => {
@@ -152,7 +164,7 @@ export function NotificationsClient({ notifications, unpaidBillings }: Props) {
         <CardHeader><CardTitle className="text-base">{t('notifications_history')}</CardTitle></CardHeader>
         <CardContent className="p-0">
           <div className="divide-y divide-border">
-            {notifications.map((n, i) => (
+            {filteredNotifications.map((n, i) => (
               <div key={n.id}
                 className="flex items-start gap-3 px-4 py-3"
               >
@@ -169,12 +181,13 @@ export function NotificationsClient({ notifications, unpaidBillings }: Props) {
                   </div>
                   <p className="text-xs text-muted-foreground mt-0.5 truncate">{n.message}</p>
                   <p className="text-xs text-muted-foreground mt-0.5">
+                    {n.tenant?.room?.branch ? `${n.tenant.room.branch} · ` : ''}
                     {new Date(n.createdAt).toLocaleString()}
                   </p>
                 </div>
               </div>
             ))}
-            {notifications.length === 0 && (
+            {filteredNotifications.length === 0 && (
               <div className="py-12 text-center text-muted-foreground">
                 <Bell className="w-10 h-10 mx-auto mb-3 opacity-30" />
                 <p>{t('notifications_empty')}</p>

@@ -226,7 +226,14 @@ export const getNotificationsData = unstable_cache(
   async () => {
     const [notifications, unpaidBillings] = await Promise.all([
       db.notification.findMany({
-        include: { tenant: { select: { id: true, fullName: true, phone: true } } },
+        include: {
+          tenant: {
+            select: {
+              id: true, fullName: true, phone: true,
+              room: { select: { branch: true } },
+            },
+          },
+        },
         orderBy: { createdAt: 'desc' },
         take: 100,
       }),
