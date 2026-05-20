@@ -209,14 +209,14 @@ export function NotificationsClient({ notifications, unpaidBillings, linkedTenan
                       </Badge>
                     </div>
                     {bill.tenant?.telegramChatId ? (
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex flex-wrap items-center justify-end gap-1.5">
                         <Button size="sm" variant="outline"
                           title={`${t('notifications_remind')} — English`}
                           onClick={() => handleSendReminder(bill.tenant!.id, bill.id, 'en')}
                           loading={sending === `${bill.id}:en`}
                           disabled={sending !== null}
                         >
-                          <MessageSquare className="w-3.5 h-3.5 mr-1" />EN
+                          <MessageSquare className="w-3.5 h-3.5 mr-1" />{t('notifications_invoice_reminder')} EN
                         </Button>
                         <Button size="sm" variant="outline"
                           title={`${t('notifications_remind')} — ខ្មែរ`}
@@ -224,7 +224,7 @@ export function NotificationsClient({ notifications, unpaidBillings, linkedTenan
                           loading={sending === `${bill.id}:km`}
                           disabled={sending !== null}
                         >
-                          <MessageSquare className="w-3.5 h-3.5 mr-1" />ខ្មែរ
+                          <MessageSquare className="w-3.5 h-3.5 mr-1" />{t('notifications_invoice_reminder')} ខ្មែរ
                         </Button>
                         <Button size="sm" variant="outline"
                           title={t('notifications_custom_reminder')}
