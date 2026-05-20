@@ -4,11 +4,16 @@ export type InvoiceCardData = {
   invoiceNumber: string
   billingMonth: string
   roomRentUsd: number
+  prevWaterReading: number
+  currWaterReading: number
   waterUsage: number
   waterCostRiel: number
+  prevElectricReading: number
+  currElectricReading: number
   electricUsage: number
   electricCostRiel: number
   outstandingDebtUsd: number
+  lateDays: number
   latePenaltyUsd: number
   discountUsd: number
   totalUsd: number
@@ -31,6 +36,7 @@ interface InvoiceCardProps {
  */
 export function InvoiceCard({ data, settings, xRate }: InvoiceCardProps) {
   const isPaid = data.paymentStatus === 'paid'
+  const latePenaltyRate = parseFloat(settings.late_penalty_usd ?? '1')
   const branchKey = data.room?.branch === 'Chamkadong' ? 'chamkadong' : 'takmoa'
   const companyName = settings[`company_${branchKey}_name`] || settings.company_name || 'Takmao Rental'
   const companyPhone = settings[`company_${branchKey}_phone`] || settings.company_phone || ''
@@ -121,12 +127,18 @@ export function InvoiceCard({ data, settings, xRate }: InvoiceCardProps) {
               <td style={{ padding: '0.8mm 0', textAlign: 'right', fontWeight: 500 }}>{formatCurrency(data.roomRentUsd)}</td>
             </tr>
             <tr>
-              <td style={{ padding: '0.8mm 0', color: '#475569' }}>Water ({data.waterUsage} kib · {data.waterCostRiel.toLocaleString()} ៛)</td>
-              <td style={{ padding: '0.8mm 0', textAlign: 'right' }}>{formatCurrency(data.waterCostRiel / xRate)}</td>
+              <td style={{ padding: '0.8mm 0', color: '#475569' }}>
+                Water ({data.waterUsage} kib · {data.waterCostRiel.toLocaleString()} ៛)
+                <div style={{ fontSize: '8pt', color: '#94a3b8' }}>Meter: {data.prevWaterReading} → {data.currWaterReading}</div>
+              </td>
+              <td style={{ padding: '0.8mm 0', textAlign: 'right', verticalAlign: 'top' }}>{formatCurrency(data.waterCostRiel / xRate)}</td>
             </tr>
             <tr>
-              <td style={{ padding: '0.8mm 0', color: '#475569' }}>Electricity ({data.electricUsage} kw · {data.electricCostRiel.toLocaleString()} ៛)</td>
-              <td style={{ padding: '0.8mm 0', textAlign: 'right' }}>{formatCurrency(data.electricCostRiel / xRate)}</td>
+              <td style={{ padding: '0.8mm 0', color: '#475569' }}>
+                Electricity ({data.electricUsage} kw · {data.electricCostRiel.toLocaleString()} ៛)
+                <div style={{ fontSize: '8pt', color: '#94a3b8' }}>Meter: {data.prevElectricReading} → {data.currElectricReading}</div>
+              </td>
+              <td style={{ padding: '0.8mm 0', textAlign: 'right', verticalAlign: 'top' }}>{formatCurrency(data.electricCostRiel / xRate)}</td>
             </tr>
             {data.outstandingDebtUsd > 0 && (
               <tr style={{ color: '#dc2626' }}>
@@ -136,8 +148,11 @@ export function InvoiceCard({ data, settings, xRate }: InvoiceCardProps) {
             )}
             {data.latePenaltyUsd > 0 && (
               <tr style={{ color: '#ea580c' }}>
-                <td style={{ padding: '0.8mm 0' }}>Late Penalty</td>
-                <td style={{ padding: '0.8mm 0', textAlign: 'right' }}>{formatCurrency(data.latePenaltyUsd)}</td>
+                <td style={{ padding: '0.8mm 0' }}>
+                  Late Penalty
+                  <div style={{ fontSize: '8pt', color: '#fb923c' }}>{data.lateDays} days × {formatCurrency(latePenaltyRate)}/day</div>
+                </td>
+                <td style={{ padding: '0.8mm 0', textAlign: 'right', verticalAlign: 'top' }}>{formatCurrency(data.latePenaltyUsd)}</td>
               </tr>
             )}
             {data.discountUsd > 0 && (
