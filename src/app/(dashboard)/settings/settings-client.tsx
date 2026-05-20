@@ -157,6 +157,7 @@ export function SettingsClient({ settings: initial }: Props) {
   }
 
   const [testingTelegram, setTestingTelegram] = useState(false)
+  const [testingLateAlert, setTestingLateAlert] = useState(false)
   const [lateAlertEnabled, setLateAlertEnabled] = useState(initial.late_alert_enabled !== 'false')
   const [settingUpWebhook, setSettingUpWebhook] = useState(false)
   const [linkingEnabled, setLinkingEnabled] = useState(initial.telegram_linking_enabled === 'true')
@@ -208,6 +209,18 @@ export function SettingsClient({ settings: initial }: Props) {
       toast({ title: t('settings_telegram_test_failed'), description: data.error, variant: 'destructive' })
     }
     setTestingTelegram(false)
+  }
+
+  async function handleLateAlertTest() {
+    setTestingLateAlert(true)
+    const res = await fetch('/api/settings/late-alert-test', { method: 'POST' })
+    const data = await res.json()
+    if (data.ok) {
+      toast({ title: 'Test sent — check your Telegram' })
+    } else {
+      toast({ title: 'Failed to send', description: data.error, variant: 'destructive' })
+    }
+    setTestingLateAlert(false)
   }
 
   async function handleToggleLinking(next: boolean) {
@@ -346,15 +359,26 @@ export function SettingsClient({ settings: initial }: Props) {
                   <Label>{t('settings_telegram_chat')}</Label>
                   <Input {...register('telegram_chat_id')} placeholder="-100123456789" />
                 </div>
-                <div className="flex items-center justify-between gap-4 pt-3 border-t">
-                  <div>
-                    <Label>Auto overdue alerts</Label>
-                    <p className="text-xs text-muted-foreground">
-                      Message the tenant directly (Khmer + English) when their invoice is more than
-                      10 days overdue — checked daily. Penalty uses the Late Penalty rate.
-                    </p>
+                <div className="pt-3 border-t space-y-3">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <Label>Auto overdue alerts</Label>
+                      <p className="text-xs text-muted-foreground">
+                        Message the tenant directly (Khmer + English) when their invoice is more than
+                        10 days overdue — checked daily. Penalty uses the Late Penalty rate.
+                      </p>
+                    </div>
+                    <Switch checked={lateAlertEnabled} onCheckedChange={setLateAlertEnabled} />
                   </div>
-                  <Switch checked={lateAlertEnabled} onCheckedChange={setLateAlertEnabled} />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    loading={testingLateAlert}
+                    onClick={handleLateAlertTest}
+                  >
+                    <Send className="w-4 h-4 mr-2" />Send test message
+                  </Button>
                 </div>
                 {isAdmin && (
                   <div className="pt-3 border-t space-y-3">
