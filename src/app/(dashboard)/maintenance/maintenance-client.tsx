@@ -289,7 +289,7 @@ export function MaintenanceClient({ records: initial, rooms, tenants }: Props) {
 
       {/* Desktop table */}
       <Card className="hidden md:block">
-        <div className="overflow-x-auto scrollbar-thin">
+        <div className="table-scroll">
           <table className="w-full min-w-[950px] text-sm">
             <thead>
               <tr className="border-b border-border">

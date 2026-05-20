@@ -291,7 +291,7 @@ export function BillingListClient({ billings: initial }: Props) {
 
       {/* Desktop table — hidden on small screens */}
       <Card className="hidden md:block hover:shadow-md transition-shadow duration-200">
-        <div className="overflow-x-auto scrollbar-thin">
+        <div className="table-scroll">
           <table className="w-full min-w-[1600px] text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/30">

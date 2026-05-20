@@ -185,7 +185,7 @@ export function TenantDetailClient({ tenant, rooms }: Props) {
                 <Button size="sm"><FileText className="w-3.5 h-3.5 mr-2" />{t('new_billing')}</Button>
               </Link>
             </div>
-            <div className="overflow-x-auto scrollbar-thin">
+            <div className="table-scroll">
               <table className="w-full min-w-[700px] text-sm">
                 <thead>
                   <tr className="border-b border-border bg-muted/30">

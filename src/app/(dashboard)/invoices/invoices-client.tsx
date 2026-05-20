@@ -186,7 +186,7 @@ export function InvoicesClient({ invoices: initial }: Props) {
 
       {/* Table */}
       <Card>
-        <div className="overflow-x-auto scrollbar-thin">
+        <div className="table-scroll">
           <table className="w-full min-w-[700px] text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/30">

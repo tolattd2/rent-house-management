@@ -207,7 +207,7 @@ export function ReportsClient({ billings, expenses }: Props) {
       {/* Billing table */}
       <Card>
         <CardHeader><CardTitle className="text-base">{t('reports_billing_detail')} ({monthBillings.length} {t('billing_records')})</CardTitle></CardHeader>
-        <div className="overflow-x-auto scrollbar-thin">
+        <div className="table-scroll">
           <table className="w-full min-w-[680px] text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/30">

@@ -155,7 +155,7 @@ export function BillingDetailClient({ billing }: { billing: Billing }) {
       {billing.payments.length > 0 && (
         <Card>
           <CardHeader className="pb-3"><CardTitle className="text-base">{t('payment_history')}</CardTitle></CardHeader>
-          <div className="overflow-x-auto scrollbar-thin">
+          <div className="table-scroll">
             <table className="w-full min-w-[600px] text-sm">
               <thead>
                 <tr className="border-b border-border bg-muted/30">
