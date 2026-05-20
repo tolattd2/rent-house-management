@@ -10,7 +10,11 @@ export default auth((req) => {
 
   const isAuthPage = nextUrl.pathname.startsWith('/login')
   const isApiAuth = nextUrl.pathname.startsWith('/api/auth')
-  const isPublic = isAuthPage || isApiAuth
+  // Endpoints called by external services (no login session). They guard
+  // themselves: the Telegram webhook verifies a secret token, cron checks CRON_SECRET.
+  const isTelegramWebhook = nextUrl.pathname === '/api/telegram/webhook'
+  const isCron = nextUrl.pathname.startsWith('/api/cron')
+  const isPublic = isAuthPage || isApiAuth || isTelegramWebhook || isCron
 
   if (!isLoggedIn && !isPublic) {
     return NextResponse.redirect(new URL('/login', nextUrl))
