@@ -139,7 +139,7 @@ export function BatchPrintClient({ billings, settings, month, branch }: Props) {
                   display: 'flex',
                   flexDirection: 'column',
                   fontFamily: 'sans-serif',
-                  fontSize: '7.5pt',
+                  fontSize: '15pt',
                   color: '#0f172a',
                 }}
               >
@@ -154,14 +154,14 @@ export function BatchPrintClient({ billings, settings, month, branch }: Props) {
                   flexShrink: 0,
                 }}>
                   <div>
-                    <div style={{ fontWeight: 700, fontSize: '9pt' }}>{companyName}</div>
-                    <div style={{ opacity: 0.8, fontSize: '6.5pt' }}>{companyAddress}</div>
-                    {companyPhone && <div style={{ opacity: 0.8, fontSize: '6.5pt' }}>{companyPhone}</div>}
+                    <div style={{ fontWeight: 700, fontSize: '18pt' }}>{companyName}</div>
+                    <div style={{ opacity: 0.8, fontSize: '13pt' }}>{companyAddress}</div>
+                    {companyPhone && <div style={{ opacity: 0.8, fontSize: '13pt' }}>{companyPhone}</div>}
                   </div>
                   <div style={{ textAlign: 'right' }}>
-                    <div style={{ opacity: 0.7, fontSize: '5.5pt', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Invoice</div>
-                    <div style={{ fontWeight: 700, fontFamily: 'monospace', fontSize: '8pt' }}>{b.invoiceNumber}</div>
-                    <div style={{ opacity: 0.8, fontSize: '6.5pt' }}>{formatMonth(b.billingMonth)}</div>
+                    <div style={{ opacity: 0.7, fontSize: '11pt', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Invoice</div>
+                    <div style={{ fontWeight: 700, fontFamily: 'monospace', fontSize: '16pt' }}>{b.invoiceNumber}</div>
+                    <div style={{ opacity: 0.8, fontSize: '13pt' }}>{formatMonth(b.billingMonth)}</div>
                   </div>
                 </div>
 
@@ -176,16 +176,16 @@ export function BatchPrintClient({ billings, settings, month, branch }: Props) {
                   flexShrink: 0,
                 }}>
                   <div>
-                    <div style={{ fontWeight: 700, fontSize: '8.5pt' }}>{b.tenant?.fullName ?? '—'}</div>
-                    {b.tenant?.phone && <div style={{ color: '#64748b', fontSize: '6.5pt' }}>{b.tenant.phone}</div>}
+                    <div style={{ fontWeight: 700, fontSize: '17pt' }}>{b.tenant?.fullName ?? '—'}</div>
+                    {b.tenant?.phone && <div style={{ color: '#64748b', fontSize: '13pt' }}>{b.tenant.phone}</div>}
                   </div>
                   <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontWeight: 600, fontSize: '7.5pt' }}>Room {b.room?.roomNumber ?? '—'}</div>
+                    <div style={{ fontWeight: 600, fontSize: '15pt' }}>Room {b.room?.roomNumber ?? '—'}</div>
                     <span style={{
                       display: 'inline-block',
                       padding: '0.5mm 2.5mm',
                       borderRadius: '3pt',
-                      fontSize: '6pt',
+                      fontSize: '12pt',
                       fontWeight: 700,
                       background: isPaid ? '#dcfce7' : '#fee2e2',
                       color: isPaid ? '#15803d' : '#dc2626',
@@ -197,7 +197,7 @@ export function BatchPrintClient({ billings, settings, month, branch }: Props) {
 
                 {/* Line items */}
                 <div style={{ padding: '2mm 4mm', flex: 1, overflow: 'hidden' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '7pt' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14pt' }}>
                     <tbody>
                       <tr>
                         <td style={{ padding: '0.8mm 0', color: '#475569' }}>Monthly Rent</td>
@@ -232,14 +232,14 @@ export function BatchPrintClient({ billings, settings, month, branch }: Props) {
                     </tbody>
                     <tfoot>
                       <tr style={{ borderTop: '0.5pt solid #cbd5e1' }}>
-                        <td style={{ paddingTop: '1.5mm', fontWeight: 700, fontSize: '8.5pt' }}>Total Due</td>
-                        <td style={{ paddingTop: '1.5mm', textAlign: 'right', fontWeight: 700, fontSize: '8.5pt', color: '#1d4ed8' }}>
+                        <td style={{ paddingTop: '1.5mm', fontWeight: 700, fontSize: '17pt' }}>Total Due</td>
+                        <td style={{ paddingTop: '1.5mm', textAlign: 'right', fontWeight: 700, fontSize: '17pt', color: '#1d4ed8' }}>
                           {formatCurrency(b.totalUsd)}
                         </td>
                       </tr>
                       <tr>
-                        <td style={{ color: '#94a3b8', fontSize: '6pt' }}>{Math.round(b.totalRiel).toLocaleString()} ៛</td>
-                        <td style={{ textAlign: 'right', color: '#94a3b8', fontSize: '6pt' }}>1 USD = {xRate.toLocaleString()} ៛</td>
+                        <td style={{ color: '#94a3b8', fontSize: '12pt' }}>{Math.round(b.totalRiel).toLocaleString()} ៛</td>
+                        <td style={{ textAlign: 'right', color: '#94a3b8', fontSize: '12pt' }}>1 USD = {xRate.toLocaleString()} ៛</td>
                       </tr>
                     </tfoot>
                   </table>
@@ -255,7 +255,7 @@ export function BatchPrintClient({ billings, settings, month, branch }: Props) {
                   justifyContent: 'space-between',
                   flexShrink: 0,
                 }}>
-                  <div style={{ color: '#94a3b8', fontSize: '5.5pt', maxWidth: '60%' }}>
+                  <div style={{ color: '#94a3b8', fontSize: '11pt', maxWidth: '60%' }}>
                     Thank you for your business!<br />
                     {companyName} · {companyPhone}
                   </div>
@@ -271,8 +271,8 @@ export function BatchPrintClient({ billings, settings, month, branch }: Props) {
                       <div style={{ display: 'flex', gap: '3mm', alignItems: 'center' }}>
                         {qrs.map(({ src, label, slot }) => (
                           <div key={slot} style={{ textAlign: 'center' }}>
-                            <img src={src} alt={`QR ${slot}`} style={{ width: '13mm', height: '13mm', objectFit: 'contain', display: 'block' }} />
-                            {label && <div style={{ fontSize: '5pt', color: '#64748b', marginTop: '0.5mm' }}>{label}</div>}
+                            <img src={src} alt={`QR ${slot}`} style={{ width: '22mm', height: '22mm', objectFit: 'contain', display: 'block' }} />
+                            {label && <div style={{ fontSize: '10pt', color: '#64748b', marginTop: '0.5mm' }}>{label}</div>}
                           </div>
                         ))}
                       </div>
