@@ -6,6 +6,7 @@ import {
   CartesianGrid, Tooltip, Legend
 } from 'recharts'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { TableScroll } from '@/components/ui/table-scroll'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
@@ -207,7 +208,7 @@ export function ReportsClient({ billings, expenses }: Props) {
       {/* Billing table */}
       <Card>
         <CardHeader><CardTitle className="text-base">{t('reports_billing_detail')} ({monthBillings.length} {t('billing_records')})</CardTitle></CardHeader>
-        <div className="table-scroll">
+        <TableScroll>
           <table className="w-full min-w-[680px] text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/30">
@@ -236,7 +237,7 @@ export function ReportsClient({ billings, expenses }: Props) {
               ))}
             </tbody>
           </table>
-        </div>
+        </TableScroll>
       </Card>
     </div>
   )

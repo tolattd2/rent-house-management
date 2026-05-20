@@ -7,6 +7,7 @@ import { ArrowLeft, Receipt, CreditCard, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { TableScroll } from '@/components/ui/table-scroll'
 import { Separator } from '@/components/ui/separator'
 import { PaymentDialog } from '@/components/billing/payment-dialog'
 import { formatCurrency, formatDate, roomLabel } from '@/lib/utils'
@@ -155,7 +156,7 @@ export function BillingDetailClient({ billing }: { billing: Billing }) {
       {billing.payments.length > 0 && (
         <Card>
           <CardHeader className="pb-3"><CardTitle className="text-base">{t('payment_history')}</CardTitle></CardHeader>
-          <div className="table-scroll">
+          <TableScroll>
             <table className="w-full min-w-[600px] text-sm">
               <thead>
                 <tr className="border-b border-border bg-muted/30">
@@ -178,7 +179,7 @@ export function BillingDetailClient({ billing }: { billing: Billing }) {
                 ))}
               </tbody>
             </table>
-          </div>
+          </TableScroll>
         </Card>
       )}
 

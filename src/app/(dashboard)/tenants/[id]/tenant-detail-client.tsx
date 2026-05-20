@@ -13,6 +13,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { TableScroll } from '@/components/ui/table-scroll'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { TenantFormDialog } from '@/components/tenants/tenant-form-dialog'
 import { formatCurrency, formatDate, formatMonth, roomLabel } from '@/lib/utils'
@@ -185,7 +186,7 @@ export function TenantDetailClient({ tenant, rooms }: Props) {
                 <Button size="sm"><FileText className="w-3.5 h-3.5 mr-2" />{t('new_billing')}</Button>
               </Link>
             </div>
-            <div className="table-scroll">
+            <TableScroll>
               <table className="w-full min-w-[700px] text-sm">
                 <thead>
                   <tr className="border-b border-border bg-muted/30">
@@ -230,7 +231,7 @@ export function TenantDetailClient({ tenant, rooms }: Props) {
                   )}
                 </tbody>
               </table>
-            </div>
+            </TableScroll>
           </Card>
         </TabsContent>
 

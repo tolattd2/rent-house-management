@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
+import { TableScroll } from '@/components/ui/table-scroll'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { PaymentDialog } from '@/components/billing/payment-dialog'
 import { BatchDeleteDialog } from '@/components/billing/batch-delete-dialog'
@@ -291,7 +292,7 @@ export function BillingListClient({ billings: initial }: Props) {
 
       {/* Desktop table — hidden on small screens */}
       <Card className="hidden md:block hover:shadow-md transition-shadow duration-200">
-        <div className="table-scroll">
+        <TableScroll>
           <table className="w-full min-w-[1600px] text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/30">
@@ -423,7 +424,7 @@ export function BillingListClient({ billings: initial }: Props) {
               <p>{t('billing_empty')}</p>
             </div>
           )}
-        </div>
+        </TableScroll>
       </Card>
 
       {payDialog && (

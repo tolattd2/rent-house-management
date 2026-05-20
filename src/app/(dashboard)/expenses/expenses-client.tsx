@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { TableScroll } from '@/components/ui/table-scroll'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -378,7 +379,7 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
 
       {/* Desktop table */}
       <Card className="hidden md:block">
-        <div className="table-scroll">
+        <TableScroll>
           <table className="w-full min-w-[780px] text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/30">
@@ -446,7 +447,7 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
               <p>{t('expenses_empty')}</p>
             </div>
           )}
-        </div>
+        </TableScroll>
       </Card>
 
       <DeleteConfirmDialog

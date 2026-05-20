@@ -10,6 +10,7 @@ import {
 import { StatsCard } from '@/components/dashboard/stats-card'
 import { RevenueChart } from '@/components/dashboard/revenue-chart'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { TableScroll } from '@/components/ui/table-scroll'
 import { Badge } from '@/components/ui/badge'
 import { formatCompact, formatMonth, cn, roomLabel } from '@/lib/utils'
 import Link from 'next/link'
@@ -317,7 +318,7 @@ export function DashboardClient({ rooms, tenants, billings, expenses, unpaidBill
               </Link>
             </CardHeader>
             <CardContent className="p-0">
-              <div className="table-scroll">
+              <TableScroll>
                 <table className="w-full min-w-[600px] text-sm">
                   <thead>
                     <tr className="border-b border-border bg-muted/30">
@@ -370,7 +371,7 @@ export function DashboardClient({ rooms, tenants, billings, expenses, unpaidBill
                     ))}
                   </tbody>
                 </table>
-              </div>
+              </TableScroll>
             </CardContent>
           </Card>
         </motion.div>

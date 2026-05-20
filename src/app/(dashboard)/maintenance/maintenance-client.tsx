@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
+import { TableScroll } from '@/components/ui/table-scroll'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -289,7 +290,7 @@ export function MaintenanceClient({ records: initial, rooms, tenants }: Props) {
 
       {/* Desktop table */}
       <Card className="hidden md:block">
-        <div className="table-scroll">
+        <TableScroll>
           <table className="w-full min-w-[950px] text-sm">
             <thead>
               <tr className="border-b border-border">
@@ -366,7 +367,7 @@ export function MaintenanceClient({ records: initial, rooms, tenants }: Props) {
               <p>{t('maintenance_empty')}</p>
             </div>
           )}
-        </div>
+        </TableScroll>
       </Card>
 
       <DeleteConfirmDialog

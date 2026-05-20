@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
+import { TableScroll } from '@/components/ui/table-scroll'
 import { TenantFormDialog } from '@/components/tenants/tenant-form-dialog'
 import { formatCurrency, formatDate, roomLabel, sortRoomsByNumber } from '@/lib/utils'
 import { toast } from '@/hooks/use-toast'
@@ -175,7 +176,7 @@ export function TenantsClient({ tenants: initial, rooms }: Props) {
 
       {/* Desktop table — hidden on small screens */}
       <Card className="hidden md:block hover:shadow-md transition-shadow duration-200">
-        <div className="table-scroll">
+        <TableScroll>
           <table className="w-full min-w-[1000px] text-sm">
             <thead>
               <tr className="border-b border-border">
@@ -268,7 +269,7 @@ export function TenantsClient({ tenants: initial, rooms }: Props) {
               <p>{t('tenants_empty')}</p>
             </div>
           )}
-        </div>
+        </TableScroll>
       </Card>
 
       {showForm && (

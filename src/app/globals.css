@@ -156,6 +156,28 @@
     z-index: 1;
     background: hsl(var(--muted));
   }
+  /* Synced horizontal scrollbar shown above a table */
+  .table-scroll-top {
+    overflow-x: auto;
+    overflow-y: hidden;
+    height: 14px;
+    scrollbar-width: auto;
+    scrollbar-color: hsl(var(--muted-foreground) / 0.5) hsl(var(--muted));
+  }
+  .table-scroll-top::-webkit-scrollbar {
+    height: 14px;
+  }
+  .table-scroll-top::-webkit-scrollbar-track {
+    background: hsl(var(--muted));
+  }
+  .table-scroll-top::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--muted-foreground) / 0.5);
+    border-radius: 8px;
+    border: 3px solid hsl(var(--muted));
+  }
+  .table-scroll-top::-webkit-scrollbar-thumb:hover {
+    background-color: hsl(var(--muted-foreground) / 0.8);
+  }
   .animate-fade-in {
     animation: fade-in 0.4s ease-out;
   }
