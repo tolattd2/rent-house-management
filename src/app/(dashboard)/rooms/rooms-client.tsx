@@ -84,10 +84,11 @@ export function RoomsClient({ rooms: initialRooms }: Props) {
     setEditRoom(null)
   }
 
+  const branchRooms = branchFilter === 'all' ? rooms : rooms.filter((r) => r.branch === branchFilter)
   const stats = {
-    occupied: rooms.filter((r) => r.status === 'occupied').length,
-    vacant: rooms.filter((r) => r.status === 'vacant').length,
-    maintenance: rooms.filter((r) => r.status === 'maintenance').length,
+    occupied: branchRooms.filter((r) => r.status === 'occupied').length,
+    vacant: branchRooms.filter((r) => r.status === 'vacant').length,
+    maintenance: branchRooms.filter((r) => r.status === 'maintenance').length,
   }
 
   const statusLabels: Record<string, string> = {
