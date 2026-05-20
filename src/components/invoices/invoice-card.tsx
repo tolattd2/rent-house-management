@@ -61,7 +61,7 @@ export function InvoiceCard({ data, settings, xRate }: InvoiceCardProps) {
         display: 'flex',
         flexDirection: 'column',
         fontFamily: 'sans-serif',
-        fontSize: '10pt',
+        fontSize: '8pt',
         color: '#0f172a',
         background: 'white',
       }}
@@ -70,27 +70,27 @@ export function InvoiceCard({ data, settings, xRate }: InvoiceCardProps) {
       <div style={{
         background: 'linear-gradient(to right, #2563eb, #1e40af)',
         color: 'white',
-        padding: '2.5mm 4mm',
+        padding: '2mm 4mm',
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'flex-start',
         flexShrink: 0,
       }}>
         <div>
-          <div style={{ fontWeight: 700, fontSize: '12pt' }}>{companyName}</div>
-          <div style={{ opacity: 0.8, fontSize: '9pt' }}>{companyAddress}</div>
-          {companyPhone && <div style={{ opacity: 0.8, fontSize: '9pt' }}>{companyPhone}</div>}
+          <div style={{ fontWeight: 700, fontSize: '10pt' }}>{companyName}</div>
+          <div style={{ opacity: 0.8, fontSize: '7pt' }}>{companyAddress}</div>
+          {companyPhone && <div style={{ opacity: 0.8, fontSize: '7pt' }}>{companyPhone}</div>}
         </div>
         <div style={{ textAlign: 'right' }}>
-          <div style={{ opacity: 0.7, fontSize: '7.5pt', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Invoice</div>
-          <div style={{ fontWeight: 700, fontFamily: 'monospace', fontSize: '11pt' }}>{data.invoiceNumber}</div>
-          <div style={{ opacity: 0.8, fontSize: '9pt' }}>{formatMonth(data.billingMonth)}</div>
+          <div style={{ opacity: 0.7, fontSize: '6pt', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Invoice</div>
+          <div style={{ fontWeight: 700, fontFamily: 'monospace', fontSize: '9pt' }}>{data.invoiceNumber}</div>
+          <div style={{ opacity: 0.8, fontSize: '7pt' }}>{formatMonth(data.billingMonth)}</div>
         </div>
       </div>
 
       {/* Tenant / Room row */}
       <div style={{
-        padding: '2mm 4mm',
+        padding: '1.5mm 4mm',
         background: '#f8fafc',
         borderBottom: '0.5pt solid #e2e8f0',
         display: 'flex',
@@ -99,16 +99,16 @@ export function InvoiceCard({ data, settings, xRate }: InvoiceCardProps) {
         flexShrink: 0,
       }}>
         <div>
-          <div style={{ fontWeight: 700, fontSize: '11.5pt' }}>{data.tenant?.fullName ?? '—'}</div>
-          {data.tenant?.phone && <div style={{ color: '#64748b', fontSize: '9pt' }}>{data.tenant.phone}</div>}
+          <div style={{ fontWeight: 700, fontSize: '9.5pt' }}>{data.tenant?.fullName ?? '—'}</div>
+          {data.tenant?.phone && <div style={{ color: '#64748b', fontSize: '7pt' }}>{data.tenant.phone}</div>}
         </div>
         <div style={{ textAlign: 'right' }}>
-          <div style={{ fontWeight: 600, fontSize: '10pt' }}>Room {data.room?.roomNumber ?? '—'}</div>
+          <div style={{ fontWeight: 600, fontSize: '8pt' }}>Room {data.room?.roomNumber ?? '—'}</div>
           <span style={{
             display: 'inline-block',
             padding: '0.5mm 2.5mm',
             borderRadius: '3pt',
-            fontSize: '8pt',
+            fontSize: '6.5pt',
             fontWeight: 700,
             background: isPaid ? '#dcfce7' : '#fee2e2',
             color: isPaid ? '#15803d' : '#dc2626',
@@ -120,64 +120,58 @@ export function InvoiceCard({ data, settings, xRate }: InvoiceCardProps) {
 
       {/* Line items */}
       <div style={{ padding: '2mm 4mm', flex: 1, overflow: 'hidden' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '9.5pt' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '7.5pt' }}>
           <tbody>
             <tr>
-              <td style={{ padding: '0.8mm 0', color: '#475569' }}>Monthly Rent</td>
-              <td style={{ padding: '0.8mm 0', textAlign: 'right', fontWeight: 500 }}>{formatCurrency(data.roomRentUsd)}</td>
+              <td style={{ padding: '0.5mm 0', color: '#475569' }}>Monthly Rent</td>
+              <td style={{ padding: '0.5mm 0', textAlign: 'right', fontWeight: 500 }}>{formatCurrency(data.roomRentUsd)}</td>
             </tr>
             <tr>
-              <td style={{ padding: '0.8mm 0', color: '#475569' }}>
+              <td style={{ padding: '0.5mm 0', color: '#475569' }}>
                 Water ({data.waterUsage} kib · {data.waterCostRiel.toLocaleString()} ៛)
-                <div style={{ fontSize: '8pt', color: '#94a3b8' }}>Meter: {data.prevWaterReading} → {data.currWaterReading}</div>
+                <div style={{ fontSize: '6pt', color: '#94a3b8' }}>Meter: {data.prevWaterReading} → {data.currWaterReading}</div>
               </td>
-              <td style={{ padding: '0.8mm 0', textAlign: 'right', verticalAlign: 'top' }}>{formatCurrency(data.waterCostRiel / xRate)}</td>
+              <td style={{ padding: '0.5mm 0', textAlign: 'right', verticalAlign: 'top' }}>{formatCurrency(data.waterCostRiel / xRate)}</td>
             </tr>
             <tr>
-              <td style={{ padding: '0.8mm 0', color: '#475569' }}>
+              <td style={{ padding: '0.5mm 0', color: '#475569' }}>
                 Electricity ({data.electricUsage} kw · {data.electricCostRiel.toLocaleString()} ៛)
-                <div style={{ fontSize: '8pt', color: '#94a3b8' }}>Meter: {data.prevElectricReading} → {data.currElectricReading}</div>
+                <div style={{ fontSize: '6pt', color: '#94a3b8' }}>Meter: {data.prevElectricReading} → {data.currElectricReading}</div>
               </td>
-              <td style={{ padding: '0.8mm 0', textAlign: 'right', verticalAlign: 'top' }}>{formatCurrency(data.electricCostRiel / xRate)}</td>
+              <td style={{ padding: '0.5mm 0', textAlign: 'right', verticalAlign: 'top' }}>{formatCurrency(data.electricCostRiel / xRate)}</td>
             </tr>
-            {data.outstandingDebtUsd > 0 && (
-              <tr style={{ color: '#dc2626' }}>
-                <td style={{ padding: '0.8mm 0' }}>Outstanding Debt</td>
-                <td style={{ padding: '0.8mm 0', textAlign: 'right' }}>{formatCurrency(data.outstandingDebtUsd)}</td>
-              </tr>
-            )}
-            {data.latePenaltyUsd > 0 && (
-              <tr style={{ color: '#ea580c' }}>
-                <td style={{ padding: '0.8mm 0' }}>
-                  Late Penalty
-                  <div style={{ fontSize: '8pt', color: '#fb923c' }}>{data.lateDays} days × {formatCurrency(latePenaltyRate)}/day</div>
-                </td>
-                <td style={{ padding: '0.8mm 0', textAlign: 'right', verticalAlign: 'top' }}>{formatCurrency(data.latePenaltyUsd)}</td>
-              </tr>
-            )}
-            {data.discountUsd > 0 && (
-              <tr style={{ color: '#16a34a' }}>
-                <td style={{ padding: '0.8mm 0' }}>Discount</td>
-                <td style={{ padding: '0.8mm 0', textAlign: 'right' }}>-{formatCurrency(data.discountUsd)}</td>
-              </tr>
-            )}
+            <tr style={{ color: data.outstandingDebtUsd > 0 ? '#dc2626' : '#475569' }}>
+              <td style={{ padding: '0.5mm 0' }}>Outstanding Debt</td>
+              <td style={{ padding: '0.5mm 0', textAlign: 'right' }}>{formatCurrency(data.outstandingDebtUsd)}</td>
+            </tr>
+            <tr style={{ color: data.latePenaltyUsd > 0 ? '#ea580c' : '#475569' }}>
+              <td style={{ padding: '0.5mm 0' }}>
+                Late Penalty
+                <div style={{ fontSize: '6pt', color: data.latePenaltyUsd > 0 ? '#fb923c' : '#94a3b8' }}>{data.lateDays} days × {formatCurrency(latePenaltyRate)}/day</div>
+              </td>
+              <td style={{ padding: '0.5mm 0', textAlign: 'right', verticalAlign: 'top' }}>{formatCurrency(data.latePenaltyUsd)}</td>
+            </tr>
+            <tr style={{ color: data.discountUsd > 0 ? '#16a34a' : '#475569' }}>
+              <td style={{ padding: '0.5mm 0' }}>Discount</td>
+              <td style={{ padding: '0.5mm 0', textAlign: 'right' }}>{data.discountUsd > 0 ? '-' : ''}{formatCurrency(data.discountUsd)}</td>
+            </tr>
           </tbody>
           <tfoot>
             <tr style={{ borderTop: '0.5pt solid #cbd5e1' }}>
-              <td style={{ paddingTop: '1.5mm', fontWeight: 700, fontSize: '11.5pt' }}>Total Due</td>
-              <td style={{ paddingTop: '1.5mm', textAlign: 'right', fontWeight: 700, fontSize: '11.5pt', color: '#1d4ed8' }}>
+              <td style={{ paddingTop: '1.2mm', fontWeight: 700, fontSize: '9pt' }}>Total Due</td>
+              <td style={{ paddingTop: '1.2mm', textAlign: 'right', fontWeight: 700, fontSize: '9pt', color: '#1d4ed8' }}>
                 {formatCurrency(data.totalUsd)}
               </td>
             </tr>
             <tr>
               <td />
-              <td style={{ textAlign: 'right', fontWeight: 700, fontSize: '11.5pt', color: '#1d4ed8' }}>
+              <td style={{ textAlign: 'right', fontWeight: 700, fontSize: '9pt', color: '#1d4ed8' }}>
                 {Math.round(data.totalRiel).toLocaleString()} ៛
               </td>
             </tr>
             <tr>
               <td />
-              <td style={{ textAlign: 'right', color: '#94a3b8', fontSize: '8pt' }}>1 USD = {xRate.toLocaleString()} ៛</td>
+              <td style={{ textAlign: 'right', color: '#94a3b8', fontSize: '6pt' }}>1 USD = {xRate.toLocaleString()} ៛</td>
             </tr>
           </tfoot>
         </table>
@@ -193,7 +187,7 @@ export function InvoiceCard({ data, settings, xRate }: InvoiceCardProps) {
         justifyContent: 'space-between',
         flexShrink: 0,
       }}>
-        <div style={{ color: '#94a3b8', fontSize: '7.5pt', maxWidth: '60%' }}>
+        <div style={{ color: '#94a3b8', fontSize: '6pt', maxWidth: '60%' }}>
           Thank you for your business!<br />
           {companyName} · {companyPhone}
         </div>
@@ -201,8 +195,8 @@ export function InvoiceCard({ data, settings, xRate }: InvoiceCardProps) {
           <div style={{ display: 'flex', gap: '3mm', alignItems: 'center' }}>
             {qrs.map(({ src, label, slot }) => (
               <div key={slot} style={{ textAlign: 'center' }}>
-                <img src={src} alt={`QR ${slot}`} style={{ width: '18mm', height: '18mm', objectFit: 'contain', display: 'block' }} />
-                {label && <div style={{ fontSize: '7pt', color: '#64748b', marginTop: '0.5mm' }}>{label}</div>}
+                <img src={src} alt={`QR ${slot}`} style={{ width: '14mm', height: '14mm', objectFit: 'contain', display: 'block' }} />
+                {label && <div style={{ fontSize: '5.5pt', color: '#64748b', marginTop: '0.5mm' }}>{label}</div>}
               </div>
             ))}
           </div>
