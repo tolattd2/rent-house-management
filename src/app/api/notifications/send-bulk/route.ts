@@ -36,6 +36,7 @@ export async function POST(req: NextRequest) {
       billingMonth: billing.billingMonth,
       totalUsd: billing.totalUsd,
       totalRiel: billing.totalRiel,
+      payDay: billing.tenant.payDay,
       lang: reminderLang,
     })
 

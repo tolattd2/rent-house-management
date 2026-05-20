@@ -86,28 +86,35 @@ export function buildReminderMessage(params: {
   billingMonth: string
   totalUsd: number
   totalRiel: number
+  payDay?: number
   lang?: ReminderLang
 }): string {
   const rielFormatted = Math.round(params.totalRiel).toLocaleString()
   const usd = params.totalUsd.toFixed(2)
 
   if (params.lang === 'km') {
+    const closing = params.payDay
+      ? `សូមមេត្តាទូទាត់ប្រាក់ឱ្យបានទាន់ពេលវេលា មុនថ្ងៃទី ${params.payDay}។ សូមអរគុណ!`
+      : `សូមមេត្តាទូទាត់ប្រាក់ឱ្យបានទាន់ពេលវេលា។ សូមអរគុណ!`
     return (
       `🏠 <b>ការរំលឹកការទូទាត់ប្រាក់ — Takmao Rental</b>\n\n` +
       `អ្នកជួល៖ ${params.tenantName}\n` +
       `បន្ទប់៖ ${params.roomNumber}\n` +
       `ខែ៖ ${params.billingMonth}\n` +
       `ចំនួនទឹកប្រាក់ត្រូវបង់៖ $${usd} / ${rielFormatted} ៛\n\n` +
-      `សូមមេត្តាទូទាត់ប្រាក់ឱ្យបានទាន់ពេលវេលា។ សូមអរគុណ!`
+      closing
     )
   }
 
+  const closingEn = params.payDay
+    ? `Please pay on time, before day ${params.payDay} of the month. Thank you!`
+    : `Please pay promptly. Thank you!`
   return (
     `🏠 <b>Payment Reminder — Takmao Rental</b>\n\n` +
     `Tenant: ${params.tenantName}\n` +
     `Room: ${params.roomNumber}\n` +
     `Month: ${params.billingMonth}\n` +
     `Amount Due: $${usd} / ${rielFormatted} ៛\n\n` +
-    `Please pay promptly. Thank you!`
+    closingEn
   )
 }
