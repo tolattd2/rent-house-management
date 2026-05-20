@@ -8,7 +8,7 @@ import Link from 'next/link'
 import {
   User, Phone, Calendar,
   Edit, ArrowLeft, Home, FileText, CreditCard,
-  CheckCircle2, AlertTriangle, LogOut, ImagePlus
+  CheckCircle2, AlertTriangle, LogOut
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -16,7 +16,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { TableScroll } from '@/components/ui/table-scroll'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { TenantFormDialog } from '@/components/tenants/tenant-form-dialog'
-import { CustomReminderDialog } from '@/components/notifications/custom-reminder-dialog'
 import { formatCurrency, formatDate, formatMonth, formatPhones } from '@/lib/utils'
 import { toast } from '@/hooks/use-toast'
 import { useLanguage } from '@/contexts/language-context'
@@ -57,7 +56,6 @@ export function TenantDetailClient({ tenant, rooms }: Props) {
   const { t } = useLanguage()
   const roomLabel = useRoomLabel()
   const [showEdit, setShowEdit] = useState(false)
-  const [showCustom, setShowCustom] = useState(false)
 
   const outstanding = tenant.billings
     .filter((b) => b.paymentStatus === 'unpaid' || b.paymentStatus === 'partial')
@@ -91,11 +89,6 @@ export function TenantDetailClient({ tenant, rooms }: Props) {
           <Button variant="ghost" size="sm" className="h-10"><ArrowLeft className="w-4 h-4 sm:mr-1" /><span className="hidden sm:inline">{t('back')}</span></Button>
         </Link>
         <div className="flex-1" />
-        {tenant.status === 'active' && tenant.telegramChatId && (
-          <Button variant="outline" size="sm" className="h-10" onClick={() => setShowCustom(true)}>
-            <ImagePlus className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">{t('notifications_custom_compose')}</span>
-          </Button>
-        )}
         {isAdmin && tenant.status === 'active' && (
           <>
             <Button variant="outline" size="sm" className="h-10" onClick={() => setShowEdit(true)}>
@@ -320,15 +313,6 @@ export function TenantDetailClient({ tenant, rooms }: Props) {
         />
       )}
 
-      {showCustom && (
-        <CustomReminderDialog
-          mode="single"
-          tenantId={tenant.id}
-          tenantName={tenant.fullName}
-          onClose={() => setShowCustom(false)}
-          onSent={() => router.refresh()}
-        />
-      )}
     </div>
   )
 }
