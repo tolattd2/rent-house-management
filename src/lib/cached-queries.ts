@@ -234,7 +234,7 @@ export const getNotificationsData = unstable_cache(
         where: { paymentStatus: { in: ['unpaid', 'partial'] } },
         include: {
           tenant: { select: { id: true, fullName: true, phone: true, telegramChatId: true } },
-          room: { select: { id: true, roomNumber: true } },
+          room: { select: { id: true, roomNumber: true, branch: true } },
         },
       }),
     ])

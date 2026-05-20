@@ -1,15 +1,22 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { sendTelegramTo, buildReminderMessage } from '@/lib/notifications'
 import { invalidate } from '@/lib/revalidate'
 
-export async function POST() {
+export async function POST(req: NextRequest) {
   const session = await auth()
   if (!session) return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 })
 
+  // Optional branch filter — when set, only that branch's unpaid bills are reminded.
+  const body = (await req.json().catch(() => ({}))) as { branch?: string }
+  const branch = body.branch?.trim()
+
   const unpaid = await db.billing.findMany({
-    where: { paymentStatus: { in: ['unpaid', 'partial'] } },
+    where: {
+      paymentStatus: { in: ['unpaid', 'partial'] },
+      ...(branch ? { room: { branch } } : {}),
+    },
     include: { tenant: true, room: true },
   })
 

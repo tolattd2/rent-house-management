@@ -1,11 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { Bell, Send, CheckCircle, XCircle, MessageSquare } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { formatCurrency } from '@/lib/utils'
 import { toast } from '@/hooks/use-toast'
 import { useLanguage } from '@/contexts/language-context'
@@ -18,7 +19,7 @@ interface Props {
   unpaidBillings: Array<{
     id: string; billingMonth: string; totalUsd: number; totalRiel: number; paymentStatus: string
     tenant: { id: string; fullName: string; phone: string; telegramChatId: string } | null
-    room: { id: string; roomNumber: string } | null
+    room: { id: string; roomNumber: string; branch: string } | null
   }>
 }
 
@@ -27,6 +28,19 @@ export function NotificationsClient({ notifications, unpaidBillings }: Props) {
   const { t } = useLanguage()
   const [sending, setSending] = useState<string | null>(null)
   const [sendingBulk, setSendingBulk] = useState(false)
+  const [branchFilter, setBranchFilter] = useState('all')
+
+  const branches = useMemo(
+    () => [...new Set(unpaidBillings.map((b) => b.room?.branch ?? 'Takmoa'))].sort(),
+    [unpaidBillings]
+  )
+  const filteredUnpaid = useMemo(
+    () =>
+      branchFilter === 'all'
+        ? unpaidBillings
+        : unpaidBillings.filter((b) => (b.room?.branch ?? 'Takmoa') === branchFilter),
+    [unpaidBillings, branchFilter]
+  )
 
   const handleSendReminder = async (tenantId: string, billingId: string) => {
     setSending(billingId)
@@ -47,7 +61,11 @@ export function NotificationsClient({ notifications, unpaidBillings }: Props) {
 
   const handleBulkReminder = async () => {
     setSendingBulk(true)
-    const res = await fetch('/api/notifications/send-bulk', { method: 'POST' })
+    const res = await fetch('/api/notifications/send-bulk', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ branch: branchFilter === 'all' ? undefined : branchFilter }),
+    })
     const data = await res.json()
     if (data.ok) {
       toast({ title: `Sent ${data.sent}, ${data.failed} failed, ${data.skipped ?? 0} not linked` })
@@ -63,22 +81,33 @@ export function NotificationsClient({ notifications, unpaidBillings }: Props) {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">{t('notifications_title')}</h1>
-          <p className="text-muted-foreground text-sm">{unpaidBillings.length} {t('notifications_unpaid')}</p>
+          <p className="text-muted-foreground text-sm">{filteredUnpaid.length} {t('notifications_unpaid')}</p>
         </div>
-        <Button onClick={handleBulkReminder} loading={sendingBulk} disabled={unpaidBillings.length === 0}>
-          <Send className="w-4 h-4 mr-2" />{t('notifications_send_all')} ({unpaidBillings.length})
-        </Button>
+        <div className="flex items-center gap-3">
+          <Select value={branchFilter} onValueChange={setBranchFilter}>
+            <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All branches</SelectItem>
+              {branches.map((b) => (
+                <SelectItem key={b} value={b}>{b}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button onClick={handleBulkReminder} loading={sendingBulk} disabled={filteredUnpaid.length === 0}>
+            <Send className="w-4 h-4 mr-2" />{t('notifications_send_all')} ({filteredUnpaid.length})
+          </Button>
+        </div>
       </div>
 
       {/* Unpaid billings needing reminders */}
-      {unpaidBillings.length > 0 && (
+      {filteredUnpaid.length > 0 && (
         <Card>
           <CardHeader><CardTitle className="text-base flex items-center gap-2">
             <Bell className="w-4 h-4 text-orange-500" />{t('notifications_pending_reminders')}
           </CardTitle></CardHeader>
           <CardContent className="p-0">
             <div className="divide-y divide-border">
-              {unpaidBillings.map((bill, i) => (
+              {filteredUnpaid.map((bill, i) => (
                 <div key={bill.id}
                   className="flex items-center justify-between px-4 py-3 hover:bg-muted/30"
                 >
@@ -89,7 +118,7 @@ export function NotificationsClient({ notifications, unpaidBillings }: Props) {
                     <div>
                       <p className="font-medium text-sm">{bill.tenant?.fullName}</p>
                       <p className="text-xs text-muted-foreground">
-                        {t('room')} {bill.room?.roomNumber} · {bill.billingMonth}
+                        {bill.room?.branch ?? 'Takmoa'} · {t('room')} {bill.room?.roomNumber} · {bill.billingMonth}
                       </p>
                     </div>
                   </div>
