@@ -238,7 +238,13 @@ export function BatchPrintClient({ billings, settings, month, branch }: Props) {
                         </td>
                       </tr>
                       <tr>
-                        <td style={{ color: '#94a3b8', fontSize: '8pt' }}>{Math.round(b.totalRiel).toLocaleString()} ៛</td>
+                        <td />
+                        <td style={{ textAlign: 'right', fontWeight: 700, fontSize: '11.5pt', color: '#1d4ed8' }}>
+                          {Math.round(b.totalRiel).toLocaleString()} ៛
+                        </td>
+                      </tr>
+                      <tr>
+                        <td />
                         <td style={{ textAlign: 'right', color: '#94a3b8', fontSize: '8pt' }}>1 USD = {xRate.toLocaleString()} ៛</td>
                       </tr>
                     </tfoot>
