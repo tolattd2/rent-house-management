@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Plus, Search, FileText, Calendar, Trash2, Printer } from 'lucide-react'
+import { Plus, Search, FileText, Calendar, Trash2, Printer, Pencil } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -271,6 +271,13 @@ export function BillingListClient({ billings: initial }: Props) {
                   <Button variant="outline" size="sm" className="w-full h-10">{t('billing_invoice')}</Button>
                 </Link>
                 {isAdmin && (
+                  <Link href={`/billing/${b.id}/edit`}>
+                    <Button variant="outline" size="sm" className="h-10 px-3">
+                      <Pencil className="w-4 h-4" />
+                    </Button>
+                  </Link>
+                )}
+                {isAdmin && (
                   <Button variant="outline" size="sm" className="h-10 text-destructive border-destructive/30 hover:bg-destructive/10"
                     onClick={() => handleDelete(b)}>
                     <Trash2 className="w-4 h-4" />
@@ -360,6 +367,11 @@ export function BillingListClient({ billings: initial }: Props) {
                         <Link href={`/billing/${b.id}`}>
                           <Button variant="ghost" size="sm" className="text-xs h-8 px-2">{t('view')}</Button>
                         </Link>
+                        {isAdmin && (
+                          <Link href={`/billing/${b.id}/edit`}>
+                            <Button variant="ghost" size="sm" className="text-xs h-8 px-2">{t('edit')}</Button>
+                          </Link>
+                        )}
                         {isAdmin && b.paymentStatus !== 'paid' && (
                           <Button variant="ghost" size="sm" className="text-xs h-8 px-2 text-green-600"
                             onClick={() => setPayDialog(b)}>

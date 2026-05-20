@@ -49,15 +49,32 @@ interface Tenant {
   billings: Array<{ billingMonth: string; currWaterReading: number; currElectricReading: number; totalUsd: number; paymentStatus: string }>
 }
 
+export interface EditBilling {
+  id: string
+  tenantId: string
+  billingMonth: string
+  prevWaterReading: number
+  currWaterReading: number
+  prevElectricReading: number
+  currElectricReading: number
+  roomRentUsd: number
+  outstandingDebtUsd: number
+  lateDays: number
+  discountUsd: number
+  notes: string
+}
+
 interface Props {
   tenants: Tenant[]
   settings: Record<string, string>
   preselectedTenantId?: string
+  editBilling?: EditBilling
 }
 
-export function CreateBillingClient({ tenants, settings, preselectedTenantId }: Props) {
+export function CreateBillingClient({ tenants, settings, preselectedTenantId, editBilling }: Props) {
   const router = useRouter()
   const { t } = useLanguage()
+  const isEdit = Boolean(editBilling)
   const [loading, setLoading] = useState(false)
   const [preview, setPreview] = useState<ReturnType<typeof calculateBilling> | null>(null)
 
@@ -65,26 +82,42 @@ export function CreateBillingClient({ tenants, settings, preselectedTenantId }: 
 
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: {
-      tenantId: preselectedTenantId ?? '',
-      billingMonth: currentMonth,
-      prevWaterReading: 0,
-      currWaterReading: 0,
-      prevElectricReading: 0,
-      currElectricReading: 0,
-      roomRentUsd: 0,
-      outstandingDebtUsd: 0,
-      lateDays: 0,
-      discountUsd: 0,
-      notes: '',
-    },
+    defaultValues: editBilling
+      ? {
+          tenantId: editBilling.tenantId,
+          billingMonth: editBilling.billingMonth,
+          prevWaterReading: editBilling.prevWaterReading,
+          currWaterReading: editBilling.currWaterReading,
+          prevElectricReading: editBilling.prevElectricReading,
+          currElectricReading: editBilling.currElectricReading,
+          roomRentUsd: editBilling.roomRentUsd,
+          outstandingDebtUsd: editBilling.outstandingDebtUsd,
+          lateDays: editBilling.lateDays,
+          discountUsd: editBilling.discountUsd,
+          notes: editBilling.notes,
+        }
+      : {
+          tenantId: preselectedTenantId ?? '',
+          billingMonth: currentMonth,
+          prevWaterReading: 0,
+          currWaterReading: 0,
+          prevElectricReading: 0,
+          currElectricReading: 0,
+          roomRentUsd: 0,
+          outstandingDebtUsd: 0,
+          lateDays: 0,
+          discountUsd: 0,
+          notes: '',
+        },
   })
 
   const formValues = watch()
   const selectedTenant = tenants.find((t) => t.id === formValues.tenantId)
 
-  // Auto-fill from previous billing when tenant changes
+  // Auto-fill from previous billing when tenant changes (create mode only —
+  // in edit mode we keep the saved values).
   useEffect(() => {
+    if (isEdit) return
     if (!selectedTenant) return
     const lastBilling = selectedTenant.billings[0]
     const prevUnpaid = lastBilling?.paymentStatus === 'unpaid' ? lastBilling.totalUsd : 0
@@ -95,7 +128,7 @@ export function CreateBillingClient({ tenants, settings, preselectedTenantId }: 
     setValue('prevElectricReading', lastBilling?.currElectricReading ?? 0)
     setValue('currElectricReading', lastBilling?.currElectricReading ?? 0)
     setValue('outstandingDebtUsd', prevUnpaid)
-  }, [formValues.tenantId, selectedTenant, setValue])
+  }, [formValues.tenantId, selectedTenant, setValue, isEdit])
 
   // Live preview calculation
   useEffect(() => {
@@ -125,15 +158,19 @@ export function CreateBillingClient({ tenants, settings, preselectedTenantId }: 
 
   const onSubmit = async (data: FormData) => {
     setLoading(true)
-    const res = await fetch('/api/billing', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    })
+    const res = await fetch(
+      editBilling ? `/api/billing/${editBilling.id}` : '/api/billing',
+      {
+        method: editBilling ? 'PATCH' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      }
+    )
     const result = await res.json()
     if (result.ok) {
-      toast({ title: 'Billing created successfully' })
+      toast({ title: editBilling ? 'Billing updated successfully' : 'Billing created successfully' })
       router.push('/billing')
+      router.refresh()
     } else {
       toast({ title: 'Error', description: result.error, variant: 'destructive' })
     }
@@ -149,8 +186,10 @@ export function CreateBillingClient({ tenants, settings, preselectedTenantId }: 
           <Button variant="ghost" size="sm"><ArrowLeft className="w-4 h-4 mr-1" />Back</Button>
         </Link>
         <div>
-          <h1 className="text-2xl font-bold">Create Billing</h1>
-          <p className="text-muted-foreground text-sm">Enter meter readings and calculate</p>
+          <h1 className="text-2xl font-bold">{isEdit ? 'Edit Billing' : 'Create Billing'}</h1>
+          <p className="text-muted-foreground text-sm">
+            {isEdit ? 'Update meter readings and amounts' : 'Enter meter readings and calculate'}
+          </p>
         </div>
       </div>
 
@@ -164,23 +203,32 @@ export function CreateBillingClient({ tenants, settings, preselectedTenantId }: 
               <CardContent className="grid grid-cols-2 gap-4">
                 <div className="col-span-2 space-y-1.5">
                   <Label>Tenant *</Label>
-                  <Select onValueChange={(v) => setValue('tenantId', v)} defaultValue={preselectedTenantId ?? ''}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select tenant..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {tenants.map((tenant) => (
-                        <SelectItem key={tenant.id} value={tenant.id}>
-                          {t('room')} {tenant.room ? roomLabel(tenant.room) : '—'} — {tenant.fullName}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  {isEdit ? (
+                    <div className="h-10 px-3 flex items-center rounded-lg bg-muted/50 text-sm border border-input">
+                      {selectedTenant
+                        ? `${t('room')} ${selectedTenant.room ? roomLabel(selectedTenant.room) : '—'} — ${selectedTenant.fullName}`
+                        : '—'}
+                    </div>
+                  ) : (
+                    <Select onValueChange={(v) => setValue('tenantId', v)} defaultValue={preselectedTenantId ?? ''}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select tenant..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {tenants.map((tenant) => (
+                          <SelectItem key={tenant.id} value={tenant.id}>
+                            {t('room')} {tenant.room ? roomLabel(tenant.room) : '—'} — {tenant.fullName}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
                   {errors.tenantId && <p className="text-xs text-destructive">{errors.tenantId.message}</p>}
                 </div>
                 <div className="space-y-1.5">
                   <Label>Billing Month *</Label>
-                  <Input type="month" {...register('billingMonth')} />
+                  <Input type="month" {...register('billingMonth')} readOnly={isEdit}
+                    className={isEdit ? 'bg-muted/50' : ''} />
                 </div>
                 <div className="space-y-1.5">
                   <Label>Monthly Rent (USD)</Label>
@@ -340,7 +388,7 @@ export function CreateBillingClient({ tenants, settings, preselectedTenantId }: 
                       </div>
 
                       <Button type="submit" className="w-full" loading={loading}>
-                        <Save className="w-4 h-4 mr-2" />Create Billing
+                        <Save className="w-4 h-4 mr-2" />{isEdit ? 'Save Changes' : 'Create Billing'}
                       </Button>
                     </>
                   ) : (
