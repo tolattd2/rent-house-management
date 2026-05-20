@@ -24,7 +24,7 @@ export default async function BatchPrintPage({
       billingMonth: month,
       ...(branch && branch !== 'all' ? { room: { branch } } : {}),
     },
-    include: { tenant: true, room: true, payments: true },
+    include: { tenant: true, room: true },
     orderBy: [{ room: { roomNumber: 'asc' } }],
   })
 
@@ -54,7 +54,6 @@ export default async function BatchPrintPage({
     invoiceNumber: invoiceMap[b.id] ?? `${month}-${b.room?.roomNumber ?? b.id.slice(-4)}`,
     tenant: b.tenant ? { fullName: b.tenant.fullName, phone: b.tenant.phone } : null,
     room: b.room ? { roomNumber: b.room.roomNumber, branch: b.room.branch } : null,
-    payments: b.payments.map((p) => ({ amountUsd: p.amountUsd })),
   }))
 
   return (
