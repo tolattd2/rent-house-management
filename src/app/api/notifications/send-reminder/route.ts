@@ -9,7 +9,8 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 })
 
   try {
-    const { tenantId, billingId } = await req.json()
+    const { tenantId, billingId, lang } = await req.json()
+    const reminderLang = lang === 'km' ? 'km' : 'en'
 
     const [tenant, billing] = await Promise.all([
       db.tenant.findUnique({ where: { id: tenantId } }),
@@ -33,6 +34,7 @@ export async function POST(req: NextRequest) {
       billingMonth: billing.billingMonth,
       totalUsd: billing.totalUsd,
       totalRiel: billing.totalRiel,
+      lang: reminderLang,
     })
 
     const result = await sendTelegramTo(tenant.telegramChatId, msg)

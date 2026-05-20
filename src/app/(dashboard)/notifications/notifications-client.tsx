@@ -27,7 +27,7 @@ export function NotificationsClient({ notifications, unpaidBillings }: Props) {
   const router = useRouter()
   const { t } = useLanguage()
   const [sending, setSending] = useState<string | null>(null)
-  const [sendingBulk, setSendingBulk] = useState(false)
+  const [sendingBulk, setSendingBulk] = useState<'en' | 'km' | null>(null)
   const [branchFilter, setBranchFilter] = useState('all')
   const [search, setSearch] = useState('')
 
@@ -66,16 +66,16 @@ export function NotificationsClient({ notifications, unpaidBillings }: Props) {
     })
   }, [notifications, branchFilter, search])
 
-  const handleSendReminder = async (tenantId: string, billingId: string) => {
-    setSending(billingId)
+  const handleSendReminder = async (tenantId: string, billingId: string, lang: 'en' | 'km') => {
+    setSending(`${billingId}:${lang}`)
     const res = await fetch('/api/notifications/send-reminder', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tenantId, billingId }),
+      body: JSON.stringify({ tenantId, billingId, lang }),
     })
     const data = await res.json()
     if (data.ok) {
-      toast({ title: 'Reminder sent!' })
+      toast({ title: lang === 'km' ? 'Reminder sent in Khmer!' : 'Reminder sent in English!' })
       router.refresh()
     } else {
       toast({ title: 'Failed to send', description: data.error, variant: 'destructive' })
@@ -83,12 +83,12 @@ export function NotificationsClient({ notifications, unpaidBillings }: Props) {
     setSending(null)
   }
 
-  const handleBulkReminder = async () => {
-    setSendingBulk(true)
+  const handleBulkReminder = async (lang: 'en' | 'km') => {
+    setSendingBulk(lang)
     const res = await fetch('/api/notifications/send-bulk', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ branch: branchFilter === 'all' ? undefined : branchFilter }),
+      body: JSON.stringify({ branch: branchFilter === 'all' ? undefined : branchFilter, lang }),
     })
     const data = await res.json()
     if (data.ok) {
@@ -97,7 +97,7 @@ export function NotificationsClient({ notifications, unpaidBillings }: Props) {
     } else {
       toast({ title: 'Error', description: data.error, variant: 'destructive' })
     }
-    setSendingBulk(false)
+    setSendingBulk(null)
   }
 
   return (
@@ -107,9 +107,27 @@ export function NotificationsClient({ notifications, unpaidBillings }: Props) {
           <h1 className="text-2xl font-bold">{t('notifications_title')}</h1>
           <p className="text-muted-foreground text-sm">{filteredUnpaid.length} {t('notifications_unpaid')}</p>
         </div>
-        <Button onClick={handleBulkReminder} loading={sendingBulk} disabled={filteredUnpaid.length === 0}>
-          <Send className="w-4 h-4 mr-2" />{t('notifications_send_all')} ({filteredUnpaid.length})
-        </Button>
+        <div className="flex flex-col items-end gap-1">
+          <span className="text-xs text-muted-foreground">{t('notifications_send_all')}</span>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              onClick={() => handleBulkReminder('en')}
+              loading={sendingBulk === 'en'}
+              disabled={filteredUnpaid.length === 0 || sendingBulk !== null}
+            >
+              <Send className="w-3.5 h-3.5 mr-1.5" />English ({filteredUnpaid.length})
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => handleBulkReminder('km')}
+              loading={sendingBulk === 'km'}
+              disabled={filteredUnpaid.length === 0 || sendingBulk !== null}
+            >
+              <Send className="w-3.5 h-3.5 mr-1.5" />ខ្មែរ ({filteredUnpaid.length})
+            </Button>
+          </div>
+        </div>
       </div>
 
       {/* Filters */}
@@ -179,12 +197,24 @@ export function NotificationsClient({ notifications, unpaidBillings }: Props) {
                       </Badge>
                     </div>
                     {bill.tenant?.telegramChatId ? (
-                      <Button size="sm" variant="outline"
-                        onClick={() => handleSendReminder(bill.tenant!.id, bill.id)}
-                        loading={sending === bill.id}
-                      >
-                        <MessageSquare className="w-3.5 h-3.5 mr-1.5" />{t('notifications_remind')}
-                      </Button>
+                      <div className="flex items-center gap-1.5">
+                        <Button size="sm" variant="outline"
+                          title={`${t('notifications_remind')} — English`}
+                          onClick={() => handleSendReminder(bill.tenant!.id, bill.id, 'en')}
+                          loading={sending === `${bill.id}:en`}
+                          disabled={sending !== null}
+                        >
+                          <MessageSquare className="w-3.5 h-3.5 mr-1" />EN
+                        </Button>
+                        <Button size="sm" variant="outline"
+                          title={`${t('notifications_remind')} — ខ្មែរ`}
+                          onClick={() => handleSendReminder(bill.tenant!.id, bill.id, 'km')}
+                          loading={sending === `${bill.id}:km`}
+                          disabled={sending !== null}
+                        >
+                          <MessageSquare className="w-3.5 h-3.5 mr-1" />ខ្មែរ
+                        </Button>
+                      </div>
                     ) : (
                       <span className="text-xs text-muted-foreground whitespace-nowrap">Not linked</span>
                     )}

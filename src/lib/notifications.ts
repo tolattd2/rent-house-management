@@ -78,20 +78,36 @@ export async function sendSMS(to: string, message: string): Promise<{ ok: boolea
   }
 }
 
+export type ReminderLang = 'en' | 'km'
+
 export function buildReminderMessage(params: {
   tenantName: string
   roomNumber: string
   billingMonth: string
   totalUsd: number
   totalRiel: number
+  lang?: ReminderLang
 }): string {
   const rielFormatted = Math.round(params.totalRiel).toLocaleString()
+  const usd = params.totalUsd.toFixed(2)
+
+  if (params.lang === 'km') {
+    return (
+      `🏠 <b>ការរំលឹកការទូទាត់ប្រាក់ — Takmao Rental</b>\n\n` +
+      `អ្នកជួល៖ ${params.tenantName}\n` +
+      `បន្ទប់៖ ${params.roomNumber}\n` +
+      `ខែ៖ ${params.billingMonth}\n` +
+      `ចំនួនទឹកប្រាក់ត្រូវបង់៖ $${usd} / ${rielFormatted} ៛\n\n` +
+      `សូមមេត្តាទូទាត់ប្រាក់ឱ្យបានទាន់ពេលវេលា។ សូមអរគុណ!`
+    )
+  }
+
   return (
     `🏠 <b>Payment Reminder — Takmao Rental</b>\n\n` +
     `Tenant: ${params.tenantName}\n` +
     `Room: ${params.roomNumber}\n` +
     `Month: ${params.billingMonth}\n` +
-    `Amount Due: $${params.totalUsd.toFixed(2)} / ${rielFormatted} ៛\n\n` +
+    `Amount Due: $${usd} / ${rielFormatted} ៛\n\n` +
     `Please pay promptly. Thank you!`
   )
 }

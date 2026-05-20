@@ -9,8 +9,9 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 })
 
   // Optional branch filter — when set, only that branch's unpaid bills are reminded.
-  const body = (await req.json().catch(() => ({}))) as { branch?: string }
+  const body = (await req.json().catch(() => ({}))) as { branch?: string; lang?: string }
   const branch = body.branch?.trim()
+  const reminderLang = body.lang === 'km' ? 'km' : 'en'
 
   const unpaid = await db.billing.findMany({
     where: {
@@ -35,6 +36,7 @@ export async function POST(req: NextRequest) {
       billingMonth: billing.billingMonth,
       totalUsd: billing.totalUsd,
       totalRiel: billing.totalRiel,
+      lang: reminderLang,
     })
 
     const result = await sendTelegramTo(billing.tenant.telegramChatId, msg)
