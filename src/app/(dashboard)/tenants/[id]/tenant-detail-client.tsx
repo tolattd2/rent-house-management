@@ -8,7 +8,7 @@ import Link from 'next/link'
 import {
   User, Phone, Calendar,
   Edit, ArrowLeft, Home, FileText, CreditCard,
-  CheckCircle2, AlertTriangle, LogOut, MessageSquare
+  CheckCircle2, AlertTriangle, LogOut, ImagePlus
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -93,7 +93,7 @@ export function TenantDetailClient({ tenant, rooms }: Props) {
         <div className="flex-1" />
         {tenant.status === 'active' && tenant.telegramChatId && (
           <Button variant="outline" size="sm" className="h-10" onClick={() => setShowCustom(true)}>
-            <MessageSquare className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">{t('tenant_send_message')}</span>
+            <ImagePlus className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">{t('notifications_custom_compose')}</span>
           </Button>
         )}
         {isAdmin && tenant.status === 'active' && (
