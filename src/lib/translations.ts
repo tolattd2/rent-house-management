@@ -205,6 +205,7 @@ export const translations = {
     notifications_history: 'Notification History',
     notifications_empty: 'No notifications yet',
     notifications_unpaid: 'unpaid billings',
+    notifications_search: 'Search by tenant, room...',
     // Reports
     reports_subtitle: 'Revenue analytics and payment tracking',
     reports_revenue_collected: 'Revenue Collected',
@@ -676,6 +677,7 @@ export const translations = {
     notifications_history: 'ប្រវត្តិការជូនដំណឹង',
     notifications_empty: 'មិនទាន់មានការជូនដំណឹង',
     notifications_unpaid: 'វិក្កយបត្រជំពាក់',
+    notifications_search: 'ស្វែងរកតាមអ្នករស់នៅ, បន្ទប់...',
     // Reports
     reports_subtitle: 'ការវិភាគចំណូល និងការតាមដានការទូទាត់',
     reports_revenue_collected: 'ចំណូលប្រមូលបាន',
