@@ -89,14 +89,14 @@ export function CustomReminderDialog({
         })
         const urlData = await urlRes.json()
         if (!urlData.ok) {
-          toast({ title: t('settings_save_error'), description: urlData.error, variant: 'destructive' })
+          toast({ title: t('notifications_send_error'), description: urlData.error, variant: 'destructive' })
           return
         }
         const { error } = await supabase.storage
           .from(REMINDER_BUCKET)
           .uploadToSignedUrl(urlData.path, urlData.token, file)
         if (error) {
-          toast({ title: t('settings_save_error'), description: error.message, variant: 'destructive' })
+          toast({ title: t('notifications_send_error'), description: error.message, variant: 'destructive' })
           return
         }
         mediaUrl = urlData.publicUrl
@@ -123,7 +123,7 @@ export function CustomReminderDialog({
         onSent?.()
         onClose()
       } else {
-        toast({ title: t('settings_save_error'), description: data.error, variant: 'destructive' })
+        toast({ title: t('notifications_send_error'), description: data.error, variant: 'destructive' })
       }
     } finally {
       setSending(false)

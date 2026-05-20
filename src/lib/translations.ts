@@ -220,6 +220,7 @@ export const translations = {
     notifications_media_too_large: 'File too large',
     notifications_media_invalid: 'Only images and videos are allowed',
     notifications_storage_missing: 'Media storage is not configured',
+    notifications_send_error: 'Could not send reminder',
     // Reports
     reports_subtitle: 'Revenue analytics and payment tracking',
     reports_revenue_collected: 'Revenue Collected',
@@ -718,6 +719,7 @@ export const translations = {
     notifications_media_too_large: 'ឯកសារធំពេក',
     notifications_media_invalid: 'អនុញ្ញាតតែរូបភាព និងវីដេអូប៉ុណ្ណោះ',
     notifications_storage_missing: 'មិនទាន់កំណត់រចនាសម្ព័ន្ធកន្លែងផ្ទុកមេឌៀ',
+    notifications_send_error: 'មិនអាចផ្ញើការរំលឹកបាន',
     // Reports
     reports_subtitle: 'ការវិភាគចំណូល និងការតាមដានការទូទាត់',
     reports_revenue_collected: 'ចំណូលប្រមូលបាន',
