@@ -22,8 +22,9 @@ import { useLanguage } from '@/contexts/language-context'
 
 interface Props {
   tenant: {
-    id: string; fullName: string; gender: string; phone: string; nationalId: string
-    emergencyContact: string; occupation: string; moveInDate: string; moveOutDate: string
+    id: string; fullName: string; gender: string; phone: string; phonesExtra: string[]; nationalId: string
+    emergencyContact: string; emergencyName: string; emergencyPhone: string
+    occupation: string; moveInDate: string; moveOutDate: string
     depositAmount: number; monthlyRent: number; status: string; notes: string; createdAt: Date
     roomId: string | null
     room: {
@@ -241,9 +242,10 @@ export function TenantDetailClient({ tenant, rooms }: Props) {
               {([
                 [t('tenant_full_name'), tenant.fullName],
                 [t('tenant_gender'), tenant.gender || '—'],
-                [t('settings_phone'), tenant.phone || '—'],
+                [t('settings_phone'), [tenant.phone, ...tenant.phonesExtra].filter(Boolean).join(' / ') || '—'],
                 [t('tenant_national_id'), tenant.nationalId || '—'],
-                [t('tenant_emergency_contact'), tenant.emergencyContact || '—'],
+                [t('tenant_emergency_name'), tenant.emergencyName || tenant.emergencyContact || '—'],
+                [t('tenant_emergency_phone'), tenant.emergencyPhone || '—'],
                 [t('tenant_occupation'), tenant.occupation || '—'],
                 [t('tenants_col_movein'), formatDate(tenant.moveInDate)],
                 [t('tenants_col_moveout'), tenant.moveOutDate ? formatDate(tenant.moveOutDate) : '—'],
@@ -291,8 +293,11 @@ export function TenantDetailClient({ tenant, rooms }: Props) {
             fullName: tenant.fullName,
             gender: tenant.gender,
             phone: tenant.phone,
+            phonesExtra: tenant.phonesExtra,
             nationalId: tenant.nationalId,
             emergencyContact: tenant.emergencyContact,
+            emergencyName: tenant.emergencyName,
+            emergencyPhone: tenant.emergencyPhone,
             occupation: tenant.occupation,
             moveInDate: tenant.moveInDate,
             depositAmount: tenant.depositAmount,

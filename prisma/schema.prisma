@@ -101,9 +101,12 @@ model Tenant {
   fullName          String
   gender            String       @default("")
   phone             String       @default("")
+  phonesExtra       String[]     @default([])
   telegramChatId    String       @default("")
   nationalId        String       @default("")
   emergencyContact  String       @default("")
+  emergencyName     String       @default("")
+  emergencyPhone    String       @default("")
   occupation        String       @default("")
   moveInDate        String       @default("")
   moveOutDate       String       @default("")

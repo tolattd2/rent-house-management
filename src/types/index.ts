@@ -41,8 +41,11 @@ export interface Tenant {
   fullName: string
   gender: string
   phone: string
+  phonesExtra: string[]
   nationalId: string
   emergencyContact: string
+  emergencyName: string
+  emergencyPhone: string
   occupation: string
   moveInDate: string
   moveOutDate: string

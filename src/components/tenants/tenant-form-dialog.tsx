@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import { Plus, X } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -21,7 +22,8 @@ const schema = z.object({
   phone: z.string().default(''),
   telegramChatId: z.string().default(''),
   nationalId: z.string().default(''),
-  emergencyContact: z.string().default(''),
+  emergencyName: z.string().default(''),
+  emergencyPhone: z.string().default(''),
   occupation: z.string().default(''),
   moveInDate: z.string().default(''),
   depositAmount: z.coerce.number().min(0).default(0),
@@ -40,7 +42,12 @@ interface Room {
 }
 interface Props {
   rooms: Room[]
-  tenant?: Partial<FormData & { id: string }> | null
+  tenant?: (Partial<FormData> & {
+    id?: string
+    phonesExtra?: string[]
+    /** Legacy combined "Name + Phone" field — pre-fills the name when no split value exists. */
+    emergencyContact?: string
+  }) | null
   onClose: () => void
   onSave: () => void
 }
@@ -49,6 +56,7 @@ export function TenantFormDialog({ rooms, tenant, onClose, onSave }: Props) {
   const { t } = useLanguage()
   const [loading, setLoading] = useState(false)
   const isEdit = !!tenant?.id
+  const [phonesExtra, setPhonesExtra] = useState<string[]>(tenant?.phonesExtra ?? [])
 
   const initialBranch = tenant?.roomId
     ? (rooms.find((r) => r.id === tenant.roomId)?.branch ?? '')
@@ -63,7 +71,8 @@ export function TenantFormDialog({ rooms, tenant, onClose, onSave }: Props) {
       phone: tenant?.phone ?? '',
       telegramChatId: tenant?.telegramChatId ?? '',
       nationalId: tenant?.nationalId ?? '',
-      emergencyContact: tenant?.emergencyContact ?? '',
+      emergencyName: tenant?.emergencyName || tenant?.emergencyContact || '',
+      emergencyPhone: tenant?.emergencyPhone ?? '',
       occupation: tenant?.occupation ?? '',
       moveInDate: tenant?.moveInDate ?? '',
       depositAmount: tenant?.depositAmount ?? 0,
@@ -92,7 +101,7 @@ export function TenantFormDialog({ rooms, tenant, onClose, onSave }: Props) {
     const res = await fetch(url, {
       method,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
+      body: JSON.stringify({ ...data, phonesExtra: phonesExtra.map((p) => p.trim()).filter(Boolean) }),
     })
     const result = await res.json()
 
@@ -139,16 +148,40 @@ export function TenantFormDialog({ rooms, tenant, onClose, onSave }: Props) {
                   </Select>
                 </div>
                 <div className="space-y-1.5">
-                  <Label>{t('settings_phone')}</Label>
-                  <Input {...register('phone')} placeholder={t('tenant_form_phone_ph')} />
-                </div>
-                <div className="space-y-1.5">
                   <Label>{t('tenant_national_id')}</Label>
                   <Input {...register('nationalId')} placeholder={t('tenant_form_national_id_ph')} />
                 </div>
-                <div className="space-y-1.5">
+                <div className="col-span-2 space-y-1.5">
                   <Label>{t('tenant_occupation')}</Label>
                   <Input {...register('occupation')} placeholder={t('tenant_form_occupation_ph')} />
+                </div>
+                {/* Phone numbers — primary plus any extras the tenant has */}
+                <div className="col-span-2 space-y-1.5">
+                  <Label>{t('settings_phone')}</Label>
+                  <Input {...register('phone')} placeholder={t('tenant_form_phone_ph')} />
+                  {phonesExtra.map((p, idx) => (
+                    <div key={idx} className="flex gap-2">
+                      <Input
+                        value={p}
+                        onChange={(e) =>
+                          setPhonesExtra((prev) => prev.map((v, i) => (i === idx ? e.target.value : v)))
+                        }
+                        placeholder={t('tenant_form_phone_ph')}
+                      />
+                      <Button
+                        type="button" variant="outline" size="icon" className="flex-shrink-0"
+                        onClick={() => setPhonesExtra((prev) => prev.filter((_, i) => i !== idx))}
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  ))}
+                  <Button
+                    type="button" variant="outline" size="sm"
+                    onClick={() => setPhonesExtra((prev) => [...prev, ''])}
+                  >
+                    <Plus className="w-4 h-4 mr-1" />{t('tenant_form_add_phone')}
+                  </Button>
                 </div>
                 <div className="col-span-2 space-y-1.5">
                   <Label>Telegram Chat ID</Label>
@@ -157,9 +190,13 @@ export function TenantFormDialog({ rooms, tenant, onClose, onSave }: Props) {
                     Tenants link automatically by sharing their phone in the Telegram bot — you can also paste or clear it here.
                   </p>
                 </div>
-                <div className="col-span-2 space-y-1.5">
-                  <Label>{t('tenant_emergency_contact')}</Label>
-                  <Input {...register('emergencyContact')} placeholder={t('tenant_form_emergency_ph')} />
+                <div className="space-y-1.5">
+                  <Label>{t('tenant_emergency_name')}</Label>
+                  <Input {...register('emergencyName')} placeholder={t('tenant_form_emergency_ph')} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>{t('tenant_emergency_phone')}</Label>
+                  <Input {...register('emergencyPhone')} placeholder={t('tenant_form_phone_ph')} />
                 </div>
                 <div className="col-span-2 space-y-1.5">
                   <Label>{t('notes')}</Label>
