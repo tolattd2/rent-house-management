@@ -1,4 +1,4 @@
-import { formatCurrency, formatMonth } from '@/lib/utils'
+import { formatCurrency } from '@/lib/utils'
 
 /**
  * Same font stack the app uses (see tailwind.config.ts `font-sans`): Inter for
@@ -7,6 +7,19 @@ import { formatCurrency, formatMonth } from '@/lib/utils'
  * the app instead of the browser/printer default.
  */
 const FONT_STACK = 'var(--font-inter), var(--font-khmer), Hanuman, system-ui, sans-serif'
+
+/** Khmer month names — billingMonth comes in as "YYYY-MM". */
+const KHMER_MONTHS = [
+  'មករា', 'កុម្ភៈ', 'មីនា', 'មេសា', 'ឧសភា', 'មិថុនា',
+  'កក្កដា', 'សីហា', 'កញ្ញា', 'តុលា', 'វិច្ឆិកា', 'ធ្នូ',
+]
+
+function formatMonthKh(month: string): string {
+  if (!month) return '—'
+  const [year, m] = month.split('-')
+  const idx = parseInt(m, 10) - 1
+  return KHMER_MONTHS[idx] ? `${KHMER_MONTHS[idx]} ${year}` : month
+}
 
 export type InvoiceCardData = {
   invoiceNumber: string
@@ -40,7 +53,7 @@ interface InvoiceCardProps {
 /**
  * One invoice in the shared design — a fixed 148.5×105mm card (a quarter of
  * landscape A4). Used directly in batch print, and scaled up for the
- * single-invoice page so both stay visually identical.
+ * single-invoice page so both stay visually identical. Labels are in Khmer.
  */
 export function InvoiceCard({ data, settings, xRate }: InvoiceCardProps) {
   const isPaid = data.paymentStatus === 'paid'
@@ -70,6 +83,7 @@ export function InvoiceCard({ data, settings, xRate }: InvoiceCardProps) {
         flexDirection: 'column',
         fontFamily: FONT_STACK,
         fontSize: '8pt',
+        lineHeight: 1.45,
         color: '#0f172a',
         background: 'white',
       }}
@@ -90,9 +104,9 @@ export function InvoiceCard({ data, settings, xRate }: InvoiceCardProps) {
           {companyPhone && <div style={{ opacity: 0.8, fontSize: '7pt' }}>{companyPhone}</div>}
         </div>
         <div style={{ textAlign: 'right' }}>
-          <div style={{ opacity: 0.7, fontSize: '6pt', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Invoice</div>
+          <div style={{ opacity: 0.7, fontSize: '6.5pt' }}>វិក្កយបត្រ</div>
           <div style={{ fontWeight: 700, fontFamily: 'monospace', fontSize: '9pt' }}>{data.invoiceNumber}</div>
-          <div style={{ opacity: 0.8, fontSize: '7pt' }}>{formatMonth(data.billingMonth)}</div>
+          <div style={{ opacity: 0.8, fontSize: '7pt' }}>{formatMonthKh(data.billingMonth)}</div>
         </div>
       </div>
 
@@ -111,7 +125,7 @@ export function InvoiceCard({ data, settings, xRate }: InvoiceCardProps) {
           {data.tenant?.phone && <div style={{ color: '#64748b', fontSize: '7pt' }}>{data.tenant.phone}</div>}
         </div>
         <div style={{ textAlign: 'right' }}>
-          <div style={{ fontWeight: 600, fontSize: '8pt' }}>Room {data.room?.roomNumber ?? '—'}</div>
+          <div style={{ fontWeight: 600, fontSize: '8pt' }}>បន្ទប់ {data.room?.roomNumber ?? '—'}</div>
           <span style={{
             display: 'inline-block',
             padding: '0.5mm 2.5mm',
@@ -121,7 +135,7 @@ export function InvoiceCard({ data, settings, xRate }: InvoiceCardProps) {
             background: isPaid ? '#dcfce7' : '#fee2e2',
             color: isPaid ? '#15803d' : '#dc2626',
           }}>
-            {isPaid ? 'PAID' : 'UNPAID'}
+            {isPaid ? 'បានបង់ប្រាក់' : 'មិនទាន់បង់ប្រាក់'}
           </span>
         </div>
       </div>
@@ -131,42 +145,42 @@ export function InvoiceCard({ data, settings, xRate }: InvoiceCardProps) {
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '7.5pt' }}>
           <tbody>
             <tr>
-              <td style={{ padding: '0.5mm 0', color: '#475569' }}>Monthly Rent</td>
+              <td style={{ padding: '0.5mm 0', color: '#475569' }}>ថ្លៃជួលប្រចាំខែ</td>
               <td style={{ padding: '0.5mm 0', textAlign: 'right', fontWeight: 500 }}>{formatCurrency(data.roomRentUsd)}</td>
             </tr>
             <tr>
               <td style={{ padding: '0.5mm 0', color: '#475569' }}>
-                Water ({data.waterUsage} kib · {data.waterCostRiel.toLocaleString()} ៛)
-                <div style={{ fontSize: '6pt', color: '#94a3b8' }}>Meter: {data.prevWaterReading} → {data.currWaterReading}</div>
+                ថ្លៃទឹក ({data.waterUsage} គីប · {data.waterCostRiel.toLocaleString()} ៛)
+                <div style={{ fontSize: '6pt', color: '#94a3b8' }}>កុងទ័រ៖ {data.prevWaterReading} → {data.currWaterReading}</div>
               </td>
               <td style={{ padding: '0.5mm 0', textAlign: 'right', verticalAlign: 'top' }}>{formatCurrency(data.waterCostRiel / xRate)}</td>
             </tr>
             <tr>
               <td style={{ padding: '0.5mm 0', color: '#475569' }}>
-                Electricity ({data.electricUsage} kw · {data.electricCostRiel.toLocaleString()} ៛)
-                <div style={{ fontSize: '6pt', color: '#94a3b8' }}>Meter: {data.prevElectricReading} → {data.currElectricReading}</div>
+                ថ្លៃអគ្គិសនី ({data.electricUsage} គីឡូវ៉ាត់ · {data.electricCostRiel.toLocaleString()} ៛)
+                <div style={{ fontSize: '6pt', color: '#94a3b8' }}>កុងទ័រ៖ {data.prevElectricReading} → {data.currElectricReading}</div>
               </td>
               <td style={{ padding: '0.5mm 0', textAlign: 'right', verticalAlign: 'top' }}>{formatCurrency(data.electricCostRiel / xRate)}</td>
             </tr>
             <tr style={{ color: data.outstandingDebtUsd > 0 ? '#dc2626' : '#475569' }}>
-              <td style={{ padding: '0.5mm 0' }}>Outstanding Debt</td>
+              <td style={{ padding: '0.5mm 0' }}>ប្រាក់ជំពាក់ពីមុន</td>
               <td style={{ padding: '0.5mm 0', textAlign: 'right' }}>{formatCurrency(data.outstandingDebtUsd)}</td>
             </tr>
             <tr style={{ color: data.latePenaltyUsd > 0 ? '#ea580c' : '#475569' }}>
               <td style={{ padding: '0.5mm 0' }}>
-                Late Penalty
-                <div style={{ fontSize: '6pt', color: data.latePenaltyUsd > 0 ? '#fb923c' : '#94a3b8' }}>{data.lateDays} days × {formatCurrency(latePenaltyRate)}/day</div>
+                ប្រាក់ពិន័យបង់យឺត
+                <div style={{ fontSize: '6pt', color: data.latePenaltyUsd > 0 ? '#fb923c' : '#94a3b8' }}>យឺត {data.lateDays} ថ្ងៃ × {formatCurrency(latePenaltyRate)}/ថ្ងៃ</div>
               </td>
               <td style={{ padding: '0.5mm 0', textAlign: 'right', verticalAlign: 'top' }}>{formatCurrency(data.latePenaltyUsd)}</td>
             </tr>
             <tr style={{ color: data.discountUsd > 0 ? '#16a34a' : '#475569' }}>
-              <td style={{ padding: '0.5mm 0' }}>Discount</td>
+              <td style={{ padding: '0.5mm 0' }}>ការបញ្ចុះតម្លៃ</td>
               <td style={{ padding: '0.5mm 0', textAlign: 'right' }}>{data.discountUsd > 0 ? '-' : ''}{formatCurrency(data.discountUsd)}</td>
             </tr>
           </tbody>
           <tfoot>
             <tr style={{ borderTop: '0.5pt solid #cbd5e1' }}>
-              <td style={{ paddingTop: '1.2mm', fontWeight: 700, fontSize: '9pt' }}>Total Due</td>
+              <td style={{ paddingTop: '1.2mm', fontWeight: 700, fontSize: '9pt' }}>សរុបត្រូវបង់</td>
               <td style={{ paddingTop: '1.2mm', textAlign: 'right', fontWeight: 700, fontSize: '9pt', color: '#1d4ed8' }}>
                 {formatCurrency(data.totalUsd)}
               </td>
@@ -176,10 +190,6 @@ export function InvoiceCard({ data, settings, xRate }: InvoiceCardProps) {
               <td style={{ textAlign: 'right', fontWeight: 700, fontSize: '9pt', color: '#1d4ed8' }}>
                 {Math.round(data.totalRiel).toLocaleString()} ៛
               </td>
-            </tr>
-            <tr>
-              <td />
-              <td style={{ textAlign: 'right', color: '#94a3b8', fontSize: '6pt' }}>1 USD = {xRate.toLocaleString()} ៛</td>
             </tr>
           </tfoot>
         </table>
@@ -196,7 +206,7 @@ export function InvoiceCard({ data, settings, xRate }: InvoiceCardProps) {
         flexShrink: 0,
       }}>
         <div style={{ color: '#94a3b8', fontSize: '6pt', maxWidth: '60%' }}>
-          Thank you for your business!<br />
+          សូមអរគុណចំពោះការទុកចិត្ត!<br />
           {companyName} · {companyPhone}
         </div>
         {qrs.length > 0 && (
