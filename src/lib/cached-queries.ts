@@ -1,5 +1,6 @@
 import { unstable_cache } from 'next/cache'
 import { db } from './db'
+import { parseBranches, type Branch } from './branches'
 
 export const TAGS = {
   rooms: 'rooms',
@@ -168,6 +169,15 @@ export const getSettingsMap = unstable_cache(
     return Object.fromEntries(rows.map((r) => [r.key, r.value]))
   },
   ['settings-map'],
+  { tags: [TAGS.settings], revalidate: REVALIDATE_SECONDS },
+)
+
+export const getBranches = unstable_cache(
+  async (): Promise<Branch[]> => {
+    const row = await db.setting.findUnique({ where: { key: 'branches' } })
+    return parseBranches(row?.value)
+  },
+  ['branches'],
   { tags: [TAGS.settings], revalidate: REVALIDATE_SECONDS },
 )
 

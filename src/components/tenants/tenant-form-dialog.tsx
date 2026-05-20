@@ -13,8 +13,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from '@/hooks/use-toast'
-import { roomLabel, sortRoomsByNumber } from '@/lib/utils'
+import { sortRoomsByNumber } from '@/lib/utils'
 import { useLanguage } from '@/contexts/language-context'
+import { useBranches, useRoomLabel } from '@/contexts/branches-context'
 
 const schema = z.object({
   fullName: z.string().min(1, 'Full name required'),
@@ -54,6 +55,7 @@ interface Props {
 
 export function TenantFormDialog({ rooms, tenant, onClose, onSave }: Props) {
   const { t } = useLanguage()
+  const roomLabel = useRoomLabel()
   const [loading, setLoading] = useState(false)
   const isEdit = !!tenant?.id
   const [phonesExtra, setPhonesExtra] = useState<string[]>(tenant?.phonesExtra ?? [])
@@ -85,9 +87,9 @@ export function TenantFormDialog({ rooms, tenant, onClose, onSave }: Props) {
     },
   })
 
-  const branches = [...new Set(rooms.map((r) => r.branch ?? 'Takmoa'))].sort()
+  const branches = useBranches().map((b) => b.name)
   const branchRooms = sortRoomsByNumber(
-    selectedBranch ? rooms.filter((r) => (r.branch ?? 'Takmoa') === selectedBranch) : []
+    selectedBranch ? rooms.filter((r) => r.branch === selectedBranch) : []
   )
 
   const selectedRoomId = watch('roomId')

@@ -12,10 +12,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea'
 import { toast } from '@/hooks/use-toast'
 import { useLanguage } from '@/contexts/language-context'
+import { useBranches } from '@/contexts/branches-context'
 
 const schema = z.object({
   roomNumber: z.string().min(1, 'Room number required'),
-  branch: z.string().default('Takmoa'),
+  branch: z.string().min(1, 'Branch required'),
   roomType: z.string().default('Standard'),
   rentPriceUsd: z.coerce.number().min(0),
   status: z.enum(['occupied', 'vacant', 'maintenance']).default('vacant'),
@@ -34,6 +35,7 @@ interface Props {
 
 export function RoomFormDialog({ room, onClose, onSave }: Props) {
   const { t } = useLanguage()
+  const branches = useBranches()
   const [loading, setLoading] = useState(false)
   const isEdit = !!room?.id
 
@@ -41,7 +43,7 @@ export function RoomFormDialog({ room, onClose, onSave }: Props) {
     resolver: zodResolver(schema),
     defaultValues: {
       roomNumber: room?.roomNumber ?? '',
-      branch: room?.branch ?? 'Takmoa',
+      branch: room?.branch ?? branches[0]?.name ?? '',
       roomType: room?.roomType ?? 'Standard',
       rentPriceUsd: room?.rentPriceUsd ?? 0,
       status: (room?.status as FormData['status']) ?? 'vacant',
@@ -82,13 +84,15 @@ export function RoomFormDialog({ room, onClose, onSave }: Props) {
             </div>
             <div className="space-y-1.5">
               <Label>{t('branch')}</Label>
-              <Select onValueChange={(v) => setValue('branch', v)} defaultValue={room?.branch ?? 'Takmoa'}>
+              <Select onValueChange={(v) => setValue('branch', v)} defaultValue={room?.branch ?? branches[0]?.name}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Takmoa">Takmoa</SelectItem>
-                  <SelectItem value="Chamkadong">Chamkadong</SelectItem>
+                  {branches.map((b) => (
+                    <SelectItem key={b.slug} value={b.name}>{b.name}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
+              {errors.branch && <p className="text-xs text-destructive">{errors.branch.message}</p>}
             </div>
           </div>
 

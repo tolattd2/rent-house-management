@@ -16,9 +16,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea'
 import { Separator } from '@/components/ui/separator'
 import { calculateBilling } from '@/lib/billing'
-import { formatCurrency, roomLabel } from '@/lib/utils'
+import { formatCurrency } from '@/lib/utils'
 import { toast } from '@/hooks/use-toast'
 import { useLanguage } from '@/contexts/language-context'
+import { useRoomLabel } from '@/contexts/branches-context'
 
 const schema = z.object({
   tenantId: z.string().min(1, 'Tenant required'),
@@ -74,6 +75,7 @@ interface Props {
 export function CreateBillingClient({ tenants, settings, preselectedTenantId, editBilling }: Props) {
   const router = useRouter()
   const { t } = useLanguage()
+  const roomLabel = useRoomLabel()
   const isEdit = Boolean(editBilling)
   const [loading, setLoading] = useState(false)
   const [preview, setPreview] = useState<ReturnType<typeof calculateBilling> | null>(null)

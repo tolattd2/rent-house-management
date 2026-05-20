@@ -16,9 +16,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { TableScroll } from '@/components/ui/table-scroll'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { TenantFormDialog } from '@/components/tenants/tenant-form-dialog'
-import { formatCurrency, formatDate, formatMonth, formatPhones, roomLabel } from '@/lib/utils'
+import { formatCurrency, formatDate, formatMonth, formatPhones } from '@/lib/utils'
 import { toast } from '@/hooks/use-toast'
 import { useLanguage } from '@/contexts/language-context'
+import { useRoomLabel } from '@/contexts/branches-context'
 
 interface Props {
   tenant: {
@@ -52,6 +53,7 @@ export function TenantDetailClient({ tenant, rooms }: Props) {
   const { data: session } = useSession()
   const isAdmin = session?.user?.role === 'admin'
   const { t } = useLanguage()
+  const roomLabel = useRoomLabel()
   const [showEdit, setShowEdit] = useState(false)
 
   const outstanding = tenant.billings

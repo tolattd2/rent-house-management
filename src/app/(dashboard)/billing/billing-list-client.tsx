@@ -14,10 +14,11 @@ import { PaymentDialog } from '@/components/billing/payment-dialog'
 import { BatchDeleteDialog } from '@/components/billing/batch-delete-dialog'
 import { GenerateMonthlyDialog } from '@/components/billing/generate-monthly-dialog'
 import { BatchGenerateInvoiceDialog } from '@/components/invoices/batch-generate-dialog'
-import { formatCurrency, formatCompact, exportToCSV, roomLabel, sortRoomsByNumber } from '@/lib/utils'
+import { formatCurrency, formatCompact, exportToCSV, sortRoomsByNumber } from '@/lib/utils'
 import { toast } from '@/hooks/use-toast'
 import { useSession } from 'next-auth/react'
 import { useLanguage } from '@/contexts/language-context'
+import { useBranches, useRoomLabel } from '@/contexts/branches-context'
 import { useDeleteWithUndo, runDeleteWithUndo } from '@/hooks/use-delete-with-undo'
 import { DeleteConfirmDialog } from '@/components/ui/delete-confirm-dialog'
 
@@ -49,6 +50,7 @@ export function BillingListClient({ billings: initial }: Props) {
   const { data: session } = useSession()
   const isAdmin = session?.user?.role === 'admin'
   const { t } = useLanguage()
+  const roomLabel = useRoomLabel()
   const [billings, setBillings] = useState(initial)
   useEffect(() => { setBillings(initial) }, [initial])
   const [search, setSearch] = useState('')
@@ -62,7 +64,7 @@ export function BillingListClient({ billings: initial }: Props) {
   const [showBatchInvoice, setShowBatchInvoice] = useState(false)
   const { triggerDelete, dialogState, closeDialog } = useDeleteWithUndo()
 
-  const branches = [...new Set(billings.map((b) => b.room?.branch ?? 'Takmoa'))].sort()
+  const branches = useBranches().map((b) => b.name)
 
   const filtered = sortRoomsByNumber(
     billings.filter((b) => {
@@ -72,7 +74,7 @@ export function BillingListClient({ billings: initial }: Props) {
         b.billingMonth.includes(search)
       const matchStatus = statusFilter === 'all' || b.paymentStatus === statusFilter
       const matchMonth = monthFilter === 'all' || b.billingMonth === monthFilter
-      const matchBranch = branchFilter === 'all' || (b.room?.branch ?? 'Takmoa') === branchFilter
+      const matchBranch = branchFilter === 'all' || b.room?.branch === branchFilter
       return matchSearch && matchStatus && matchMonth && matchBranch
     }).map((b) => ({ ...b, roomNumber: b.room?.roomNumber ?? '' }))
   )
@@ -112,7 +114,7 @@ export function BillingListClient({ billings: initial }: Props) {
 
   const handleBatchDelete = (month: string, branch: string, count: number) => {
     const affected = billings.filter(
-      (b) => b.billingMonth === month && (branch === 'all' || (b.room?.branch ?? 'Takmoa') === branch)
+      (b) => b.billingMonth === month && (branch === 'all' || b.room?.branch === branch)
     )
     if (affected.length === 0) return
     const ids = new Set(affected.map((b) => b.id))
@@ -172,7 +174,7 @@ export function BillingListClient({ billings: initial }: Props) {
           <Input placeholder={t('billing_search')} className="pl-9 h-9 bg-muted/50 border-0 focus-visible:ring-1" value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
         {(['all', ...branches] as const).map((b) => {
-          const unpaidCount = (b === 'all' ? billings : billings.filter((bl) => (bl.room?.branch ?? 'Takmoa') === b))
+          const unpaidCount = (b === 'all' ? billings : billings.filter((bl) => bl.room?.branch === b))
             .filter((bl) => bl.paymentStatus !== 'paid').length
           return (
             <Button key={b} variant={branchFilter === b ? 'default' : 'outline'} size="sm"

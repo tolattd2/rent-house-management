@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useLanguage } from '@/contexts/language-context'
+import { useBranches } from '@/contexts/branches-context'
 import { useSession } from 'next-auth/react'
 import { toast } from '@/hooks/use-toast'
 import { InvoiceBatchPrintDialog } from '@/components/invoices/batch-print-dialog'
@@ -51,7 +52,7 @@ export function InvoicesClient({ invoices: initial }: Props) {
   const [showBatchDelete, setShowBatchDelete] = useState(false)
   const { triggerDelete, dialogState, closeDialog } = useDeleteWithUndo()
 
-  const branches = [...new Set(invoices.map((inv) => inv.billing?.room?.branch ?? 'Takmoa'))].sort()
+  const branches = useBranches().map((b) => b.name)
   const months = [...new Set(invoices.map((inv) => inv.billing?.billingMonth).filter(Boolean) as string[])].sort().reverse()
 
   const filtered = invoices.filter((inv) => {
@@ -62,7 +63,7 @@ export function InvoicesClient({ invoices: initial }: Props) {
       (inv.billing?.room?.roomNumber ?? '').includes(search)
     const matchStatus = statusFilter === 'all' || inv.billing?.paymentStatus === statusFilter
     const matchMonth = monthFilter === 'all' || inv.billing?.billingMonth === monthFilter
-    const matchBranch = branchFilter === 'all' || (inv.billing?.room?.branch ?? 'Takmoa') === branchFilter
+    const matchBranch = branchFilter === 'all' || inv.billing?.room?.branch === branchFilter
     return matchSearch && matchStatus && matchMonth && matchBranch
   })
 
@@ -83,7 +84,7 @@ export function InvoicesClient({ invoices: initial }: Props) {
     const affected = invoices.filter(
       (inv) =>
         inv.billing?.billingMonth === month &&
-        (branch === 'all' || (inv.billing?.room?.branch ?? 'Takmoa') === branch)
+        (branch === 'all' || inv.billing?.room?.branch === branch)
     )
     if (affected.length === 0) return
     const ids = new Set(affected.map((i) => i.id))

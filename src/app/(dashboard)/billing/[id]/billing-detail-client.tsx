@@ -10,9 +10,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { TableScroll } from '@/components/ui/table-scroll'
 import { Separator } from '@/components/ui/separator'
 import { PaymentDialog } from '@/components/billing/payment-dialog'
-import { formatCurrency, formatDate, roomLabel } from '@/lib/utils'
+import { formatCurrency, formatDate } from '@/lib/utils'
 import { toast } from '@/hooks/use-toast'
 import { useLanguage } from '@/contexts/language-context'
+import { useRoomLabel } from '@/contexts/branches-context'
 import { useDeleteWithUndo } from '@/hooks/use-delete-with-undo'
 import { DeleteConfirmDialog } from '@/components/ui/delete-confirm-dialog'
 
@@ -35,6 +36,7 @@ interface Billing {
 export function BillingDetailClient({ billing }: { billing: Billing }) {
   const router = useRouter()
   const { t } = useLanguage()
+  const roomLabel = useRoomLabel()
   const [showPay, setShowPay] = useState(false)
   const { triggerDelete, dialogState, closeDialog } = useDeleteWithUndo()
 

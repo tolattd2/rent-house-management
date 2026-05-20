@@ -1,4 +1,5 @@
 import { formatCurrency, formatPhones } from '@/lib/utils'
+import { parseBranches, branchSlug, roomLabel } from '@/lib/branches'
 
 /**
  * Same font stack the app uses (see tailwind.config.ts `font-sans`): Inter for
@@ -59,7 +60,8 @@ export function InvoiceCard({ data, settings, xRate }: InvoiceCardProps) {
   const isPaid = data.paymentStatus === 'paid'
   const tenantPhones = data.tenant ? formatPhones(data.tenant.phone, data.tenant.phonesExtra) : ''
   const latePenaltyRate = parseFloat(settings.late_penalty_usd ?? '1')
-  const branchKey = data.room?.branch === 'Chamkadong' ? 'chamkadong' : 'takmoa'
+  const branches = parseBranches(settings.branches)
+  const branchKey = branchSlug(branches, data.room?.branch)
   const companyName = settings[`company_${branchKey}_name`] || settings.company_name || 'Takmao Rental'
   const companyPhone = settings[`company_${branchKey}_phone`] || settings.company_phone || ''
   const companyAddress = settings[`company_${branchKey}_address`] || settings.company_address || 'Phnom Penh, Cambodia'
@@ -126,7 +128,7 @@ export function InvoiceCard({ data, settings, xRate }: InvoiceCardProps) {
           {tenantPhones && <div style={{ color: '#64748b', fontSize: '7pt' }}>{tenantPhones}</div>}
         </div>
         <div style={{ textAlign: 'right' }}>
-          <div style={{ fontWeight: 600, fontSize: '8pt' }}>បន្ទប់ {data.room?.roomNumber ?? '—'}</div>
+          <div style={{ fontWeight: 600, fontSize: '8pt' }}>បន្ទប់ {data.room ? roomLabel(data.room, branches) : '—'}</div>
           <span style={{
             display: 'inline-block',
             padding: '0.5mm 2.5mm',

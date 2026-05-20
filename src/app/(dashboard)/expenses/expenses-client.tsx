@@ -19,6 +19,7 @@ import { formatCurrency, formatCompact, exportToCSV } from '@/lib/utils'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { useLanguage } from '@/contexts/language-context'
+import { useBranches } from '@/contexts/branches-context'
 import { useDeleteWithUndo } from '@/hooks/use-delete-with-undo'
 import { DeleteConfirmDialog } from '@/components/ui/delete-confirm-dialog'
 
@@ -83,6 +84,7 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
   const { data: session } = useSession()
   const isAdmin = session?.user?.role === 'admin'
   const { t } = useLanguage()
+  const branchOptions = ['all', ...useBranches().map((b) => b.name)]
   const [expenses, setExpenses] = useState(initialExpenses)
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('all')
@@ -302,7 +304,7 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        {(['all', 'Takmoa', 'Chamkadong'] as const).map((b) => (
+        {branchOptions.map((b) => (
           <Button key={b} variant={branchFilter === b ? 'default' : 'outline'} size="sm"
             className="h-9 px-3 text-sm"
             onClick={() => setBranchFilter(b)}>

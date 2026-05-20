@@ -12,9 +12,10 @@ import { RevenueChart } from '@/components/dashboard/revenue-chart'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { TableScroll } from '@/components/ui/table-scroll'
 import { Badge } from '@/components/ui/badge'
-import { formatCompact, formatMonth, formatPhones, cn, roomLabel } from '@/lib/utils'
+import { formatCompact, formatMonth, formatPhones, cn } from '@/lib/utils'
 import Link from 'next/link'
 import { useLanguage } from '@/contexts/language-context'
+import { useBranches, useRoomLabel } from '@/contexts/branches-context'
 
 type Room     = { id: string; branch: string; status: string }
 type Tenant   = { id: string; status: string; roomId: string | null }
@@ -38,8 +39,14 @@ interface Props {
   unpaidBillings: UnpaidBilling[]
 }
 
-const BRANCHES = ['all', 'Takmoa', 'Chamkadong'] as const
-type Branch = typeof BRANCHES[number]
+const BRANCH_CHIP_COLORS = [
+  'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+  'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
+  'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
+  'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+  'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400',
+  'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400',
+]
 
 function trendLabel(current: number, prev: number): { label: string; up: boolean } | undefined {
   if (prev === 0) return undefined
@@ -49,9 +56,14 @@ function trendLabel(current: number, prev: number): { label: string; up: boolean
 
 export function DashboardClient({ rooms, tenants, billings, expenses, unpaidBillings }: Props) {
   const { t } = useLanguage()
+  const branchList = useBranches()
+  const roomLabel = useRoomLabel()
   const { data: session } = useSession()
   const isAdmin = session?.user?.role === 'admin'
-  const [branch, setBranch] = useState<Branch>('all')
+  const [branch, setBranch] = useState<string>('all')
+  const branchOptions = ['all', ...branchList.map((b) => b.name)]
+  const branchChipColor = (name: string | null | undefined) =>
+    BRANCH_CHIP_COLORS[Math.max(0, branchList.findIndex((b) => b.name === name)) % BRANCH_CHIP_COLORS.length]
   const currentMonth = new Date().toISOString().slice(0, 7)
 
   const roomIds = useMemo(() => {
@@ -161,7 +173,7 @@ export function DashboardClient({ rooms, tenants, billings, expenses, unpaidBill
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <div className="flex items-center bg-muted rounded-lg p-1 gap-0.5">
-            {BRANCHES.map(b => (
+            {branchOptions.map(b => (
               <button
                 key={b}
                 onClick={() => setBranch(b)}
@@ -349,9 +361,7 @@ export function DashboardClient({ rooms, tenants, billings, expenses, unpaidBill
                           <td className="px-5 py-3">
                             <span className={cn(
                               'text-xs px-2 py-0.5 rounded-full font-medium',
-                              bill.room?.branch === 'Takmoa'
-                                ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
-                                : 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
+                              branchChipColor(bill.room?.branch)
                             )}>
                               {bill.room?.branch}
                             </span>

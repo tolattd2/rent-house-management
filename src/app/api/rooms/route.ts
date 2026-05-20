@@ -6,7 +6,7 @@ import { z } from 'zod'
 
 const roomSchema = z.object({
   roomNumber: z.string().min(1),
-  branch: z.string().default('Takmoa'),
+  branch: z.string().min(1),
   floor: z.string().default('1'),
   roomType: z.string().default('Standard'),
   rentPriceUsd: z.coerce.number().min(0),

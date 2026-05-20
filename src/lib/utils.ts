@@ -131,10 +131,6 @@ export function formatCompact(amount: number): string {
   return `${sign}$${abs.toFixed(0)}`
 }
 
-export function roomLabel(room: { roomNumber: string; branch?: string | null }): string {
-  return room.branch === 'Chamkadong' ? `Rckd${room.roomNumber}` : room.roomNumber
-}
-
 /** Join a tenant's primary phone and any extra numbers into one display string. */
 export function formatPhones(phone: string | null | undefined, phonesExtra?: string[] | null): string {
   return [phone ?? '', ...(phonesExtra ?? [])]

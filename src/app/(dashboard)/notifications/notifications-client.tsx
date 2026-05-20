@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input'
 import { formatCurrency } from '@/lib/utils'
 import { toast } from '@/hooks/use-toast'
 import { useLanguage } from '@/contexts/language-context'
+import { useBranches } from '@/contexts/branches-context'
 
 interface Props {
   notifications: Array<{
@@ -31,19 +32,12 @@ export function NotificationsClient({ notifications, unpaidBillings }: Props) {
   const [branchFilter, setBranchFilter] = useState('all')
   const [search, setSearch] = useState('')
 
-  const branches = useMemo(() => {
-    const set = new Set<string>()
-    unpaidBillings.forEach((b) => set.add(b.room?.branch ?? 'Takmoa'))
-    notifications.forEach((n) => {
-      if (n.tenant) set.add(n.tenant.room?.branch ?? 'Takmoa')
-    })
-    return [...set].sort()
-  }, [unpaidBillings, notifications])
+  const branches = useBranches().map((b) => b.name)
 
   const filteredUnpaid = useMemo(() => {
     const q = search.trim().toLowerCase()
     return unpaidBillings.filter((b) => {
-      const matchBranch = branchFilter === 'all' || (b.room?.branch ?? 'Takmoa') === branchFilter
+      const matchBranch = branchFilter === 'all' || b.room?.branch === branchFilter
       const matchSearch =
         !q ||
         (b.tenant?.fullName ?? '').toLowerCase().includes(q) ||
@@ -57,7 +51,7 @@ export function NotificationsClient({ notifications, unpaidBillings }: Props) {
     const q = search.trim().toLowerCase()
     return notifications.filter((n) => {
       const matchBranch =
-        branchFilter === 'all' || (n.tenant?.room?.branch ?? 'Takmoa') === branchFilter
+        branchFilter === 'all' || n.tenant?.room?.branch === branchFilter
       const matchSearch =
         !q ||
         (n.tenant?.fullName ?? '').toLowerCase().includes(q) ||
@@ -145,7 +139,7 @@ export function NotificationsClient({ notifications, unpaidBillings }: Props) {
           const count = (
             b === 'all'
               ? unpaidBillings
-              : unpaidBillings.filter((bl) => (bl.room?.branch ?? 'Takmoa') === b)
+              : unpaidBillings.filter((bl) => bl.room?.branch === b)
           ).length
           return (
             <Button
@@ -185,7 +179,7 @@ export function NotificationsClient({ notifications, unpaidBillings }: Props) {
                     <div>
                       <p className="font-medium text-sm">{bill.tenant?.fullName}</p>
                       <p className="text-xs text-muted-foreground">
-                        {bill.room?.branch ?? 'Takmoa'} · {t('room')} {bill.room?.roomNumber} · {bill.billingMonth}
+                        {bill.room?.branch} · {t('room')} {bill.room?.roomNumber} · {bill.billingMonth}
                       </p>
                     </div>
                   </div>

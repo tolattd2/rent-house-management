@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { useForm } from 'react-hook-form'
 import { Save, Building2, DollarSign, MessageSquare, Mail, Phone, Users, Plus, Key, Trash2, QrCode, Upload, X, Send } from 'lucide-react'
@@ -15,6 +16,7 @@ import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
 import { toast } from '@/hooks/use-toast'
 import { useLanguage } from '@/contexts/language-context'
+import { parseBranches, type Branch } from '@/lib/branches'
 import { QrCropDialog } from '@/components/settings/qr-crop-dialog'
 import { useDeleteWithUndo } from '@/hooks/use-delete-with-undo'
 import { DeleteConfirmDialog } from '@/components/ui/delete-confirm-dialog'
@@ -32,6 +34,7 @@ interface Props { settings: Record<string, string> }
 
 export function SettingsClient({ settings: initial }: Props) {
   const { t } = useLanguage()
+  const router = useRouter()
   const { data: session } = useSession()
   const isAdmin = session?.user?.role === 'admin'
   const [loading, setLoading] = useState(false)
@@ -49,23 +52,44 @@ export function SettingsClient({ settings: initial }: Props) {
   const [newPassword, setNewPassword] = useState('')
   const [changingPw, setChangingPw] = useState(false)
 
-  // QR code upload state — keyed by "branch_slot" e.g. "takmoa_1"
-  type QrBranch = 'takmoa' | 'chamkadong'
-  const [qrImages, setQrImages] = useState<Record<string, string>>({
-    takmoa_1: initial.qr_takmoa_1 ?? '',
-    takmoa_2: initial.qr_takmoa_2 ?? '',
-    chamkadong_1: initial.qr_chamkadong_1 ?? '',
-    chamkadong_2: initial.qr_chamkadong_2 ?? '',
+  // Branches — name/prefix and the slug used to key company info + QR settings.
+  const [branches, setBranches] = useState<Branch[]>(() => parseBranches(initial.branches))
+  // company_<slug>_name|phone|address and qr_<slug>_label_<slot> values.
+  const [branchInfo, setBranchInfo] = useState<Record<string, string>>(() => {
+    const info: Record<string, string> = {}
+    for (const [k, v] of Object.entries(initial)) {
+      if (k.startsWith('company_') || /^qr_.+_label_[12]$/.test(k)) info[k] = v
+    }
+    return info
+  })
+
+  // QR code images — keyed by "<slug>_<slot>".
+  const [qrImages, setQrImages] = useState<Record<string, string>>(() => {
+    const imgs: Record<string, string> = {}
+    for (const b of branches) {
+      imgs[`${b.slug}_1`] = initial[`qr_${b.slug}_1`] ?? ''
+      imgs[`${b.slug}_2`] = initial[`qr_${b.slug}_2`] ?? ''
+    }
+    return imgs
   })
   const [uploadingKey, setUploadingKey] = useState<string | null>(null)
   const qrInputRefs = useRef<Record<string, HTMLInputElement | null>>({})
-  const [cropPending, setCropPending] = useState<{ branch: QrBranch; slot: 1 | 2; file: File } | null>(null)
+  const [cropPending, setCropPending] = useState<{ slug: string; slot: 1 | 2; file: File } | null>(null)
 
-  const handleQrUpload = useCallback(async (branch: QrBranch, slot: 1 | 2, file: File) => {
-    const key = `${branch}_${slot}`
+  const updateBranch = (index: number, patch: Partial<Branch>) =>
+    setBranches((prev) => prev.map((b, i) => (i === index ? { ...b, ...patch } : b)))
+  const addBranch = () =>
+    setBranches((prev) => [...prev, { slug: `b${Math.random().toString(36).slice(2, 9)}`, name: '', prefix: '' }])
+  const removeBranch = (index: number) =>
+    setBranches((prev) => prev.filter((_, i) => i !== index))
+  const setBranchField = (key: string, value: string) =>
+    setBranchInfo((prev) => ({ ...prev, [key]: value }))
+
+  const handleQrUpload = useCallback(async (slug: string, slot: 1 | 2, file: File) => {
+    const key = `${slug}_${slot}`
     setUploadingKey(key)
     const form = new FormData()
-    form.append('branch', branch)
+    form.append('branch', slug)
     form.append('slot', String(slot))
     form.append('file', file)
     const res = await fetch('/api/settings/qr', { method: 'POST', body: form })
@@ -79,15 +103,15 @@ export function SettingsClient({ settings: initial }: Props) {
     setUploadingKey(null)
   }, [t])
 
-  const handleFileSelected = useCallback((branch: QrBranch, slot: 1 | 2, file: File | undefined) => {
+  const handleFileSelected = useCallback((slug: string, slot: 1 | 2, file: File | undefined) => {
     if (!file) return
-    setCropPending({ branch, slot, file })
+    setCropPending({ slug, slot, file })
   }, [])
 
-  const handleQrClear = useCallback(async (branch: QrBranch, slot: 1 | 2) => {
-    const key = `${branch}_${slot}`
+  const handleQrClear = useCallback(async (slug: string, slot: 1 | 2) => {
+    const key = `${slug}_${slot}`
     const form = new FormData()
-    form.append('branch', branch)
+    form.append('branch', slug)
     form.append('slot', String(slot))
     form.append('clear', 'true')
     const res = await fetch('/api/settings/qr', { method: 'POST', body: form })
@@ -168,13 +192,6 @@ export function SettingsClient({ settings: initial }: Props) {
       water_rate_riel: initial.water_rate_riel ?? '2000',
       electric_rate_riel: initial.electric_rate_riel ?? '720',
       late_penalty_usd: initial.late_penalty_usd ?? '1',
-      // Branch-specific company info
-      company_takmoa_name: initial.company_takmoa_name ?? 'Takmao Rental',
-      company_takmoa_phone: initial.company_takmoa_phone ?? '',
-      company_takmoa_address: initial.company_takmoa_address ?? 'Phnom Penh, Cambodia',
-      company_chamkadong_name: initial.company_chamkadong_name ?? 'Chamkadong Rental',
-      company_chamkadong_phone: initial.company_chamkadong_phone ?? '',
-      company_chamkadong_address: initial.company_chamkadong_address ?? 'Phnom Penh, Cambodia',
       telegram_token: initial.telegram_token ?? '',
       telegram_chat_id: initial.telegram_chat_id ?? '',
       smtp_host: initial.smtp_host ?? '',
@@ -185,10 +202,6 @@ export function SettingsClient({ settings: initial }: Props) {
       twilio_sid: initial.twilio_sid ?? '',
       twilio_token: initial.twilio_token ?? '',
       twilio_phone: initial.twilio_phone ?? '',
-      qr_takmoa_label_1: initial.qr_takmoa_label_1 ?? '',
-      qr_takmoa_label_2: initial.qr_takmoa_label_2 ?? '',
-      qr_chamkadong_label_1: initial.qr_chamkadong_label_1 ?? '',
-      qr_chamkadong_label_2: initial.qr_chamkadong_label_2 ?? '',
     },
   })
 
@@ -245,11 +258,17 @@ export function SettingsClient({ settings: initial }: Props) {
     const res = await fetch('/api/settings', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...data, late_alert_enabled: lateAlertEnabled ? 'true' : 'false' }),
+      body: JSON.stringify({
+        ...data,
+        ...branchInfo,
+        branches: JSON.stringify(branches),
+        late_alert_enabled: lateAlertEnabled ? 'true' : 'false',
+      }),
     })
     const result = await res.json()
     if (result.ok) {
       toast({ title: t('settings_saved') })
+      router.refresh()
     } else {
       toast({ title: t('settings_save_error'), description: result.error, variant: 'destructive' })
     }
@@ -307,32 +326,76 @@ export function SettingsClient({ settings: initial }: Props) {
           </TabsContent>
 
           <TabsContent value="company" className="mt-4 space-y-4">
-            {([
-              { branch: 'takmoa' as const, label: 'Takmoa Branch', namePlaceholder: 'Takmao Rental' },
-              { branch: 'chamkadong' as const, label: 'Chamkadong Branch', namePlaceholder: 'Chamkadong Rental' },
-            ]).map(({ branch, label, namePlaceholder }) => (
-              <Card key={branch}>
-                <CardHeader className="pb-3">
+            {branches.map((br, i) => (
+              <Card key={br.slug}>
+                <CardHeader className="pb-3 flex flex-row items-center justify-between">
                   <CardTitle className="text-base flex items-center gap-2">
-                    <Building2 className="w-4 h-4" />{label}
+                    <Building2 className="w-4 h-4" />{br.name || t('settings_branch_name')}
                   </CardTitle>
+                  {isAdmin && branches.length > 1 && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="text-destructive hover:bg-destructive/10"
+                      onClick={() => removeBranch(i)}
+                    >
+                      <Trash2 className="w-3.5 h-3.5 mr-1" />{t('settings_remove_branch')}
+                    </Button>
+                  )}
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label>{t('settings_branch_name')}</Label>
+                      <Input
+                        value={br.name}
+                        onChange={(e) => updateBranch(i, { name: e.target.value })}
+                        placeholder="Takmoa"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>{t('settings_room_prefix')}</Label>
+                      <Input
+                        value={br.prefix}
+                        onChange={(e) => updateBranch(i, { prefix: e.target.value })}
+                        placeholder="Rckd"
+                      />
+                      <p className="text-xs text-muted-foreground">{t('settings_room_prefix_hint')}</p>
+                    </div>
+                  </div>
                   <div className="space-y-1.5">
                     <Label>{t('settings_company_name')}</Label>
-                    <Input {...register(`company_${branch}_name` as 'company_takmoa_name')} placeholder={namePlaceholder} />
+                    <Input
+                      value={branchInfo[`company_${br.slug}_name`] ?? ''}
+                      onChange={(e) => setBranchField(`company_${br.slug}_name`, e.target.value)}
+                      placeholder="Takmao Rental"
+                    />
                   </div>
                   <div className="space-y-1.5">
                     <Label>{t('settings_phone')}</Label>
-                    <Input {...register(`company_${branch}_phone` as 'company_takmoa_phone')} placeholder="012 000 000" />
+                    <Input
+                      value={branchInfo[`company_${br.slug}_phone`] ?? ''}
+                      onChange={(e) => setBranchField(`company_${br.slug}_phone`, e.target.value)}
+                      placeholder="012 000 000"
+                    />
                   </div>
                   <div className="space-y-1.5">
                     <Label>{t('settings_address')}</Label>
-                    <Input {...register(`company_${branch}_address` as 'company_takmoa_address')} placeholder="Phnom Penh, Cambodia" />
+                    <Input
+                      value={branchInfo[`company_${br.slug}_address`] ?? ''}
+                      onChange={(e) => setBranchField(`company_${br.slug}_address`, e.target.value)}
+                      placeholder="Phnom Penh, Cambodia"
+                    />
                   </div>
                 </CardContent>
               </Card>
             ))}
+            {isAdmin && (
+              <Button type="button" variant="outline" onClick={addBranch}>
+                <Plus className="w-4 h-4 mr-2" />{t('settings_add_branch')}
+              </Button>
+            )}
           </TabsContent>
 
           <TabsContent value="telegram" className="mt-4">
@@ -461,20 +524,17 @@ export function SettingsClient({ settings: initial }: Props) {
           </TabsContent>
           <TabsContent value="qr" className="mt-4 space-y-4">
             <p className="text-xs text-muted-foreground">{t('settings_qr_hint')}</p>
-            {([
-              { branch: 'takmoa' as const, label: 'Takmoa Branch' },
-              { branch: 'chamkadong' as const, label: 'Chamkadong Branch' },
-            ]).map(({ branch, label }) => (
-              <Card key={branch}>
+            {branches.map((br) => (
+              <Card key={br.slug}>
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base flex items-center gap-2">
-                    <QrCode className="w-4 h-4" />{label}
+                    <QrCode className="w-4 h-4" />{br.name || t('settings_branch_name')}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     {([1, 2] as const).map((slot) => {
-                      const key = `${branch}_${slot}`
+                      const key = `${br.slug}_${slot}`
                       const preview = qrImages[key]
                       const uploading = uploadingKey === key
                       return (
@@ -499,7 +559,7 @@ export function SettingsClient({ settings: initial }: Props) {
                                     variant="outline"
                                     size="sm"
                                     className="text-destructive hover:bg-destructive/10"
-                                    onClick={() => handleQrClear(branch, slot)}
+                                    onClick={() => handleQrClear(br.slug, slot)}
                                   >
                                     <X className="w-3.5 h-3.5" />
                                   </Button>
@@ -525,13 +585,14 @@ export function SettingsClient({ settings: initial }: Props) {
                               type="file"
                               accept="image/*"
                               className="sr-only"
-                              onChange={(e) => { handleFileSelected(branch, slot, e.target.files?.[0]); e.target.value = '' }}
+                              onChange={(e) => { handleFileSelected(br.slug, slot, e.target.files?.[0]); e.target.value = '' }}
                             />
                           </div>
                           <div className="space-y-1.5">
                             <Label>{t('settings_qr_label')}</Label>
                             <Input
-                              {...register(`qr_${branch}_label_${slot}` as 'qr_takmoa_label_1')}
+                              value={branchInfo[`qr_${br.slug}_label_${slot}`] ?? ''}
+                              onChange={(e) => setBranchField(`qr_${br.slug}_label_${slot}`, e.target.value)}
                               placeholder={slot === 1 ? 'e.g. ABA Bank' : 'e.g. Wing Money'}
                             />
                           </div>
@@ -693,9 +754,9 @@ export function SettingsClient({ settings: initial }: Props) {
         <QrCropDialog
           file={cropPending.file}
           onConfirm={(croppedFile) => {
-            const { branch, slot } = cropPending
+            const { slug, slot } = cropPending
             setCropPending(null)
-            handleQrUpload(branch, slot, croppedFile)
+            handleQrUpload(slug, slot, croppedFile)
           }}
           onCancel={() => setCropPending(null)}
         />

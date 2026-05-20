@@ -7,12 +7,13 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { RoomFormDialog } from '@/components/rooms/room-form-dialog'
-import { formatCurrency, formatPhones, roomLabel, sortRoomsByNumber } from '@/lib/utils'
+import { formatCurrency, formatPhones, sortRoomsByNumber } from '@/lib/utils'
 import { toast } from '@/hooks/use-toast'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import Link from 'next/link'
 import { useLanguage } from '@/contexts/language-context'
+import { useBranches, useRoomLabel } from '@/contexts/branches-context'
 import { useDeleteWithUndo } from '@/hooks/use-delete-with-undo'
 import { DeleteConfirmDialog } from '@/components/ui/delete-confirm-dialog'
 
@@ -50,6 +51,8 @@ export function RoomsClient({ rooms: initialRooms }: Props) {
   const { data: session } = useSession()
   const isAdmin = session?.user?.role === 'admin'
   const { t } = useLanguage()
+  const branches = useBranches()
+  const roomLabel = useRoomLabel()
   const [rooms, setRooms] = useState(initialRooms)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
@@ -133,7 +136,7 @@ export function RoomsClient({ rooms: initialRooms }: Props) {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input placeholder={t('rooms_search')} className="pl-9 h-9 bg-muted/50 border-0 focus-visible:ring-1" value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
-        {(['all', 'Takmoa', 'Chamkadong'] as const).map((b) => (
+        {['all', ...branches.map((br) => br.name)].map((b) => (
           <Button key={b} variant={branchFilter === b ? 'default' : 'outline'} size="sm"
             className="h-9 px-3 text-sm"
             onClick={() => setBranchFilter(b)}>

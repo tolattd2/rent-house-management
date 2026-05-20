@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { invalidate } from '@/lib/revalidate'
+import { parseBranches } from '@/lib/branches'
 
 const SETTING_LABELS: Record<string, string> = {
   exchange_rate: 'USD to KHR Rate',
@@ -21,6 +22,7 @@ const SETTING_LABELS: Record<string, string> = {
   twilio_sid: 'Twilio Account SID',
   twilio_token: 'Twilio Auth Token',
   twilio_phone: 'Twilio Phone Number',
+  branches: 'Branches',
 }
 
 export async function GET() {
@@ -42,6 +44,34 @@ export async function POST(req: NextRequest) {
   try {
     const data: Record<string, string> = await req.json()
 
+    let branchesChanged = false
+    if (typeof data.branches === 'string') {
+      const incoming = parseBranches(data.branches)
+      const existingRow = await db.setting.findUnique({ where: { key: 'branches' } })
+      const current = parseBranches(existingRow?.value)
+
+      // Block deleting a branch that still has rooms.
+      const removed = current.filter((c) => !incoming.some((b) => b.slug === c.slug))
+      for (const r of removed) {
+        const count = await db.room.count({ where: { branch: r.name } })
+        if (count > 0) {
+          return NextResponse.json(
+            { ok: false, error: `Branch "${r.name}" still has ${count} room(s) — move or delete them first.` },
+            { status: 400 },
+          )
+        }
+      }
+
+      // Cascade a renamed branch to its rooms.
+      for (const b of incoming) {
+        const prev = current.find((c) => c.slug === b.slug)
+        if (prev && prev.name !== b.name) {
+          await db.room.updateMany({ where: { branch: prev.name }, data: { branch: b.name } })
+          branchesChanged = true
+        }
+      }
+    }
+
     await Promise.all(
       Object.entries(data).map(([key, value]) =>
         db.setting.upsert({
@@ -53,6 +83,7 @@ export async function POST(req: NextRequest) {
     )
 
     invalidate('settings')
+    if (branchesChanged) invalidate('rooms')
     return NextResponse.json({ ok: true })
   } catch (e) {
     return NextResponse.json({ ok: false, error: e instanceof Error ? e.message : 'Error' }, { status: 400 })

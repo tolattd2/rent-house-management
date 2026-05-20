@@ -11,9 +11,10 @@ import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import { TableScroll } from '@/components/ui/table-scroll'
 import { TenantFormDialog } from '@/components/tenants/tenant-form-dialog'
-import { formatCurrency, formatDate, formatPhones, roomLabel, sortRoomsByNumber } from '@/lib/utils'
+import { formatCurrency, formatDate, formatPhones, sortRoomsByNumber } from '@/lib/utils'
 import { toast } from '@/hooks/use-toast'
 import { useLanguage } from '@/contexts/language-context'
+import { useBranches, useRoomLabel } from '@/contexts/branches-context'
 
 type Room = {
   id: string; roomNumber: string; branch?: string; status: string; rentPriceUsd: number
@@ -34,10 +35,12 @@ export function TenantsClient({ tenants: initial, rooms }: Props) {
   const { data: session } = useSession()
   const isAdmin = session?.user?.role === 'admin'
   const { t } = useLanguage()
+  const branches = useBranches()
+  const roomLabel = useRoomLabel()
   const [tenants, setTenants] = useState(initial)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('active')
-  const [branchFilter, setBranchFilter] = useState<'all' | 'Takmoa' | 'Chamkadong'>('all')
+  const [branchFilter, setBranchFilter] = useState<string>('all')
   const [showForm, setShowForm] = useState(false)
 
   const filtered = sortRoomsByNumber(
@@ -100,7 +103,7 @@ export function TenantsClient({ tenants: initial, rooms }: Props) {
             {t(`status_${s}` as Parameters<typeof t>[0])}
           </Button>
         ))}
-        {(['all', 'Takmoa', 'Chamkadong'] as const).map((b) => (
+        {['all', ...branches.map((br) => br.name)].map((b) => (
           <Button key={b} variant={branchFilter === b ? 'default' : 'outline'} size="sm"
             className="h-9 px-3 text-sm"
             onClick={() => setBranchFilter(b)}>

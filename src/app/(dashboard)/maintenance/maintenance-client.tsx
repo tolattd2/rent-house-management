@@ -13,9 +13,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { formatCurrency, formatDate, roomLabel, sortRoomsByNumber } from '@/lib/utils'
+import { formatCurrency, formatDate, sortRoomsByNumber } from '@/lib/utils'
 import { toast } from '@/hooks/use-toast'
 import { useLanguage } from '@/contexts/language-context'
+import { useBranches, useRoomLabel } from '@/contexts/branches-context'
 import { useDeleteWithUndo } from '@/hooks/use-delete-with-undo'
 import { DeleteConfirmDialog } from '@/components/ui/delete-confirm-dialog'
 
@@ -67,6 +68,7 @@ export function MaintenanceClient({ records: initial, rooms, tenants }: Props) {
   const { data: session } = useSession()
   const isAdmin = session?.user?.role === 'admin'
   const { t } = useLanguage()
+  const roomLabel = useRoomLabel()
   const [records, setRecords] = useState(initial)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
@@ -84,15 +86,15 @@ export function MaintenanceClient({ records: initial, rooms, tenants }: Props) {
       (r.tenant?.fullName ?? '').toLowerCase().includes(search.toLowerCase()) ||
       r.category.toLowerCase().includes(search.toLowerCase())
     const matchStatus = statusFilter === 'all' || r.status === statusFilter
-    const matchBranch = branchFilter === 'all' || (r.room?.branch ?? 'Takmoa') === branchFilter
+    const matchBranch = branchFilter === 'all' || r.room?.branch === branchFilter
     return matchSearch && matchStatus && matchBranch
   })
 
   const totalFee = filtered.reduce((s, r) => s + r.repairFeeUsd, 0)
 
-  const branches = [...new Set(rooms.map((r) => r.branch ?? 'Takmoa'))].sort()
+  const branches = useBranches().map((b) => b.name)
   const filteredRooms = sortRoomsByNumber(
-    form.branch ? rooms.filter((r) => (r.branch ?? 'Takmoa') === form.branch) : []
+    form.branch ? rooms.filter((r) => r.branch === form.branch) : []
   )
 
   function openNew() {
@@ -112,7 +114,7 @@ export function MaintenanceClient({ records: initial, rooms, tenants }: Props) {
       reportedDate: r.reportedDate,
       completedDate: r.completedDate,
       notes: r.notes,
-      branch: r.room?.branch ?? 'Takmoa',
+      branch: r.room?.branch ?? '',
       roomId: r.room?.id ?? '',
       tenantId: r.tenant?.id ?? 'none',
     })

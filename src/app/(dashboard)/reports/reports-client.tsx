@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge'
 import { formatCurrency, exportToCSV } from '@/lib/utils'
 import { Download, TrendingDown } from 'lucide-react'
 import { useLanguage } from '@/contexts/language-context'
+import { useBranches } from '@/contexts/branches-context'
 
 type Billing = {
   id: string; billingMonth: string; roomRentUsd: number; waterCostRiel: number
@@ -32,13 +33,11 @@ type Expense = {
 
 interface Props { billings: Billing[]; expenses: Expense[] }
 
-const BRANCHES = ['all', 'Takmoa', 'Chamkadong'] as const
-type Branch = typeof BRANCHES[number]
-
 export function ReportsClient({ billings, expenses }: Props) {
   const { t } = useLanguage()
+  const branchOptions = ['all', ...useBranches().map((b) => b.name)]
   const [selectedMonth, setSelectedMonth] = useState<string>('all')
-  const [branchFilter, setBranchFilter] = useState<Branch>('all')
+  const [branchFilter, setBranchFilter] = useState<string>('all')
 
   const months = useMemo(() =>
     [...new Set(billings.map((b) => b.billingMonth))].sort().reverse(),
@@ -109,7 +108,7 @@ export function ReportsClient({ billings, expenses }: Props) {
         </div>
         <div className="flex flex-wrap gap-2 items-center">
           <div className="flex gap-1">
-            {BRANCHES.map((b) => (
+            {branchOptions.map((b) => (
               <Button key={b} size="sm" variant={branchFilter === b ? 'default' : 'outline'}
                 className="h-10 px-3 text-xs sm:text-sm"
                 onClick={() => setBranchFilter(b)}>
