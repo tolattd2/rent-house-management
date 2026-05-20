@@ -292,7 +292,7 @@ export function BillingListClient({ billings: initial }: Props) {
       {/* Desktop table — hidden on small screens */}
       <Card className="hidden md:block hover:shadow-md transition-shadow duration-200">
         <div className="overflow-x-auto scrollbar-thin">
-          <table className="w-full min-w-[1250px] text-sm">
+          <table className="w-full min-w-[1600px] text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/30">
                 <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{t('room')}</th>
@@ -303,6 +303,9 @@ export function BillingListClient({ billings: initial }: Props) {
                 <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground">{t('billing_col_rent')}</th>
                 <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground">{t('billing_col_electric')}</th>
                 <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground">{t('billing_col_water')}</th>
+                <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground">{t('outstanding_debt')}</th>
+                <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground">{t('late_penalty')}</th>
+                <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground">{t('discount')}</th>
                 <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground">{t('billing_col_total')}</th>
                 <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground">{t('billing_col_paid')}</th>
                 <th className="text-center px-4 py-3 text-xs font-medium text-muted-foreground">{t('billing_col_status')}</th>
@@ -348,6 +351,26 @@ export function BillingListClient({ billings: initial }: Props) {
                     <td className="px-4 py-3 text-right">
                       <p className="font-medium">{Math.round(b.waterCostRiel).toLocaleString()} ៛</p>
                       <p className="text-xs text-muted-foreground">{b.waterUsage} {t('unit_kib')}</p>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      {b.outstandingDebtUsd > 0
+                        ? <span className="font-medium text-red-600">{formatCurrency(b.outstandingDebtUsd)}</span>
+                        : <span className="text-muted-foreground">—</span>}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      {b.latePenaltyUsd > 0 || b.lateDays > 0 ? (
+                        <>
+                          <p className="font-medium text-orange-600">{formatCurrency(b.latePenaltyUsd)}</p>
+                          <p className="text-xs text-muted-foreground">{b.lateDays}{t('billing_due_days')}</p>
+                        </>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      {b.discountUsd > 0
+                        ? <span className="font-medium text-green-600">-{formatCurrency(b.discountUsd)}</span>
+                        : <span className="text-muted-foreground">—</span>}
                     </td>
                     <td className="px-4 py-3 text-right">
                       <p className="font-semibold">{formatCurrency(b.totalUsd)}</p>
