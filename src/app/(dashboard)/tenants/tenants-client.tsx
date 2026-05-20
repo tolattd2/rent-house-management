@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import { TableScroll } from '@/components/ui/table-scroll'
 import { TenantFormDialog } from '@/components/tenants/tenant-form-dialog'
-import { formatCurrency, formatDate, roomLabel, sortRoomsByNumber } from '@/lib/utils'
+import { formatCurrency, formatDate, formatPhones, roomLabel, sortRoomsByNumber } from '@/lib/utils'
 import { toast } from '@/hooks/use-toast'
 import { useLanguage } from '@/contexts/language-context'
 
@@ -19,7 +19,7 @@ type Room = {
   id: string; roomNumber: string; branch?: string; status: string; rentPriceUsd: number
 }
 type Tenant = {
-  id: string; fullName: string; gender: string; phone: string; nationalId: string
+  id: string; fullName: string; gender: string; phone: string; phonesExtra: string[]; nationalId: string
   emergencyContact: string; occupation: string; moveInDate: string; moveOutDate: string
   depositAmount: number; payDay: number; status: string; notes: string; createdAt: Date
   roomId: string | null
@@ -45,6 +45,7 @@ export function TenantsClient({ tenants: initial, rooms }: Props) {
       const matchSearch =
         t.fullName.toLowerCase().includes(search.toLowerCase()) ||
         t.phone.includes(search) ||
+        t.phonesExtra.some((p) => p.includes(search)) ||
         (t.room?.roomNumber ?? '').toLowerCase().includes(search.toLowerCase())
       const matchStatus = statusFilter === 'all' || t.status === statusFilter
       const matchBranch = branchFilter === 'all' || t.room?.branch === branchFilter
@@ -128,7 +129,7 @@ export function TenantsClient({ tenants: initial, rooms }: Props) {
                   <div className="min-w-0">
                     <p className="font-semibold truncate">{tenant.fullName}</p>
                     <p className="text-xs text-muted-foreground flex items-center gap-1">
-                      <Phone className="w-3 h-3" />{tenant.phone || '—'}
+                      <Phone className="w-3 h-3" />{formatPhones(tenant.phone, tenant.phonesExtra) || '—'}
                     </p>
                   </div>
                 </Link>
@@ -216,7 +217,7 @@ export function TenantsClient({ tenants: initial, rooms }: Props) {
                         <div>
                           <p className="font-medium">{tenant.fullName}</p>
                           <p className="text-xs text-muted-foreground flex items-center gap-1">
-                            <Phone className="w-3 h-3" />{tenant.phone || '—'}
+                            <Phone className="w-3 h-3" />{formatPhones(tenant.phone, tenant.phonesExtra) || '—'}
                           </p>
                         </div>
                       </Link>

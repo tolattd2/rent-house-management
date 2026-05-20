@@ -12,7 +12,7 @@ import { RevenueChart } from '@/components/dashboard/revenue-chart'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { TableScroll } from '@/components/ui/table-scroll'
 import { Badge } from '@/components/ui/badge'
-import { formatCompact, formatMonth, cn, roomLabel } from '@/lib/utils'
+import { formatCompact, formatMonth, formatPhones, cn, roomLabel } from '@/lib/utils'
 import Link from 'next/link'
 import { useLanguage } from '@/contexts/language-context'
 
@@ -26,7 +26,7 @@ type Billing  = {
 type Expense  = { id: string; amountUsd: number; expenseDate: string; room: { branch: string } | null }
 type UnpaidBilling = {
   id: string; billingMonth: string; totalUsd: number; totalRiel: number; paymentStatus: string
-  tenant: { id: string; fullName: string; phone: string } | null
+  tenant: { id: string; fullName: string; phone: string; phonesExtra: string[] } | null
   room: { id: string; roomNumber: string; branch: string } | null
 }
 
@@ -340,7 +340,7 @@ export function DashboardClient({ rooms, tenants, billings, expenses, unpaidBill
                           <Link href={`/tenants/${bill.tenant?.id}`} className="font-medium hover:text-primary">
                             {bill.tenant?.fullName ?? '—'}
                           </Link>
-                          <p className="text-xs text-muted-foreground">{bill.tenant?.phone}</p>
+                          <p className="text-xs text-muted-foreground">{bill.tenant && formatPhones(bill.tenant.phone, bill.tenant.phonesExtra)}</p>
                         </td>
                         <td className="px-5 py-3 text-muted-foreground">
                           {bill.room ? `${t('room')} ${roomLabel(bill.room)}` : '—'}

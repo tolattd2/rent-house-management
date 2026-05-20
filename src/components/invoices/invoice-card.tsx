@@ -1,4 +1,4 @@
-import { formatCurrency } from '@/lib/utils'
+import { formatCurrency, formatPhones } from '@/lib/utils'
 
 /**
  * Same font stack the app uses (see tailwind.config.ts `font-sans`): Inter for
@@ -40,7 +40,7 @@ export type InvoiceCardData = {
   totalUsd: number
   totalRiel: number
   paymentStatus: string
-  tenant: { fullName: string; phone: string } | null
+  tenant: { fullName: string; phone: string; phonesExtra: string[] } | null
   room: { roomNumber: string; branch: string | null } | null
 }
 
@@ -57,6 +57,7 @@ interface InvoiceCardProps {
  */
 export function InvoiceCard({ data, settings, xRate }: InvoiceCardProps) {
   const isPaid = data.paymentStatus === 'paid'
+  const tenantPhones = data.tenant ? formatPhones(data.tenant.phone, data.tenant.phonesExtra) : ''
   const latePenaltyRate = parseFloat(settings.late_penalty_usd ?? '1')
   const branchKey = data.room?.branch === 'Chamkadong' ? 'chamkadong' : 'takmoa'
   const companyName = settings[`company_${branchKey}_name`] || settings.company_name || 'Takmao Rental'
@@ -122,7 +123,7 @@ export function InvoiceCard({ data, settings, xRate }: InvoiceCardProps) {
       }}>
         <div>
           <div style={{ fontWeight: 700, fontSize: '9.5pt' }}>{data.tenant?.fullName ?? '—'}</div>
-          {data.tenant?.phone && <div style={{ color: '#64748b', fontSize: '7pt' }}>{data.tenant.phone}</div>}
+          {tenantPhones && <div style={{ color: '#64748b', fontSize: '7pt' }}>{tenantPhones}</div>}
         </div>
         <div style={{ textAlign: 'right' }}>
           <div style={{ fontWeight: 600, fontSize: '8pt' }}>បន្ទប់ {data.room?.roomNumber ?? '—'}</div>

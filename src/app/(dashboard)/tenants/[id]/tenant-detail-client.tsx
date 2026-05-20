@@ -16,7 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { TableScroll } from '@/components/ui/table-scroll'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { TenantFormDialog } from '@/components/tenants/tenant-form-dialog'
-import { formatCurrency, formatDate, formatMonth, roomLabel } from '@/lib/utils'
+import { formatCurrency, formatDate, formatMonth, formatPhones, roomLabel } from '@/lib/utils'
 import { toast } from '@/hooks/use-toast'
 import { useLanguage } from '@/contexts/language-context'
 
@@ -119,7 +119,7 @@ export function TenantDetailClient({ tenant, rooms }: Props) {
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-4">
                 <div className="flex items-center gap-2 text-sm">
                   <Phone className="w-4 h-4 text-muted-foreground" />
-                  <span>{tenant.phone || '—'}</span>
+                  <span>{formatPhones(tenant.phone, tenant.phonesExtra) || '—'}</span>
                 </div>
                 <div className="flex items-center gap-2 text-sm">
                   <User className="w-4 h-4 text-muted-foreground" />
@@ -242,7 +242,7 @@ export function TenantDetailClient({ tenant, rooms }: Props) {
               {([
                 [t('tenant_full_name'), tenant.fullName],
                 [t('tenant_gender'), tenant.gender || '—'],
-                [t('settings_phone'), [tenant.phone, ...tenant.phonesExtra].filter(Boolean).join(' / ') || '—'],
+                [t('settings_phone'), formatPhones(tenant.phone, tenant.phonesExtra) || '—'],
                 [t('tenant_national_id'), tenant.nationalId || '—'],
                 [t('tenant_emergency_name'), tenant.emergencyName || tenant.emergencyContact || '—'],
                 [t('tenant_emergency_phone'), tenant.emergencyPhone || '—'],

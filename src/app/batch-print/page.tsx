@@ -57,7 +57,7 @@ export default async function BatchPrintPage({
     exchangeRate: b.exchangeRate,
     paymentStatus: b.paymentStatus,
     invoiceNumber: invoiceMap[b.id] ?? `${month}-${b.room?.roomNumber ?? b.id.slice(-4)}`,
-    tenant: b.tenant ? { fullName: b.tenant.fullName, phone: b.tenant.phone } : null,
+    tenant: b.tenant ? { fullName: b.tenant.fullName, phone: b.tenant.phone, phonesExtra: b.tenant.phonesExtra } : null,
     room: b.room ? { roomNumber: b.room.roomNumber, branch: b.room.branch } : null,
   }))
 

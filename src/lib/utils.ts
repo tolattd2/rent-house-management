@@ -135,6 +135,14 @@ export function roomLabel(room: { roomNumber: string; branch?: string | null }):
   return room.branch === 'Chamkadong' ? `Rckd${room.roomNumber}` : room.roomNumber
 }
 
+/** Join a tenant's primary phone and any extra numbers into one display string. */
+export function formatPhones(phone: string | null | undefined, phonesExtra?: string[] | null): string {
+  return [phone ?? '', ...(phonesExtra ?? [])]
+    .map((p) => (p ?? '').trim())
+    .filter(Boolean)
+    .join(' / ')
+}
+
 export function sortRoomsByNumber<T extends { roomNumber: string }>(rooms: T[]): T[] {
   const isSpecial = (n: string) => {
     const d = n.replace(/\D/g, '')

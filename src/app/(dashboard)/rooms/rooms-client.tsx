@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { RoomFormDialog } from '@/components/rooms/room-form-dialog'
-import { formatCurrency, roomLabel, sortRoomsByNumber } from '@/lib/utils'
+import { formatCurrency, formatPhones, roomLabel, sortRoomsByNumber } from '@/lib/utils'
 import { toast } from '@/hooks/use-toast'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
@@ -28,7 +28,7 @@ type Room = {
   electricRateRiel: number
   notes: string
   createdAt: Date
-  tenants: Array<{ id: string; fullName: string; phone: string; moveInDate: string }>
+  tenants: Array<{ id: string; fullName: string; phone: string; phonesExtra: string[]; moveInDate: string }>
 }
 
 const statusVariant: Record<string, 'success' | 'warning' | 'error' | 'secondary'> = {
@@ -171,7 +171,7 @@ export function RoomsClient({ rooms: initialRooms }: Props) {
                   {tenant ? (
                     <Link href={`/tenants/${tenant.id}`} className="block p-2.5 bg-green-50 dark:bg-green-950/20 rounded-lg mb-3 hover:bg-green-100 transition-colors">
                       <p className="text-xs font-semibold text-green-700 dark:text-green-400">{tenant.fullName}</p>
-                      <p className="text-xs text-green-600/70 dark:text-green-500/70">{tenant.phone}</p>
+                      <p className="text-xs text-green-600/70 dark:text-green-500/70">{formatPhones(tenant.phone, tenant.phonesExtra)}</p>
                       <p className="text-xs text-green-600/60">{t('since')} {tenant.moveInDate}</p>
                     </Link>
                   ) : (

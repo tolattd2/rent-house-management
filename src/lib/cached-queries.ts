@@ -21,7 +21,7 @@ export const getRoomsList = unstable_cache(
       include: {
         tenants: {
           where: { status: 'active' },
-          select: { id: true, fullName: true, phone: true, moveInDate: true },
+          select: { id: true, fullName: true, phone: true, phonesExtra: true, moveInDate: true },
           take: 1,
         },
       },
@@ -146,7 +146,7 @@ export const getDashboardData = unstable_cache(
           totalUsd: true,
           totalRiel: true,
           paymentStatus: true,
-          tenant: { select: { id: true, fullName: true, phone: true } },
+          tenant: { select: { id: true, fullName: true, phone: true, phonesExtra: true } },
           room: { select: { id: true, roomNumber: true, branch: true } },
         },
         orderBy: { createdAt: 'desc' },
