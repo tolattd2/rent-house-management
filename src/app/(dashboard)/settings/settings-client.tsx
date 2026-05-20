@@ -159,6 +159,7 @@ export function SettingsClient({ settings: initial }: Props) {
   const [testingTelegram, setTestingTelegram] = useState(false)
   const [lateAlertEnabled, setLateAlertEnabled] = useState(initial.late_alert_enabled !== 'false')
   const [settingUpWebhook, setSettingUpWebhook] = useState(false)
+  const [linkingEnabled, setLinkingEnabled] = useState(initial.telegram_linking_enabled === 'true')
 
   const { register, handleSubmit, getValues } = useForm({
     defaultValues: {
@@ -209,14 +210,19 @@ export function SettingsClient({ settings: initial }: Props) {
     setTestingTelegram(false)
   }
 
-  async function handleSetupWebhook() {
+  async function handleToggleLinking(next: boolean) {
     setSettingUpWebhook(true)
-    const res = await fetch('/api/telegram/setup-webhook', { method: 'POST' })
+    const res = await fetch('/api/telegram/setup-webhook', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ enabled: next }),
+    })
     const data = await res.json()
     if (data.ok) {
-      toast({ title: 'Tenant linking enabled', description: 'Tenants can now link by messaging the bot.' })
+      setLinkingEnabled(next)
+      toast({ title: next ? 'Tenant linking enabled' : 'Tenant linking disabled' })
     } else {
-      toast({ title: 'Failed to enable', description: data.error, variant: 'destructive' })
+      toast({ title: 'Failed', description: data.error, variant: 'destructive' })
     }
     setSettingUpWebhook(false)
   }
@@ -350,30 +356,29 @@ export function SettingsClient({ settings: initial }: Props) {
                   <Switch checked={lateAlertEnabled} onCheckedChange={setLateAlertEnabled} />
                 </div>
                 {isAdmin && (
-                  <div className="pt-2 border-t space-y-2">
-                    <div className="flex flex-wrap gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        loading={testingTelegram}
-                        onClick={handleTelegramTest}
-                      >
-                        <Send className="w-4 h-4 mr-2" />{t('settings_telegram_test')}
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        loading={settingUpWebhook}
-                        onClick={handleSetupWebhook}
-                      >
-                        <MessageSquare className="w-4 h-4 mr-2" />Enable tenant linking
-                      </Button>
+                  <div className="pt-3 border-t space-y-3">
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <Label>Enable tenant linking</Label>
+                        <p className="text-xs text-muted-foreground">
+                          Let tenants link their Telegram via the bot&apos;s &quot;Share my phone number&quot; button, so reminders reach them directly.
+                        </p>
+                      </div>
+                      <Switch
+                        checked={linkingEnabled}
+                        disabled={settingUpWebhook}
+                        onCheckedChange={handleToggleLinking}
+                      />
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      &quot;Enable tenant linking&quot; registers the bot so tenants can link their account — they message the bot and tap &quot;Share my phone number&quot;, then get reminders on their own Telegram.
-                    </p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      loading={testingTelegram}
+                      onClick={handleTelegramTest}
+                    >
+                      <Send className="w-4 h-4 mr-2" />{t('settings_telegram_test')}
+                    </Button>
                   </div>
                 )}
               </CardContent>
