@@ -215,20 +215,20 @@ export function CreateBillingClient({ tenants, settings, preselectedTenantId, ed
                 {!isEdit && branches.length > 0 && (
                   <div className="col-span-2 space-y-1.5">
                     <Label>{t('branch')}</Label>
-                    <div className="flex flex-wrap gap-2">
-                      {['all', ...branches.map((br) => br.name)].map((b) => (
-                        <Button
-                          key={b}
-                          type="button"
-                          variant={branchFilter === b ? 'default' : 'outline'}
-                          size="sm"
-                          className="h-9 px-3 text-sm"
-                          onClick={() => { setBranchFilter(b); setValue('tenantId', '') }}
-                        >
-                          {b === 'all' ? t('all_branches') : b}
-                        </Button>
-                      ))}
-                    </div>
+                    <Select
+                      value={branchFilter}
+                      onValueChange={(v) => { setBranchFilter(v); setValue('tenantId', '') }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">{t('all_branches')}</SelectItem>
+                        {branches.map((br) => (
+                          <SelectItem key={br.name} value={br.name}>{br.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 )}
                 <div className="col-span-2 space-y-1.5">
