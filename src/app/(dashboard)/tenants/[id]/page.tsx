@@ -13,6 +13,7 @@ async function getTenant(id: string) {
         orderBy: { billingMonth: 'desc' },
       },
       notifications: { orderBy: { createdAt: 'desc' }, take: 10 },
+      notices: { orderBy: [{ status: 'asc' }, { createdAt: 'desc' }] },
     },
   })
 }

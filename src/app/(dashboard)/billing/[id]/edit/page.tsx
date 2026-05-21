@@ -9,7 +9,18 @@ export default async function EditBillingPage({ params }: { params: Promise<{ id
 
   const billing = await db.billing.findUnique({
     where: { id },
-    include: { tenant: { include: { room: true } } },
+    include: {
+      tenant: {
+        include: {
+          room: true,
+          notices: {
+            where: { status: 'open' },
+            orderBy: { createdAt: 'desc' },
+            select: { id: true, type: true, message: true, expectedDate: true, createdAt: true },
+          },
+        },
+      },
+    },
   })
   if (!billing || !billing.tenant) notFound()
 
@@ -33,6 +44,7 @@ export default async function EditBillingPage({ params }: { params: Promise<{ id
         }
       : null,
     billings: [],
+    notices: billing.tenant.notices,
   }]
 
   return (

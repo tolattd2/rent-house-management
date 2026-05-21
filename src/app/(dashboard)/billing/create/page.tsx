@@ -14,6 +14,11 @@ async function getActiveTenantsWithRooms() {
           totalUsd: true, paymentStatus: true,
         },
       },
+      notices: {
+        where: { status: 'open' },
+        orderBy: { createdAt: 'desc' },
+        select: { id: true, type: true, message: true, expectedDate: true, createdAt: true },
+      },
     },
     orderBy: { room: { roomNumber: 'asc' } },
   })

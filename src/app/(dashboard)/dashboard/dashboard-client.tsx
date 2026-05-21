@@ -5,14 +5,14 @@ import { useSession } from 'next-auth/react'
 import { motion } from 'framer-motion'
 import {
   Building2, Users, DollarSign, AlertTriangle,
-  Home, Wrench, CheckCircle2, TrendingDown, TrendingUp,
+  Home, Wrench, CheckCircle2, TrendingDown, TrendingUp, Bell,
 } from 'lucide-react'
 import { StatsCard } from '@/components/dashboard/stats-card'
 import { RevenueChart } from '@/components/dashboard/revenue-chart'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { TableScroll } from '@/components/ui/table-scroll'
 import { Badge } from '@/components/ui/badge'
-import { formatCompact, formatMonth, formatPhones, cn } from '@/lib/utils'
+import { formatCompact, formatDate, formatMonth, formatPhones, cn } from '@/lib/utils'
 import Link from 'next/link'
 import { useLanguage } from '@/contexts/language-context'
 import { useBranches, useRoomLabel } from '@/contexts/branches-context'
@@ -30,6 +30,10 @@ type UnpaidBilling = {
   tenant: { id: string; fullName: string; phone: string; phonesExtra: string[] } | null
   room: { id: string; roomNumber: string; branch: string } | null
 }
+type OpenNotice = {
+  id: string; type: string; message: string; expectedDate: string; createdAt: Date | string
+  tenant: { id: string; fullName: string; room: { roomNumber: string; branch: string } | null } | null
+}
 
 interface Props {
   rooms: Room[]
@@ -37,6 +41,7 @@ interface Props {
   billings: Billing[]
   expenses: Expense[]
   unpaidBillings: UnpaidBilling[]
+  openNotices: OpenNotice[]
 }
 
 const BRANCH_CHIP_COLORS = [
@@ -54,7 +59,7 @@ function trendLabel(current: number, prev: number): { label: string; up: boolean
   return { label: `${Math.abs(pct).toFixed(1)}% vs last month`, up: pct >= 0 }
 }
 
-export function DashboardClient({ rooms, tenants, billings, expenses, unpaidBillings }: Props) {
+export function DashboardClient({ rooms, tenants, billings, expenses, unpaidBillings, openNotices }: Props) {
   const { t } = useLanguage()
   const branchList = useBranches()
   const roomLabel = useRoomLabel()
@@ -76,6 +81,7 @@ export function DashboardClient({ rooms, tenants, billings, expenses, unpaidBill
   const filteredBillings = useMemo(() => billings.filter(b => branch === 'all' || b.room?.branch === branch), [billings, branch])
   const filteredExpenses = useMemo(() => expenses.filter(e => branch === 'all' || e.room?.branch === branch || !e.room), [expenses, branch])
   const filteredUnpaid   = useMemo(() => unpaidBillings.filter(b => branch === 'all' || b.room?.branch === branch), [unpaidBillings, branch])
+  const filteredNotices  = useMemo(() => openNotices.filter(n => branch === 'all' || n.tenant?.room?.branch === branch), [openNotices, branch])
 
   const stats = useMemo(() => {
     const now   = new Date()
@@ -376,6 +382,71 @@ export function DashboardClient({ rooms, tenants, billings, expenses, unpaidBill
                           <Badge variant={bill.paymentStatus === 'unpaid' ? 'error' : 'warning'} className="capitalize">
                             {t(bill.paymentStatus === 'unpaid' ? 'status_unpaid' : 'status_partial')}
                           </Badge>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </TableScroll>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
+
+      {/* ── Open tenant notices ── */}
+      {filteredNotices.length > 0 && (
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}>
+          <Card className="shadow-sm border-0">
+            <CardHeader className="pb-3 pt-4 px-5 flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                  <Bell className="w-4 h-4 text-amber-500" />{t('notice_dashboard_title')}
+                </CardTitle>
+                <p className="text-xs text-muted-foreground mt-0.5">{filteredNotices.length} {t('notice_open_count')}</p>
+              </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              <TableScroll>
+                <table className="w-full min-w-[640px] text-sm">
+                  <thead>
+                    <tr className="border-b border-border bg-muted/30">
+                      <th className="text-left px-5 py-2.5 text-xs font-medium text-muted-foreground">{t('tenant')}</th>
+                      <th className="text-left px-5 py-2.5 text-xs font-medium text-muted-foreground">{t('room')}</th>
+                      {branch === 'all' && <th className="text-left px-5 py-2.5 text-xs font-medium text-muted-foreground">{t('branch')}</th>}
+                      <th className="text-left px-5 py-2.5 text-xs font-medium text-muted-foreground">{t('notice_type')}</th>
+                      <th className="text-left px-5 py-2.5 text-xs font-medium text-muted-foreground">{t('notice_message')}</th>
+                      <th className="text-left px-5 py-2.5 text-xs font-medium text-muted-foreground">{t('notice_expected')}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredNotices.slice(0, 10).map((n, i) => (
+                      <tr
+                        key={n.id}
+                        className={`border-b border-border last:border-0 hover:bg-muted/40 transition-colors ${i % 2 === 0 ? '' : 'bg-muted/10'}`}
+                      >
+                        <td className="px-5 py-3">
+                          <Link href={`/tenants/${n.tenant?.id}`} className="font-medium hover:text-primary">
+                            {n.tenant?.fullName ?? '—'}
+                          </Link>
+                        </td>
+                        <td className="px-5 py-3 text-muted-foreground">
+                          {n.tenant?.room ? `${t('room')} ${roomLabel(n.tenant.room)}` : '—'}
+                        </td>
+                        {branch === 'all' && (
+                          <td className="px-5 py-3">
+                            <span className={cn('text-xs px-2 py-0.5 rounded-full font-medium', branchChipColor(n.tenant?.room?.branch))}>
+                              {n.tenant?.room?.branch ?? '—'}
+                            </span>
+                          </td>
+                        )}
+                        <td className="px-5 py-3">
+                          <Badge variant={n.type === 'move_out' ? 'error' : n.type === 'general' ? 'secondary' : 'warning'}>
+                            {t(`notice_type_${n.type}` as Parameters<typeof t>[0])}
+                          </Badge>
+                        </td>
+                        <td className="px-5 py-3 text-muted-foreground max-w-[260px] truncate">{n.message}</td>
+                        <td className="px-5 py-3 text-muted-foreground tabular-nums">
+                          {n.expectedDate ? formatDate(n.expectedDate) : '—'}
                         </td>
                       </tr>
                     ))}

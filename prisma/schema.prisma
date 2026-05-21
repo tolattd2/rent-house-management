@@ -57,6 +57,18 @@ enum PaymentMethod {
   Other
 }
 
+enum NoticeType {
+  move_out
+  repair
+  complaint
+  general
+}
+
+enum NoticeStatus {
+  open
+  resolved
+}
+
 model User {
   id         String   @id @default(cuid())
   name       String
@@ -127,6 +139,7 @@ model Tenant {
   invoices        Invoice[]
   notifications   Notification[]
   maintenances    Maintenance[]
+  notices         TenantNotice[]
 
   @@map("tenants")
 }
@@ -232,6 +245,22 @@ model Notification {
   tenant     Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@map("notifications")
+}
+
+model TenantNotice {
+  id           String       @id @default(cuid())
+  type         NoticeType   @default(general)
+  message      String       @default("")
+  expectedDate String       @default("")
+  status       NoticeStatus @default(open)
+  resolvedAt   DateTime?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("tenant_notices")
 }
 
 model Setting {

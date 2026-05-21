@@ -7,7 +7,7 @@ import { z } from 'zod'
 import { motion } from 'framer-motion'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Calculator, Save, Zap, Droplets } from 'lucide-react'
+import { ArrowLeft, Calculator, Save, Zap, Droplets, Bell } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -16,7 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea'
 import { Separator } from '@/components/ui/separator'
 import { calculateBilling } from '@/lib/billing'
-import { formatCurrency } from '@/lib/utils'
+import { formatCurrency, formatDate } from '@/lib/utils'
 import { toast } from '@/hooks/use-toast'
 import { useLanguage } from '@/contexts/language-context'
 import { useRoomLabel, useBranches } from '@/contexts/branches-context'
@@ -49,6 +49,7 @@ interface Tenant {
   id: string; fullName: string; phone: string; monthlyRent: number
   room: { id: string; roomNumber: string; branch?: string; rentPriceUsd: number; waterRateRiel: number; electricRateRiel: number } | null
   billings: Array<{ billingMonth: string; currWaterReading: number; currElectricReading: number; totalUsd: number; paymentStatus: string }>
+  notices: Array<{ id: string; type: string; message: string; expectedDate: string; createdAt: string | Date }>
 }
 
 export interface EditBilling {
@@ -208,6 +209,31 @@ export function CreateBillingClient({ tenants, settings, preselectedTenantId, ed
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)}>
+        {selectedTenant && selectedTenant.notices.length > 0 && (
+          <div className="mb-6 rounded-xl border border-amber-300 dark:border-amber-900/70 bg-amber-50 dark:bg-amber-950/30 p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Bell className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+              <h3 className="font-semibold text-amber-800 dark:text-amber-300 text-sm">
+                {t('notice_billing_banner_title')}
+              </h3>
+            </div>
+            <ul className="space-y-1.5">
+              {selectedTenant.notices.map((n) => (
+                <li key={n.id} className="text-sm text-amber-900 dark:text-amber-200 flex gap-2">
+                  <span className="font-semibold whitespace-nowrap">
+                    {t(`notice_type_${n.type}` as Parameters<typeof t>[0])}:
+                  </span>
+                  <span className="min-w-0">
+                    {n.message}
+                    {n.expectedDate && (
+                      <span className="font-medium"> ({t('notice_expected')}: {formatDate(n.expectedDate)})</span>
+                    )}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main form */}
           <div className="lg:col-span-2 space-y-6">
@@ -260,6 +286,7 @@ export function CreateBillingClient({ tenants, settings, preselectedTenantId, ed
                             return (
                               <SelectItem key={tenant.id} value={tenant.id} disabled={alreadyBilled}>
                                 {t('room')} {tenant.room ? roomLabel(tenant.room) : '—'} — {tenant.fullName}
+                                {tenant.notices.length > 0 ? ' ⚠️' : ''}
                                 {alreadyBilled ? ' — already billed' : ''}
                               </SelectItem>
                             )

@@ -118,7 +118,7 @@ export const getExpensesRoomsLookup = unstable_cache(
 
 export const getDashboardData = unstable_cache(
   async () => {
-    const [rooms, tenants, billings, expenses, unpaidBillings] = await Promise.all([
+    const [rooms, tenants, billings, expenses, unpaidBillings, openNotices] = await Promise.all([
       db.room.findMany({ select: { id: true, branch: true, status: true } }),
       db.tenant.findMany({ select: { id: true, status: true, roomId: true } }),
       db.billing.findMany({
@@ -153,8 +153,21 @@ export const getDashboardData = unstable_cache(
         orderBy: { createdAt: 'desc' },
         take: 50,
       }),
+      db.tenantNotice.findMany({
+        where: { status: 'open' },
+        select: {
+          id: true, type: true, message: true, expectedDate: true, createdAt: true,
+          tenant: {
+            select: {
+              id: true, fullName: true,
+              room: { select: { roomNumber: true, branch: true } },
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
     ])
-    return { rooms, tenants, billings, expenses, unpaidBillings }
+    return { rooms, tenants, billings, expenses, unpaidBillings, openNotices }
   },
   ['dashboard-data'],
   {

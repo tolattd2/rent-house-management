@@ -8,7 +8,8 @@ import Link from 'next/link'
 import {
   User, Phone, Calendar,
   Edit, ArrowLeft, Home, FileText, CreditCard,
-  CheckCircle2, AlertTriangle, LogOut
+  CheckCircle2, AlertTriangle, LogOut,
+  Bell, Plus, Pencil, Trash2, Wrench, RotateCcw
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -16,6 +17,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { TableScroll } from '@/components/ui/table-scroll'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { TenantFormDialog } from '@/components/tenants/tenant-form-dialog'
+import { NoticeDialog, type TenantNotice } from '@/components/tenants/notice-dialog'
 import { formatCurrency, formatDate, formatMonth, formatPhones } from '@/lib/utils'
 import { toast } from '@/hooks/use-toast'
 import { useLanguage } from '@/contexts/language-context'
@@ -45,8 +47,17 @@ interface Props {
       payments: Array<{ id: string; amountUsd: number; paymentMethod: string; createdAt: Date }>
     }>
     notifications: Array<{ id: string; type: string; message: string; status: string; createdAt: Date }>
+    notices: TenantNotice[]
   }
   rooms: Array<{ id: string; roomNumber: string; branch?: string; status: string; rentPriceUsd: number }>
+}
+
+/** Icon + badge colour per notice type. */
+const NOTICE_META: Record<TenantNotice['type'], { icon: typeof Bell; badge: 'error' | 'warning' | 'secondary' }> = {
+  move_out: { icon: LogOut, badge: 'error' },
+  repair: { icon: Wrench, badge: 'warning' },
+  complaint: { icon: AlertTriangle, badge: 'warning' },
+  general: { icon: FileText, badge: 'secondary' },
 }
 
 export function TenantDetailClient({ tenant, rooms }: Props) {
@@ -56,6 +67,52 @@ export function TenantDetailClient({ tenant, rooms }: Props) {
   const { t } = useLanguage()
   const roomLabel = useRoomLabel()
   const [showEdit, setShowEdit] = useState(false)
+
+  const [notices, setNotices] = useState<TenantNotice[]>(tenant.notices)
+  const [showNotice, setShowNotice] = useState(false)
+  const [editingNotice, setEditingNotice] = useState<TenantNotice | null>(null)
+  const openNotices = notices.filter((n) => n.status === 'open')
+
+  function handleNoticeSaved(record: TenantNotice) {
+    setNotices((prev) =>
+      prev.some((n) => n.id === record.id)
+        ? prev.map((n) => (n.id === record.id ? record : n))
+        : [record, ...prev],
+    )
+    setShowNotice(false)
+    setEditingNotice(null)
+    router.refresh()
+  }
+
+  async function toggleNoticeResolved(n: TenantNotice) {
+    const next = n.status === 'open' ? 'resolved' : 'open'
+    const res = await fetch(`/api/notices/${n.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: next }),
+    })
+    const data = await res.json()
+    if (data.ok) {
+      setNotices((prev) => prev.map((x) => (x.id === n.id ? data.record : x)))
+      toast({ title: next === 'resolved' ? t('notice_resolved_toast') : t('notice_reopened_toast') })
+      router.refresh()
+    } else {
+      toast({ title: 'Error', description: data.error, variant: 'destructive' })
+    }
+  }
+
+  async function deleteNotice(n: TenantNotice) {
+    if (!confirm(t('notice_delete_confirm'))) return
+    const res = await fetch(`/api/notices/${n.id}`, { method: 'DELETE' })
+    const data = await res.json()
+    if (data.ok) {
+      setNotices((prev) => prev.filter((x) => x.id !== n.id))
+      toast({ title: t('notice_deleted') })
+      router.refresh()
+    } else {
+      toast({ title: 'Error', description: data.error, variant: 'destructive' })
+    }
+  }
 
   const outstanding = tenant.billings
     .filter((b) => b.paymentStatus === 'unpaid' || b.paymentStatus === 'partial')
@@ -180,6 +237,14 @@ export function TenantDetailClient({ tenant, rooms }: Props) {
           <TabsTrigger value="contract" className="flex-1 sm:flex-none text-xs sm:text-sm">
             <CreditCard className="w-4 h-4 hidden sm:block sm:mr-2" />{t('tenant_contracts_tab')}
           </TabsTrigger>
+          <TabsTrigger value="notices" className="flex-1 sm:flex-none text-xs sm:text-sm">
+            <Bell className="w-4 h-4 hidden sm:block sm:mr-2" />{t('notice_tab')}
+            {openNotices.length > 0 && (
+              <span className="ml-1.5 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-amber-500 text-white text-[10px] font-bold">
+                {openNotices.length}
+              </span>
+            )}
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="billing" className="mt-4">
@@ -286,6 +351,106 @@ export function TenantDetailClient({ tenant, rooms }: Props) {
             </CardContent>
           </Card>
         </TabsContent>
+
+        <TabsContent value="notices" className="mt-4">
+          <Card>
+            <div className="flex items-center justify-between p-4 border-b border-border">
+              <div>
+                <h3 className="font-semibold">{t('notice_tab')}</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {openNotices.length} {t('notice_open_count')}
+                </p>
+              </div>
+              {isAdmin && (
+                <Button size="sm" onClick={() => { setEditingNotice(null); setShowNotice(true) }}>
+                  <Plus className="w-3.5 h-3.5 mr-2" />{t('notice_add')}
+                </Button>
+              )}
+            </div>
+            <CardContent className="p-4 space-y-3">
+              {notices.length === 0 && (
+                <div className="text-center py-10 text-muted-foreground">
+                  <Bell className="w-10 h-10 mx-auto mb-3 opacity-30" />
+                  <p>{t('notice_none')}</p>
+                </div>
+              )}
+              {notices.map((n) => {
+                const meta = NOTICE_META[n.type]
+                const Icon = meta.icon
+                const resolved = n.status === 'resolved'
+                return (
+                  <div
+                    key={n.id}
+                    className={`p-4 border rounded-xl ${
+                      resolved
+                        ? 'border-border bg-muted/30'
+                        : 'border-amber-300 dark:border-amber-900/70 bg-amber-50/60 dark:bg-amber-950/20'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-start gap-2.5 min-w-0">
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                          resolved ? 'bg-muted' : 'bg-amber-100 dark:bg-amber-900/40'
+                        }`}>
+                          <Icon className={`w-4 h-4 ${
+                            resolved ? 'text-muted-foreground' : 'text-amber-600 dark:text-amber-400'
+                          }`} />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <Badge variant={resolved ? 'secondary' : meta.badge}>
+                              {t(`notice_type_${n.type}` as Parameters<typeof t>[0])}
+                            </Badge>
+                            <Badge variant={resolved ? 'success' : 'warning'}>
+                              {t(resolved ? 'notice_status_resolved' : 'notice_status_open')}
+                            </Badge>
+                          </div>
+                          <p className={`text-sm mt-1.5 whitespace-pre-wrap break-words ${resolved ? 'text-muted-foreground' : ''}`}>
+                            {n.message}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1.5">
+                            {n.expectedDate && (
+                              <span className="font-medium text-amber-700 dark:text-amber-500">
+                                {t('notice_expected')}: {formatDate(n.expectedDate)} ·{' '}
+                              </span>
+                            )}
+                            {t('notice_added_on')} {formatDate(String(n.createdAt))}
+                            {resolved && n.resolvedAt && ` · ${t('notice_status_resolved')} ${formatDate(String(n.resolvedAt))}`}
+                          </p>
+                        </div>
+                      </div>
+                      {isAdmin && (
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          <Button
+                            variant="ghost" size="sm" className="h-8 px-2"
+                            title={resolved ? t('notice_reopen') : t('notice_resolve')}
+                            onClick={() => toggleNoticeResolved(n)}
+                          >
+                            {resolved
+                              ? <RotateCcw className="w-3.5 h-3.5" />
+                              : <CheckCircle2 className="w-3.5 h-3.5 text-green-600" />}
+                          </Button>
+                          <Button
+                            variant="ghost" size="sm" className="h-8 px-2"
+                            onClick={() => { setEditingNotice(n); setShowNotice(true) }}
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </Button>
+                          <Button
+                            variant="ghost" size="sm" className="h-8 px-2 text-red-500 hover:text-red-600"
+                            onClick={() => deleteNotice(n)}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
 
       {showEdit && (
@@ -310,6 +475,15 @@ export function TenantDetailClient({ tenant, rooms }: Props) {
           }}
           onClose={() => setShowEdit(false)}
           onSave={() => { setShowEdit(false); router.refresh() }}
+        />
+      )}
+
+      {showNotice && (
+        <NoticeDialog
+          tenantId={tenant.id}
+          notice={editingNotice}
+          onClose={() => { setShowNotice(false); setEditingNotice(null) }}
+          onSave={handleNoticeSaved}
         />
       )}
 
