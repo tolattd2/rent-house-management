@@ -54,7 +54,19 @@ export function TenantsClient({ tenants: initial, rooms }: Props) {
   // move-outs that happened *within* that month. 'All months' is an alias
   // for the current month, so it always reads "up to now" — future-dated
   // records never inflate the totals.
-  const monthOf = (d: string) => (d || '').slice(0, 7)
+  // Normalise a stored date to "YYYY-MM". Handles ISO strings and, defensively,
+  // Excel serial numbers (days since 1899-12-30) so a stray imported value can
+  // never silently misplace a tenant again.
+  const monthOf = (d: string) => {
+    const s = (d || '').trim()
+    if (/^\d{4,6}(\.\d+)?$/.test(s)) {
+      const n = parseFloat(s)
+      if (n >= 20000 && n <= 60000) {
+        return new Date(Date.UTC(1899, 11, 30) + n * 86400000).toISOString().slice(0, 7)
+      }
+    }
+    return s.slice(0, 7)
+  }
   const effMonth = month === 'all' ? currentMonth : month
   const existedBy = (tn: Tenant) => !!tn.moveInDate && monthOf(tn.moveInDate) <= effMonth
   // Moved out on or before the selected month — no longer active by then.
@@ -85,8 +97,9 @@ export function TenantsClient({ tenants: initial, rooms }: Props) {
     return list.reverse()
   })()
 
-  // Counts respect the active branch filter, so the cards always describe
-  // exactly the population the table below is drawn from.
+  // Cards summarise the branch-filtered tenants as a monthly snapshot. The
+  // table itself (below) is filtered only by search / branch / status — never
+  // hidden by date — so a tenant can't silently drop off the list.
   const branchTenants = branchFilter === 'all'
     ? tenants
     : tenants.filter((tn) => tn.room?.branch === branchFilter)
@@ -116,7 +129,7 @@ export function TenantsClient({ tenants: initial, rooms }: Props) {
               : statusFilter === 'movedout' ? movedOutInMonth(t)
                 : owingBy(t)
       const matchBranch = branchFilter === 'all' || t.room?.branch === branchFilter
-      return matchSearch && existedBy(t) && matchStatus && matchBranch
+      return matchSearch && matchStatus && matchBranch
     }).map((t) => ({ ...t, roomNumber: t.room?.roomNumber ?? '' }))
   )
 
