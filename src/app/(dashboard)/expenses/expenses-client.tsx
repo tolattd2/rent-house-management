@@ -96,8 +96,8 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
   const [editExpense, setEditExpense] = useState<Expense | null>(null)
   const [loading, setLoading] = useState(false)
   const [form, setForm] = useState(emptyForm)
-  // Narrows the room dropdown in the Add/Edit dialog by branch.
-  const [formBranch, setFormBranch] = useState('all')
+  // Branch chosen in the Add/Edit dialog — narrows the room dropdown.
+  const [formBranch, setFormBranch] = useState('')
   const { triggerDelete, dialogState, closeDialog } = useDeleteWithUndo()
 
   const currentMonth = new Date().toISOString().slice(0, 7)
@@ -137,7 +137,7 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
   function openAdd() {
     setEditExpense(null)
     setForm(emptyForm)
-    setFormBranch('all')
+    setFormBranch('')
     setShowForm(true)
   }
 
@@ -152,7 +152,7 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
       notes: e.notes,
       roomId: e.roomId ?? '',
     })
-    setFormBranch(e.room?.branch ?? 'all')
+    setFormBranch(e.room?.branch ?? '')
     setShowForm(true)
   }
 
@@ -533,9 +533,8 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
                     value={formBranch}
                     onValueChange={(v) => { setFormBranch(v); setForm((f) => ({ ...f, roomId: '' })) }}
                   >
-                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder={t('maintenance_form_branch_placeholder')} /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">{t('all_branches')}</SelectItem>
                       {branchOptions.filter((b) => b !== 'all').map((b) => (
                         <SelectItem key={b} value={b}>{b}</SelectItem>
                       ))}
@@ -544,12 +543,18 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
                 </div>
                 <div className="space-y-1.5">
                   <Label>{t('expenses_form_room_label')}</Label>
-                  <Select value={form.roomId || 'none'} onValueChange={(v) => setForm((f) => ({ ...f, roomId: v === 'none' ? '' : v }))}>
-                    <SelectTrigger><SelectValue placeholder={t('expenses_form_room_placeholder')} /></SelectTrigger>
+                  <Select
+                    value={form.roomId}
+                    onValueChange={(v) => setForm((f) => ({ ...f, roomId: v === 'none' ? '' : v }))}
+                    disabled={!formBranch}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={formBranch ? t('maintenance_form_room_placeholder') : t('maintenance_form_room_hint')} />
+                    </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">{t('none')}</SelectItem>
                       {rooms
-                        .filter((r) => formBranch === 'all' || r.branch === formBranch)
+                        .filter((r) => r.branch === formBranch)
                         .map((r) => (
                           <SelectItem key={r.id} value={r.id}>{t('room')} {r.roomNumber} ({r.branch})</SelectItem>
                         ))}

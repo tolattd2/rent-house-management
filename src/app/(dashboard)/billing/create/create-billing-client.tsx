@@ -84,7 +84,7 @@ export function CreateBillingClient({ tenants, settings, preselectedTenantId, ed
   // Narrows the tenant dropdown by branch — defaults to a preselected
   // tenant's branch when arriving from a tenant page.
   const [branchFilter, setBranchFilter] = useState<string>(
-    tenants.find((tn) => tn.id === preselectedTenantId)?.room?.branch ?? 'all',
+    tenants.find((tn) => tn.id === preselectedTenantId)?.room?.branch ?? '',
   )
 
   const currentMonth = new Date().toISOString().slice(0, 7)
@@ -214,16 +214,15 @@ export function CreateBillingClient({ tenants, settings, preselectedTenantId, ed
               <CardContent className="grid grid-cols-2 gap-4">
                 {!isEdit && branches.length > 0 && (
                   <div className="col-span-2 space-y-1.5">
-                    <Label>{t('branch')}</Label>
+                    <Label>{t('branch')} *</Label>
                     <Select
                       value={branchFilter}
                       onValueChange={(v) => { setBranchFilter(v); setValue('tenantId', '') }}
                     >
                       <SelectTrigger>
-                        <SelectValue />
+                        <SelectValue placeholder={t('maintenance_form_branch_placeholder')} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="all">{t('all_branches')}</SelectItem>
                         {branches.map((br) => (
                           <SelectItem key={br.name} value={br.name}>{br.name}</SelectItem>
                         ))}
@@ -240,13 +239,17 @@ export function CreateBillingClient({ tenants, settings, preselectedTenantId, ed
                         : '—'}
                     </div>
                   ) : (
-                    <Select value={formValues.tenantId || ''} onValueChange={(v) => setValue('tenantId', v)}>
+                    <Select
+                      value={formValues.tenantId || ''}
+                      onValueChange={(v) => setValue('tenantId', v)}
+                      disabled={!branchFilter}
+                    >
                       <SelectTrigger>
-                        <SelectValue placeholder="Select tenant..." />
+                        <SelectValue placeholder={branchFilter ? 'Select tenant...' : t('maintenance_form_room_hint')} />
                       </SelectTrigger>
                       <SelectContent>
                         {tenants
-                          .filter((tenant) => branchFilter === 'all' || tenant.room?.branch === branchFilter)
+                          .filter((tenant) => tenant.room?.branch === branchFilter)
                           .map((tenant) => (
                             <SelectItem key={tenant.id} value={tenant.id}>
                               {t('room')} {tenant.room ? roomLabel(tenant.room) : '—'} — {tenant.fullName}
