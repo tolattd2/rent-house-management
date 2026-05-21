@@ -164,7 +164,7 @@ export function TenantsClient({ tenants: initial, rooms }: Props) {
               </div>
               <div className="text-left min-w-0">
                 <p className={cn('text-2xl font-bold leading-none tabular-nums', cs.value)}>{count}</p>
-                <p className="text-xs text-muted-foreground mt-0.5 truncate">{label}</p>
+                <p className="text-xs text-muted-foreground mt-0.5 leading-tight">{label}</p>
               </div>
             </button>
           )

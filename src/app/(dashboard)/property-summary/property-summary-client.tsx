@@ -209,7 +209,7 @@ export function PropertySummaryClient({ rooms, tenants, billings, expenses, main
                     <Building2 className={cn('w-5 h-5', cs.value)} />
                   </div>
                   <div className="min-w-0">
-                    <h3 className={cn('font-bold truncate', cs.value)}>{p.name}</h3>
+                    <h3 className={cn('font-bold leading-tight', cs.value)}>{p.name}</h3>
                     <p className="text-xs text-muted-foreground">{p.total} {t('dashboard_total_rooms')}</p>
                   </div>
                 </div>
@@ -375,7 +375,7 @@ export function PropertySummaryClient({ rooms, tenants, billings, expenses, main
 function Metric({ label, value, valueClass }: { label: string; value: React.ReactNode; valueClass?: string }) {
   return (
     <div className="min-w-0">
-      <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide leading-tight truncate">{label}</p>
+      <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide leading-tight">{label}</p>
       <p className={cn('text-sm font-bold tabular-nums mt-0.5', valueClass)}>{value}</p>
     </div>
   )

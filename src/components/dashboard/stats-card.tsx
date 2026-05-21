@@ -37,7 +37,7 @@ export function StatsCard({
         </div>
         <div className="min-w-0">
           <p className={cn('text-xl font-bold tracking-tight leading-none tabular-nums', style.value)}>{value}</p>
-          <p className="text-xs text-muted-foreground mt-1 truncate">{title}</p>
+          <p className="text-xs text-muted-foreground mt-1 leading-tight">{title}</p>
         </div>
       </motion.div>
     )
