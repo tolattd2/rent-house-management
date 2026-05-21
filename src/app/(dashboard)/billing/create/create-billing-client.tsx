@@ -81,6 +81,11 @@ export function CreateBillingClient({ tenants, settings, preselectedTenantId, ed
   const isEdit = Boolean(editBilling)
   const [loading, setLoading] = useState(false)
   const [preview, setPreview] = useState<ReturnType<typeof calculateBilling> | null>(null)
+  // Narrows the tenant dropdown by branch — defaults to a preselected
+  // tenant's branch when arriving from a tenant page.
+  const [branchFilter, setBranchFilter] = useState<string>(
+    tenants.find((tn) => tn.id === preselectedTenantId)?.room?.branch ?? 'all',
+  )
 
   const currentMonth = new Date().toISOString().slice(0, 7)
 
@@ -207,6 +212,25 @@ export function CreateBillingClient({ tenants, settings, preselectedTenantId, ed
             <Card>
               <CardHeader className="pb-3"><CardTitle className="text-base">Tenant & Period</CardTitle></CardHeader>
               <CardContent className="grid grid-cols-2 gap-4">
+                {!isEdit && branches.length > 0 && (
+                  <div className="col-span-2 space-y-1.5">
+                    <Label>{t('branch')}</Label>
+                    <div className="flex flex-wrap gap-2">
+                      {['all', ...branches.map((br) => br.name)].map((b) => (
+                        <Button
+                          key={b}
+                          type="button"
+                          variant={branchFilter === b ? 'default' : 'outline'}
+                          size="sm"
+                          className="h-9 px-3 text-sm"
+                          onClick={() => { setBranchFilter(b); setValue('tenantId', '') }}
+                        >
+                          {b === 'all' ? t('all_branches') : b}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 <div className="col-span-2 space-y-1.5">
                   <Label>Tenant *</Label>
                   {isEdit ? (
@@ -216,16 +240,18 @@ export function CreateBillingClient({ tenants, settings, preselectedTenantId, ed
                         : '—'}
                     </div>
                   ) : (
-                    <Select onValueChange={(v) => setValue('tenantId', v)} defaultValue={preselectedTenantId ?? ''}>
+                    <Select value={formValues.tenantId || ''} onValueChange={(v) => setValue('tenantId', v)}>
                       <SelectTrigger>
                         <SelectValue placeholder="Select tenant..." />
                       </SelectTrigger>
                       <SelectContent>
-                        {tenants.map((tenant) => (
-                          <SelectItem key={tenant.id} value={tenant.id}>
-                            {t('room')} {tenant.room ? roomLabel(tenant.room) : '—'} — {tenant.fullName}
-                          </SelectItem>
-                        ))}
+                        {tenants
+                          .filter((tenant) => branchFilter === 'all' || tenant.room?.branch === branchFilter)
+                          .map((tenant) => (
+                            <SelectItem key={tenant.id} value={tenant.id}>
+                              {t('room')} {tenant.room ? roomLabel(tenant.room) : '—'} — {tenant.fullName}
+                            </SelectItem>
+                          ))}
                       </SelectContent>
                     </Select>
                   )}
