@@ -164,6 +164,7 @@ export const translations = {
     ps_financial: 'Financial Comparison',
     ps_profile: 'Property Profile',
     ps_open_maintenance: 'Open Maintenance',
+    ps_all_time_tenants: 'All-Time Tenants',
     ps_no_branches: 'No properties configured yet',
     // Notifications
     notifications_title: 'Notifications',
@@ -675,6 +676,7 @@ export const translations = {
     ps_financial: 'ការប្រៀបធៀបហិរញ្ញវត្ថុ',
     ps_profile: 'ប្រវត្តិអចលនទ្រព្យ',
     ps_open_maintenance: 'ការជួសជុលមិនទាន់រួច',
+    ps_all_time_tenants: 'អ្នករស់នៅសរុប',
     ps_no_branches: 'មិនទាន់មានអចលនទ្រព្យ',
     // Notifications
     notifications_title: 'ការជូនដំណឹង',

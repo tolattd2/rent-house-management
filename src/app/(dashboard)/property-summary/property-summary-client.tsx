@@ -39,6 +39,7 @@ interface PropertyRow {
   maint: number
   occupancy: number
   activeTenants: number
+  allTimeTenants: number
   revenue: number
   expenseTotal: number
   net: number
@@ -49,7 +50,7 @@ interface PropertyRow {
 }
 
 type SortKey =
-  | 'name' | 'total' | 'occupancy' | 'activeTenants'
+  | 'name' | 'total' | 'occupancy' | 'activeTenants' | 'allTimeTenants'
   | 'revenue' | 'expenseTotal' | 'net' | 'outstanding' | 'collection'
 
 const CARD_CYCLE: CardColor[] = ['blue', 'green', 'purple', 'orange', 'cyan', 'pink', 'indigo', 'amber']
@@ -97,6 +98,9 @@ export function PropertySummaryClient({ rooms, tenants, billings, expenses, main
         activeTenants: tenants.filter(
           (tn) => tn.status === 'active' && tn.roomId && roomBranch.get(tn.roomId) === br.name,
         ).length,
+        allTimeTenants: tenants.filter(
+          (tn) => tn.roomId && roomBranch.get(tn.roomId) === br.name,
+        ).length,
         revenue,
         expenseTotal,
         net: revenue - expenseTotal,
@@ -125,6 +129,7 @@ export function PropertySummaryClient({ rooms, tenants, billings, expenses, main
     total: rows.reduce((s, r) => s + r.total, 0),
     occupied: rows.reduce((s, r) => s + r.occupied, 0),
     activeTenants: rows.reduce((s, r) => s + r.activeTenants, 0),
+    allTimeTenants: rows.reduce((s, r) => s + r.allTimeTenants, 0),
     revenue: rows.reduce((s, r) => s + r.revenue, 0),
     expenseTotal: rows.reduce((s, r) => s + r.expenseTotal, 0),
     net: rows.reduce((s, r) => s + r.net, 0),
@@ -197,14 +202,17 @@ export function PropertySummaryClient({ rooms, tenants, billings, expenses, main
                 <div className="grid grid-cols-3 gap-x-3 gap-y-3">
                   <Metric label={t('dashboard_occupancy_pct')} value={`${p.occupancy}%`} />
                   <Metric label={t('dashboard_active_tenants')} value={p.activeTenants} />
-                  <Metric label={t('ps_open_maintenance')} value={p.openMaintenance} />
+                  <Metric label={t('ps_all_time_tenants')} value={p.allTimeTenants} />
                   <Metric label={t('dashboard_monthly_revenue')} value={formatCompact(p.revenue)} />
-                  <Metric label={t('dashboard_outstanding')} value={formatCompact(p.outstanding)} />
+                  <Metric label={t('dashboard_monthly_expenses')} value={formatCompact(p.expenseTotal)} />
                   <Metric
                     label={t('dashboard_net_income')}
                     value={formatCompact(p.net)}
                     valueClass={p.net >= 0 ? 'text-green-700 dark:text-green-300' : 'text-red-600 dark:text-red-400'}
                   />
+                  <Metric label={t('dashboard_outstanding')} value={formatCompact(p.outstanding)} />
+                  <Metric label={t('collection_rate')} value={`${p.collection}%`} />
+                  <Metric label={t('ps_open_maintenance')} value={p.openMaintenance} />
                 </div>
               </div>
             )
@@ -218,13 +226,14 @@ export function PropertySummaryClient({ rooms, tenants, billings, expenses, main
         <Card>
           <CardContent className="p-0">
             <TableScroll>
-              <table className="w-full min-w-[760px] text-sm">
+              <table className="w-full min-w-[860px] text-sm">
                 <thead>
                   <tr className="border-b border-border bg-muted/40">
-                    <SortableTh label={t('branch')}                  k="name"          onSort={toggleSort} active={sortKey} dir={sortDir} align="left" />
-                    <SortableTh label={t('dashboard_total_rooms')}    k="total"         onSort={toggleSort} active={sortKey} dir={sortDir} />
-                    <SortableTh label={t('dashboard_occupancy_pct')}  k="occupancy"     onSort={toggleSort} active={sortKey} dir={sortDir} />
-                    <SortableTh label={t('dashboard_active_tenants')} k="activeTenants" onSort={toggleSort} active={sortKey} dir={sortDir} />
+                    <SortableTh label={t('branch')}                  k="name"           onSort={toggleSort} active={sortKey} dir={sortDir} align="left" />
+                    <SortableTh label={t('dashboard_total_rooms')}    k="total"          onSort={toggleSort} active={sortKey} dir={sortDir} />
+                    <SortableTh label={t('dashboard_occupancy_pct')}  k="occupancy"      onSort={toggleSort} active={sortKey} dir={sortDir} />
+                    <SortableTh label={t('dashboard_active_tenants')} k="activeTenants"  onSort={toggleSort} active={sortKey} dir={sortDir} />
+                    <SortableTh label={t('ps_all_time_tenants')}      k="allTimeTenants" onSort={toggleSort} active={sortKey} dir={sortDir} />
                     <SortableTh label={t('dashboard_monthly_revenue')} k="revenue"      onSort={toggleSort} active={sortKey} dir={sortDir} />
                     <SortableTh label={t('dashboard_monthly_expenses')} k="expenseTotal" onSort={toggleSort} active={sortKey} dir={sortDir} />
                     <SortableTh label={t('dashboard_net_income')}     k="net"           onSort={toggleSort} active={sortKey} dir={sortDir} />
@@ -239,6 +248,7 @@ export function PropertySummaryClient({ rooms, tenants, billings, expenses, main
                       <td className="px-4 py-3 text-right tabular-nums">{p.total}</td>
                       <td className="px-4 py-3 text-right tabular-nums">{p.occupancy}%</td>
                       <td className="px-4 py-3 text-right tabular-nums">{p.activeTenants}</td>
+                      <td className="px-4 py-3 text-right tabular-nums">{p.allTimeTenants}</td>
                       <td className="px-4 py-3 text-right tabular-nums text-green-600 dark:text-green-400">{formatCurrency(p.revenue)}</td>
                       <td className="px-4 py-3 text-right tabular-nums text-orange-600 dark:text-orange-400">{formatCurrency(p.expenseTotal)}</td>
                       <td className={cn('px-4 py-3 text-right tabular-nums font-semibold', p.net >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400')}>{formatCurrency(p.net)}</td>
@@ -253,6 +263,7 @@ export function PropertySummaryClient({ rooms, tenants, billings, expenses, main
                       {totals.total ? Math.round((totals.occupied / totals.total) * 100) : 0}%
                     </td>
                     <td className="px-4 py-3 text-right tabular-nums">{totals.activeTenants}</td>
+                    <td className="px-4 py-3 text-right tabular-nums">{totals.allTimeTenants}</td>
                     <td className="px-4 py-3 text-right tabular-nums">{formatCurrency(totals.revenue)}</td>
                     <td className="px-4 py-3 text-right tabular-nums">{formatCurrency(totals.expenseTotal)}</td>
                     <td className="px-4 py-3 text-right tabular-nums">{formatCurrency(totals.net)}</td>
