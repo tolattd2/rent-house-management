@@ -49,13 +49,18 @@ export function TenantsClient({ tenants: initial, rooms }: Props) {
   const [showForm, setShowForm] = useState(false)
 
   // ── Monthly snapshot helpers ────────────────────────────────────────
-  // Every card describes the tenant population as it stood at the END of
-  // the selected month, so the page doubles as a month-by-month history.
-  // 'all' becomes an open-ended bound — a live, all-time view.
+  // Active / With Outstanding / All-Time describe the population as it
+  // stood at the END of the selected month; Moved Out counts only the
+  // move-outs that happened *within* that month. 'all' is an open-ended
+  // bound — a live, all-time view.
   const monthOf = (d: string) => (d || '').slice(0, 7)
   const effMonth = month === 'all' ? '9999-12' : month
   const existedBy = (tn: Tenant) => !!tn.moveInDate && monthOf(tn.moveInDate) <= effMonth
+  // Moved out on or before the selected month — no longer active by then.
   const movedOutBy = (tn: Tenant) => !!tn.moveOutDate && monthOf(tn.moveOutDate) <= effMonth
+  // Moved out exactly within the selected month ('all' → ever moved out).
+  const movedOutInMonth = (tn: Tenant) =>
+    !!tn.moveOutDate && (month === 'all' || monthOf(tn.moveOutDate) === month)
   const owingBy = (tn: Tenant) =>
     tn.billings.some((b) => b.totalUsd > 0 && monthOf(b.billingMonth) <= effMonth)
 
@@ -85,7 +90,7 @@ export function TenantsClient({ tenants: initial, rooms }: Props) {
   const stats = {
     total: snapshot.length,
     active: snapshot.filter((tn) => !movedOutBy(tn)).length,
-    inactive: snapshot.filter(movedOutBy).length,
+    inactive: snapshot.filter(movedOutInMonth).length,
     owing: snapshot.filter(owingBy).length,
   }
 
@@ -99,7 +104,7 @@ export function TenantsClient({ tenants: initial, rooms }: Props) {
       const matchStatus =
         statusFilter === 'all' ? true
           : statusFilter === 'active' ? !movedOutBy(t)
-            : statusFilter === 'inactive' ? movedOutBy(t)
+            : statusFilter === 'inactive' ? movedOutInMonth(t)
               : owingBy(t)
       const matchBranch = branchFilter === 'all' || t.room?.branch === branchFilter
       return matchSearch && existedBy(t) && matchStatus && matchBranch
