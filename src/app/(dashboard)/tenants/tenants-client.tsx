@@ -113,8 +113,8 @@ export function TenantsClient({ tenants: initial, rooms }: Props) {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
         {([
           { key: 'active',   icon: UserCheck,   label: t('status_active'),           count: stats.active,   color: 'green' as CardColor },
-          { key: 'inactive', icon: UserMinus,   label: t('tenants_moved_out'),       count: stats.inactive, color: 'slate' as CardColor },
           { key: 'owing',    icon: AlertCircle, label: t('tenants_owing_card'),      count: stats.owing,    color: 'red'   as CardColor },
+          { key: 'inactive', icon: UserMinus,   label: t('tenants_moved_out'),       count: stats.inactive, color: 'slate' as CardColor },
           { key: 'all',      icon: Users,       label: t('tenants_alltime_card'),    count: stats.total,    color: 'blue'  as CardColor },
         ] as const).map(({ key, icon: Icon, label, count, color }) => {
           const cs = CARD_STYLES[color]
