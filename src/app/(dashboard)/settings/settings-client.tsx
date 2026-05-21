@@ -4,7 +4,8 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { useForm } from 'react-hook-form'
-import { Save, Building2, DollarSign, MessageSquare, Mail, Phone, Users, Plus, Key, Trash2, QrCode, Upload, X, Send } from 'lucide-react'
+import { Save, Building2, DollarSign, MessageSquare, Mail, Phone, Users, Plus, Key, Trash2, QrCode, Upload, X, Send, MapPin } from 'lucide-react'
+import { mapHref } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -435,6 +436,27 @@ export function SettingsClient({ settings: initial }: Props) {
                       onChange={(e) => setBranchField(`company_${br.slug}_address`, e.target.value)}
                       placeholder="Phnom Penh, Cambodia"
                     />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>{t('settings_map_location')}</Label>
+                    <Input
+                      value={branchInfo[`company_${br.slug}_maplink`] ?? ''}
+                      onChange={(e) => setBranchField(`company_${br.slug}_maplink`, e.target.value)}
+                      placeholder="https://maps.app.goo.gl/..."
+                    />
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-xs text-muted-foreground">{t('settings_map_location_hint')}</p>
+                      {(branchInfo[`company_${br.slug}_maplink`] ?? '').trim() && (
+                        <a
+                          href={mapHref(branchInfo[`company_${br.slug}_maplink`])}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-primary hover:underline flex items-center gap-1 flex-shrink-0"
+                        >
+                          <MapPin className="w-3 h-3" />{t('view_on_map')}
+                        </a>
+                      )}
+                    </div>
                   </div>
                 </CardContent>
               </Card>

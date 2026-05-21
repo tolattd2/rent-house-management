@@ -8,7 +8,7 @@ import { Building2, MapPin, Phone, ArrowUpDown } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { TableScroll } from '@/components/ui/table-scroll'
-import { formatCurrency, formatCompact, formatMonth, cn } from '@/lib/utils'
+import { formatCurrency, formatCompact, formatMonth, mapHref, cn } from '@/lib/utils'
 import { useLanguage } from '@/contexts/language-context'
 import { useBranches } from '@/contexts/branches-context'
 import { resolveBranchRates, type RateKey } from '@/lib/branches'
@@ -33,6 +33,7 @@ interface PropertyRow {
   companyName: string
   address: string
   phone: string
+  mapLink: string
   total: number
   occupied: number
   vacant: number
@@ -90,6 +91,7 @@ export function PropertySummaryClient({ rooms, tenants, billings, expenses, main
         companyName: settings[`company_${br.slug}_name`] || '',
         address: settings[`company_${br.slug}_address`] || '',
         phone: settings[`company_${br.slug}_phone`] || '',
+        mapLink: settings[`company_${br.slug}_maplink`] || '',
         total,
         occupied,
         vacant,
@@ -317,9 +319,24 @@ export function PropertySummaryClient({ rooms, tenants, billings, expenses, main
                   <p className="font-medium">{p.companyName}</p>
                 )}
                 <div className="space-y-1.5 text-muted-foreground">
-                  <p className="flex items-center gap-2">
-                    <MapPin className="w-3.5 h-3.5 flex-shrink-0" />
-                    {p.address || '—'}
+                  <p className="flex items-start gap-2">
+                    <MapPin className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+                    <span>
+                      {p.address || '—'}
+                      {p.mapLink.trim() && (
+                        <>
+                          {p.address ? ' · ' : ''}
+                          <a
+                            href={mapHref(p.mapLink)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-primary hover:underline"
+                          >
+                            {t('view_on_map')}
+                          </a>
+                        </>
+                      )}
+                    </span>
                   </p>
                   <p className="flex items-center gap-2">
                     <Phone className="w-3.5 h-3.5 flex-shrink-0" />

@@ -139,6 +139,13 @@ export function formatPhones(phone: string | null | undefined, phonesExtra?: str
     .join(' / ')
 }
 
+/** Normalise a pasted Google Maps link into a safe href (adds https:// if missing). */
+export function mapHref(link: string | null | undefined): string {
+  const trimmed = (link ?? '').trim()
+  if (!trimmed) return ''
+  return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`
+}
+
 export function sortRoomsByNumber<T extends { roomNumber: string }>(rooms: T[]): T[] {
   const isSpecial = (n: string) => {
     const d = n.replace(/\D/g, '')
