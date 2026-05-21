@@ -6,7 +6,7 @@ import {
 } from 'recharts'
 import { Building2, MapPin, Phone, ArrowUpDown } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { TableScroll } from '@/components/ui/table-scroll'
 import { formatCurrency, formatCompact, formatMonth, mapHref, cn } from '@/lib/utils'
 import { useLanguage } from '@/contexts/language-context'
@@ -64,6 +64,15 @@ export function PropertySummaryClient({ rooms, tenants, billings, expenses, main
   const [sortKey, setSortKey] = useState<SortKey>('revenue')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
 
+  // Distinct billing/expense months (plus the current month), newest first —
+  // mirrors the month dropdown on the Billing, Invoices & Tenants pages.
+  const months = useMemo(() => {
+    const set = new Set<string>([currentMonth])
+    billings.forEach((b) => { if (b.billingMonth) set.add(b.billingMonth) })
+    expenses.forEach((e) => { if (e.expenseDate) set.add(e.expenseDate.slice(0, 7)) })
+    return [...set].sort().reverse()
+  }, [billings, expenses, currentMonth])
+
   const rows: PropertyRow[] = useMemo(() => {
     const roomBranch = new Map(rooms.map((r) => [r.id, r.branch]))
     return branches.map((br) => {
@@ -73,7 +82,9 @@ export function PropertySummaryClient({ rooms, tenants, billings, expenses, main
       const vacant = brRooms.filter((r) => r.status === 'vacant').length
       const maint = brRooms.filter((r) => r.status === 'maintenance').length
 
-      const monthBillings = billings.filter((b) => b.room?.branch === br.name && b.billingMonth === month)
+      const monthBillings = billings.filter(
+        (b) => b.room?.branch === br.name && (month === 'all' || b.billingMonth === month),
+      )
       const paidBillings = monthBillings.filter((b) => b.paymentStatus === 'paid')
       const revenue = paidBillings.reduce((s, b) => s + b.totalUsd, 0)
 
@@ -82,7 +93,7 @@ export function PropertySummaryClient({ rooms, tenants, billings, expenses, main
         .reduce((s, b) => s + Math.max(0, b.totalUsd - b.payments.reduce((p, x) => p + x.amountUsd, 0)), 0)
 
       const expenseTotal = expenses
-        .filter((e) => e.room?.branch === br.name && e.expenseDate.startsWith(month))
+        .filter((e) => e.room?.branch === br.name && (month === 'all' || e.expenseDate.startsWith(month)))
         .reduce((s, e) => s + e.amountUsd, 0)
 
       return {
@@ -173,15 +184,16 @@ export function PropertySummaryClient({ rooms, tenants, billings, expenses, main
         <div>
           <h1 className="text-2xl font-bold tracking-tight">{t('property_summary_title')}</h1>
           <p className="text-muted-foreground text-sm mt-0.5">
-            {t('property_summary_subtitle')} · {formatMonth(month)}
+            {t('property_summary_subtitle')} · {month === 'all' ? t('billing_all_months') : formatMonth(month)}
           </p>
         </div>
-        <Input
-          type="month"
-          value={month}
-          onChange={(e) => setMonth(e.target.value || currentMonth)}
-          className="h-9 w-auto"
-        />
+        <Select value={month} onValueChange={setMonth}>
+          <SelectTrigger className="w-40 h-9"><SelectValue placeholder="All months" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{t('billing_all_months')}</SelectItem>
+            {months.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* ── Section 1: Per-property snapshot cards ── */}
