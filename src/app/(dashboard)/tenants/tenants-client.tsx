@@ -176,7 +176,7 @@ export function TenantsClient({ tenants: initial, rooms }: Props) {
         })}
       </div>
 
-      {/* Search & Branch filter */}
+      {/* Filters */}
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative flex-1 min-w-[200px] max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -188,6 +188,13 @@ export function TenantsClient({ tenants: initial, rooms }: Props) {
             className="h-9 px-3 text-sm"
             onClick={() => setBranchFilter(b)}>
             {b === 'all' ? t('all_branches') : b}
+          </Button>
+        ))}
+        {(['all', 'active', 'inactive'] as const).map((s) => (
+          <Button key={s} variant={statusFilter === s ? 'default' : 'outline'} size="sm"
+            className="h-9 px-3 text-sm"
+            onClick={() => setStatusFilter(s)}>
+            {t(`status_${s}` as Parameters<typeof t>[0])}
           </Button>
         ))}
         <Select value={month} onValueChange={setMonth}>
