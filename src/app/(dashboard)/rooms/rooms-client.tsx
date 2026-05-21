@@ -44,9 +44,9 @@ const statusIcon: Record<string, React.ElementType> = {
   maintenance: Wrench,
 }
 
-interface Props { rooms: Room[] }
+interface Props { rooms: Room[]; settings: Record<string, string> }
 
-export function RoomsClient({ rooms: initialRooms }: Props) {
+export function RoomsClient({ rooms: initialRooms, settings }: Props) {
   const router = useRouter()
   const { data: session } = useSession()
   const isAdmin = session?.user?.role === 'admin'
@@ -240,6 +240,7 @@ export function RoomsClient({ rooms: initialRooms }: Props) {
       {showForm && (
         <RoomFormDialog
           room={editRoom}
+          settings={settings}
           onClose={() => { setShowForm(false); setEditRoom(null) }}
           onSave={handleSave}
         />

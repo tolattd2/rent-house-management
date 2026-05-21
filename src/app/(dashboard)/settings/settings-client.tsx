@@ -16,7 +16,7 @@ import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
 import { toast } from '@/hooks/use-toast'
 import { useLanguage } from '@/contexts/language-context'
-import { parseBranches, type Branch } from '@/lib/branches'
+import { parseBranches, RATE_KEYS, RATE_DEFAULTS, branchRateKey, type Branch } from '@/lib/branches'
 import { QrCropDialog } from '@/components/settings/qr-crop-dialog'
 import { useDeleteWithUndo } from '@/hooks/use-delete-with-undo'
 import { DeleteConfirmDialog } from '@/components/ui/delete-confirm-dialog'
@@ -75,6 +75,21 @@ export function SettingsClient({ settings: initial }: Props) {
   const [uploadingKey, setUploadingKey] = useState<string | null>(null)
   const qrInputRefs = useRef<Record<string, HTMLInputElement | null>>({})
   const [cropPending, setCropPending] = useState<{ slug: string; slot: 1 | 2; file: File } | null>(null)
+
+  // Per-branch billing rates, keyed "<rateKey>_<slug>". Seeded from the
+  // per-branch value, then the legacy global value, then the hard default.
+  const [branchRates, setBranchRates] = useState<Record<string, string>>(() => {
+    const rates: Record<string, string> = {}
+    for (const b of parseBranches(initial.branches)) {
+      for (const key of RATE_KEYS) {
+        rates[branchRateKey(key, b.slug)] =
+          initial[branchRateKey(key, b.slug)] ?? initial[key] ?? RATE_DEFAULTS[key]
+      }
+    }
+    return rates
+  })
+  const setBranchRate = (key: string, value: string) =>
+    setBranchRates((prev) => ({ ...prev, [key]: value }))
 
   const updateBranch = (index: number, patch: Partial<Branch>) =>
     setBranches((prev) => prev.map((b, i) => (i === index ? { ...b, ...patch } : b)))
@@ -188,10 +203,6 @@ export function SettingsClient({ settings: initial }: Props) {
 
   const { register, handleSubmit, getValues } = useForm({
     defaultValues: {
-      exchange_rate: initial.exchange_rate ?? '4100',
-      water_rate_riel: initial.water_rate_riel ?? '2000',
-      electric_rate_riel: initial.electric_rate_riel ?? '720',
-      late_penalty_usd: initial.late_penalty_usd ?? '1',
       telegram_token: initial.telegram_token ?? '',
       telegram_chat_id: initial.telegram_chat_id ?? '',
       smtp_host: initial.smtp_host ?? '',
@@ -255,12 +266,21 @@ export function SettingsClient({ settings: initial }: Props) {
 
   const onSubmit = async (data: Record<string, string>) => {
     setLoading(true)
+    // Persist a value for every branch × rate so newly added branches are saved.
+    const ratePayload: Record<string, string> = {}
+    for (const b of branches) {
+      for (const key of RATE_KEYS) {
+        ratePayload[branchRateKey(key, b.slug)] =
+          branchRates[branchRateKey(key, b.slug)] ?? RATE_DEFAULTS[key]
+      }
+    }
     const res = await fetch('/api/settings', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         ...data,
         ...branchInfo,
+        ...ratePayload,
         branches: JSON.stringify(branches),
         late_alert_enabled: lateAlertEnabled ? 'true' : 'false',
       }),
@@ -296,33 +316,61 @@ export function SettingsClient({ settings: initial }: Props) {
             </TabsList>
           </div>
 
-          <TabsContent value="rates" className="mt-4">
-            <Card>
-              <CardHeader><CardTitle className="text-base">{t('settings_billing_rates')}</CardTitle></CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <Label>{t('settings_exchange_rate')}</Label>
-                    <Input type="number" {...register('exchange_rate')} placeholder="4100" />
-                    <p className="text-xs text-muted-foreground">{t('settings_exchange_rate_hint')}</p>
+          <TabsContent value="rates" className="mt-4 space-y-4">
+            {branches.map((br) => (
+              <Card key={br.slug}>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <DollarSign className="w-4 h-4" />
+                    {br.name || t('settings_branch_name')} — {t('settings_billing_rates')}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label>{t('settings_exchange_rate')}</Label>
+                      <Input
+                        type="number"
+                        value={branchRates[branchRateKey('exchange_rate', br.slug)] ?? RATE_DEFAULTS.exchange_rate}
+                        onChange={(e) => setBranchRate(branchRateKey('exchange_rate', br.slug), e.target.value)}
+                        placeholder="4100"
+                      />
+                      <p className="text-xs text-muted-foreground">{t('settings_exchange_rate_hint')}</p>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>{t('settings_late_penalty')}</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={branchRates[branchRateKey('late_penalty_usd', br.slug)] ?? RATE_DEFAULTS.late_penalty_usd}
+                        onChange={(e) => setBranchRate(branchRateKey('late_penalty_usd', br.slug), e.target.value)}
+                        placeholder="1"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>{t('settings_water_rate')}</Label>
+                      <Input
+                        type="number"
+                        value={branchRates[branchRateKey('water_rate_riel', br.slug)] ?? RATE_DEFAULTS.water_rate_riel}
+                        onChange={(e) => setBranchRate(branchRateKey('water_rate_riel', br.slug), e.target.value)}
+                        placeholder="2000"
+                      />
+                      <p className="text-xs text-muted-foreground">{t('settings_rate_hint')}</p>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>{t('settings_electric_rate')}</Label>
+                      <Input
+                        type="number"
+                        value={branchRates[branchRateKey('electric_rate_riel', br.slug)] ?? RATE_DEFAULTS.electric_rate_riel}
+                        onChange={(e) => setBranchRate(branchRateKey('electric_rate_riel', br.slug), e.target.value)}
+                        placeholder="720"
+                      />
+                      <p className="text-xs text-muted-foreground">{t('settings_rate_hint')}</p>
+                    </div>
                   </div>
-                  <div className="space-y-1.5">
-                    <Label>{t('settings_late_penalty')}</Label>
-                    <Input type="number" step="0.01" {...register('late_penalty_usd')} placeholder="1" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>{t('settings_water_rate')}</Label>
-                    <Input type="number" {...register('water_rate_riel')} placeholder="2000" />
-                    <p className="text-xs text-muted-foreground">{t('settings_rate_hint')}</p>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>{t('settings_electric_rate')}</Label>
-                    <Input type="number" {...register('electric_rate_riel')} placeholder="720" />
-                    <p className="text-xs text-muted-foreground">{t('settings_rate_hint')}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            ))}
           </TabsContent>
 
           <TabsContent value="company" className="mt-4 space-y-4">

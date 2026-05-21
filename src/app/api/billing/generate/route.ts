@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { calculateBilling } from '@/lib/billing'
+import { parseBranches, resolveBranchRates } from '@/lib/branches'
 import { invalidate } from '@/lib/revalidate'
 
 // GET — preview: how many tenants would get invoices for month+branch
@@ -61,6 +62,7 @@ export async function POST(req: NextRequest) {
     ])
 
     const settingsMap = Object.fromEntries(settings.map((s) => [s.key, s.value]))
+    const branchList = parseBranches(settingsMap.branches)
 
     // Fetch all existing billings for this month in one query
     const existingBillingIds = new Set(
@@ -87,7 +89,8 @@ export async function POST(req: NextRequest) {
           lateDays: 0,
           discountUsd: 0,
         }
-        const calc = calculateBilling(input, settingsMap, tenant.room!)
+        const rates = resolveBranchRates(settingsMap, branchList, tenant.room!.branch)
+        const calc = calculateBilling(input, rates, tenant.room!)
         return db.billing.create({
           data: {
             tenantId: tenant.id,

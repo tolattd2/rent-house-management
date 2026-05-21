@@ -19,7 +19,8 @@ import { calculateBilling } from '@/lib/billing'
 import { formatCurrency } from '@/lib/utils'
 import { toast } from '@/hooks/use-toast'
 import { useLanguage } from '@/contexts/language-context'
-import { useRoomLabel } from '@/contexts/branches-context'
+import { useRoomLabel, useBranches } from '@/contexts/branches-context'
+import { resolveBranchRates } from '@/lib/branches'
 
 const schema = z.object({
   tenantId: z.string().min(1, 'Tenant required'),
@@ -76,6 +77,7 @@ export function CreateBillingClient({ tenants, settings, preselectedTenantId, ed
   const router = useRouter()
   const { t } = useLanguage()
   const roomLabel = useRoomLabel()
+  const branches = useBranches()
   const isEdit = Boolean(editBilling)
   const [loading, setLoading] = useState(false)
   const [preview, setPreview] = useState<ReturnType<typeof calculateBilling> | null>(null)
@@ -115,6 +117,8 @@ export function CreateBillingClient({ tenants, settings, preselectedTenantId, ed
 
   const formValues = watch()
   const selectedTenant = tenants.find((t) => t.id === formValues.tenantId)
+  // Rates configured for the selected tenant's branch (falls back to global/defaults).
+  const rates = resolveBranchRates(settings, branches, selectedTenant?.room?.branch)
 
   // Auto-fill from previous billing when tenant changes (create mode only —
   // in edit mode we keep the saved values).
@@ -146,7 +150,7 @@ export function CreateBillingClient({ tenants, settings, preselectedTenantId, ed
         lateDays: formValues.lateDays,
         discountUsd: formValues.discountUsd,
       },
-      settings,
+      resolveBranchRates(settings, branches, selectedTenant.room.branch),
       selectedTenant.room
     )
     setPreview(calc)
@@ -155,7 +159,7 @@ export function CreateBillingClient({ tenants, settings, preselectedTenantId, ed
     formValues.prevElectricReading, formValues.currElectricReading,
     formValues.roomRentUsd, formValues.outstandingDebtUsd,
     formValues.lateDays, formValues.discountUsd,
-    selectedTenant, settings
+    selectedTenant, settings, branches
   ])
 
   const onSubmit = async (data: FormData) => {
@@ -179,7 +183,7 @@ export function CreateBillingClient({ tenants, settings, preselectedTenantId, ed
     setLoading(false)
   }
 
-  const xRate = parseFloat(settings.exchange_rate ?? '4100')
+  const xRate = parseFloat(rates.exchange_rate)
 
   return (
     <div className="space-y-6 animate-fade-in max-w-4xl">
@@ -264,7 +268,7 @@ export function CreateBillingClient({ tenants, settings, preselectedTenantId, ed
                   </div>
                 </div>
                 <div className="col-span-3 text-xs text-muted-foreground">
-                  Rate: {(selectedTenant?.room?.waterRateRiel ?? parseFloat(settings.water_rate_riel ?? '2000')).toLocaleString()} ៛/Kib
+                  Rate: {(selectedTenant?.room?.waterRateRiel ?? parseFloat(rates.water_rate_riel)).toLocaleString()} ៛/Kib
                 </div>
               </CardContent>
             </Card>
@@ -294,7 +298,7 @@ export function CreateBillingClient({ tenants, settings, preselectedTenantId, ed
                   </div>
                 </div>
                 <div className="col-span-3 text-xs text-muted-foreground">
-                  Rate: {(selectedTenant?.room?.electricRateRiel ?? parseFloat(settings.electric_rate_riel ?? '720')).toLocaleString()} ៛/{t('unit_kw')}
+                  Rate: {(selectedTenant?.room?.electricRateRiel ?? parseFloat(rates.electric_rate_riel)).toLocaleString()} ៛/{t('unit_kw')}
                 </div>
               </CardContent>
             </Card>
@@ -311,7 +315,7 @@ export function CreateBillingClient({ tenants, settings, preselectedTenantId, ed
                   <Label>Late Days</Label>
                   <Input type="number" min="0" {...register('lateDays')} />
                   <p className="text-xs text-muted-foreground">
-                    Penalty: ${parseFloat(settings.late_penalty_usd ?? '1')}/day
+                    Penalty: ${parseFloat(rates.late_penalty_usd)}/day
                   </p>
                 </div>
                 <div className="space-y-1.5">
@@ -405,10 +409,10 @@ export function CreateBillingClient({ tenants, settings, preselectedTenantId, ed
             {/* Exchange rate info */}
             <Card className="bg-muted/30">
               <CardContent className="p-4 text-xs text-muted-foreground space-y-1">
-                <p><span className="font-medium">Exchange rate:</span> {parseFloat(settings.exchange_rate ?? '4100').toLocaleString()} ៛/USD</p>
-                <p><span className="font-medium">Water rate:</span> {parseFloat(settings.water_rate_riel ?? '2000').toLocaleString()} ៛/{t('unit_kib')}</p>
-                <p><span className="font-medium">Electric rate:</span> {parseFloat(settings.electric_rate_riel ?? '720').toLocaleString()} ៛/{t('unit_kw')}</p>
-                <p><span className="font-medium">Late penalty:</span> ${parseFloat(settings.late_penalty_usd ?? '1')}/day</p>
+                <p><span className="font-medium">Exchange rate:</span> {parseFloat(rates.exchange_rate).toLocaleString()} ៛/USD</p>
+                <p><span className="font-medium">Water rate:</span> {parseFloat(rates.water_rate_riel).toLocaleString()} ៛/{t('unit_kib')}</p>
+                <p><span className="font-medium">Electric rate:</span> {parseFloat(rates.electric_rate_riel).toLocaleString()} ៛/{t('unit_kw')}</p>
+                <p><span className="font-medium">Late penalty:</span> ${parseFloat(rates.late_penalty_usd)}/day</p>
               </CardContent>
             </Card>
           </div>

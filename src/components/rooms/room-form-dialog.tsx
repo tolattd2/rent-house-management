@@ -13,6 +13,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { toast } from '@/hooks/use-toast'
 import { useLanguage } from '@/contexts/language-context'
 import { useBranches } from '@/contexts/branches-context'
+import { resolveBranchRates } from '@/lib/branches'
 
 const schema = z.object({
   roomNumber: z.string().min(1, 'Room number required'),
@@ -29,29 +30,44 @@ type FormData = z.infer<typeof schema>
 
 interface Props {
   room?: Partial<FormData & { id: string }> | null
+  settings: Record<string, string>
   onClose: () => void
   onSave: () => void
 }
 
-export function RoomFormDialog({ room, onClose, onSave }: Props) {
+export function RoomFormDialog({ room, settings, onClose, onSave }: Props) {
   const { t } = useLanguage()
   const branches = useBranches()
   const [loading, setLoading] = useState(false)
   const isEdit = !!room?.id
 
+  const defaultBranch = room?.branch ?? branches[0]?.name ?? ''
+  const branchRates = resolveBranchRates(settings, branches, defaultBranch)
+
   const { register, handleSubmit, setValue, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
       roomNumber: room?.roomNumber ?? '',
-      branch: room?.branch ?? branches[0]?.name ?? '',
+      branch: defaultBranch,
       roomType: room?.roomType ?? 'Standard',
       rentPriceUsd: room?.rentPriceUsd ?? 0,
       status: (room?.status as FormData['status']) ?? 'vacant',
-      waterRateRiel: room?.waterRateRiel ?? 2000,
-      electricRateRiel: room?.electricRateRiel ?? 720,
+      waterRateRiel: room?.waterRateRiel ?? Number(branchRates.water_rate_riel),
+      electricRateRiel: room?.electricRateRiel ?? Number(branchRates.electric_rate_riel),
       notes: room?.notes ?? '',
     },
   })
+
+  // On a new room, switching branch refreshes the water/electric fields to that
+  // branch's default rate. The inputs stay editable so the user can override.
+  const handleBranchChange = (name: string) => {
+    setValue('branch', name)
+    if (!isEdit) {
+      const r = resolveBranchRates(settings, branches, name)
+      setValue('waterRateRiel', Number(r.water_rate_riel))
+      setValue('electricRateRiel', Number(r.electric_rate_riel))
+    }
+  }
 
   const onSubmit = async (data: FormData) => {
     setLoading(true)
@@ -84,7 +100,7 @@ export function RoomFormDialog({ room, onClose, onSave }: Props) {
             </div>
             <div className="space-y-1.5">
               <Label>{t('branch')}</Label>
-              <Select onValueChange={(v) => setValue('branch', v)} defaultValue={room?.branch ?? branches[0]?.name}>
+              <Select onValueChange={handleBranchChange} defaultValue={room?.branch ?? branches[0]?.name}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {branches.map((b) => (

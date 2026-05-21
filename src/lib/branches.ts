@@ -44,3 +44,37 @@ export function roomLabel(
 ): string {
   return `${roomPrefix(branches, room.branch)}${room.roomNumber}`
 }
+
+/** Billing rate settings that can be configured per branch. */
+export const RATE_KEYS = ['exchange_rate', 'late_penalty_usd', 'water_rate_riel', 'electric_rate_riel'] as const
+export type RateKey = (typeof RATE_KEYS)[number]
+
+/** Hard fallback rates, used when neither a per-branch nor a legacy global value exists. */
+export const RATE_DEFAULTS: Record<RateKey, string> = {
+  exchange_rate: '4100',
+  late_penalty_usd: '1',
+  water_rate_riel: '2000',
+  electric_rate_riel: '720',
+}
+
+/** Settings key for a branch-specific rate, e.g. water_rate_riel_<slug>. */
+export function branchRateKey(key: RateKey, slug: string): string {
+  return `${key}_${slug}`
+}
+
+/**
+ * Resolve the four billing rates for a branch from the settings map.
+ * Falls back per key: per-branch value → legacy global value → hard default.
+ */
+export function resolveBranchRates(
+  settings: Record<string, string>,
+  branches: Branch[],
+  branchName: string | null | undefined,
+): Record<RateKey, string> {
+  const slug = branchSlug(branches, branchName)
+  const out = {} as Record<RateKey, string>
+  for (const key of RATE_KEYS) {
+    out[key] = settings[branchRateKey(key, slug)] ?? settings[key] ?? RATE_DEFAULTS[key]
+  }
+  return out
+}

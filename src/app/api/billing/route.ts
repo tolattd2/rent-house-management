@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { calculateBilling } from '@/lib/billing'
+import { parseBranches, resolveBranchRates } from '@/lib/branches'
 import { invalidate } from '@/lib/revalidate'
 import { z } from 'zod'
 
@@ -69,8 +70,9 @@ export async function POST(req: NextRequest) {
     const settings = await db.setting.findMany()
     const settingsMap = Object.fromEntries(settings.map((s) => [s.key, s.value]))
 
-    // Calculate
-    const calc = calculateBilling(data, settingsMap, tenant.room)
+    // Calculate using the rates configured for this room's branch
+    const rates = resolveBranchRates(settingsMap, parseBranches(settingsMap.branches), tenant.room?.branch)
+    const calc = calculateBilling(data, rates, tenant.room)
 
     const billing = await db.billing.create({
       data: {

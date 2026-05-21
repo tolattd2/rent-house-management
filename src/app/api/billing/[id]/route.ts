@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { calculateBilling } from '@/lib/billing'
+import { parseBranches, resolveBranchRates } from '@/lib/branches'
 import { invalidate } from '@/lib/revalidate'
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -39,6 +40,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       const settings = await db.setting.findMany()
       const settingsMap = Object.fromEntries(settings.map((s) => [s.key, s.value]))
       const merged = { ...existing, ...body }
+      const rates = resolveBranchRates(settingsMap, parseBranches(settingsMap.branches), existing.room?.branch)
       const calc = calculateBilling(
         {
           prevWaterReading: merged.prevWaterReading,
@@ -50,7 +52,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
           lateDays: merged.lateDays,
           discountUsd: merged.discountUsd,
         },
-        settingsMap,
+        rates,
         existing.room
       )
       Object.assign(body, {

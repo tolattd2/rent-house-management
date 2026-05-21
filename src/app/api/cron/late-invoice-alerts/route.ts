@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { sendTelegramTo, buildLateReminderMessage } from '@/lib/notifications'
+import { parseBranches, resolveBranchRates } from '@/lib/branches'
 
 export const dynamic = 'force-dynamic'
 
@@ -31,17 +32,13 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 })
   }
 
-  const settingRows = await db.setting.findMany({
-    where: { key: { in: ['late_alert_enabled', 'late_alert_sent', 'late_penalty_usd'] } },
-  })
+  const settingRows = await db.setting.findMany()
   const settings = Object.fromEntries(settingRows.map((r) => [r.key, r.value]))
+  const branchList = parseBranches(settings.branches)
 
   if (settings.late_alert_enabled === 'false') {
     return NextResponse.json({ ok: true, skipped: 'disabled' })
   }
-
-  // Late-fee penalty rate, charged per day overdue.
-  const penaltyPerDay = Number(settings.late_penalty_usd) || 0
 
   let alreadySent: string[] = []
   try {
@@ -56,7 +53,7 @@ export async function GET(req: NextRequest) {
     where: { paymentStatus: { not: 'paid' } },
     include: {
       tenant: { select: { id: true, fullName: true, payDay: true, telegramChatId: true } },
-      room: { select: { roomNumber: true } },
+      room: { select: { roomNumber: true, branch: true } },
     },
   })
 
@@ -79,6 +76,9 @@ export async function GET(req: NextRequest) {
       skippedUnlinked++
       continue
     }
+
+    // Late-fee penalty rate for this billing's branch, charged per day overdue.
+    const penaltyPerDay = Number(resolveBranchRates(settings, branchList, x.b.room?.branch).late_penalty_usd) || 0
 
     const msg = buildLateReminderMessage({
       tenantName: tenant.fullName,
