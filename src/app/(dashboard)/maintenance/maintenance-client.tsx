@@ -13,12 +13,21 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { formatCurrency, formatDate, sortRoomsByNumber } from '@/lib/utils'
+import { formatCurrency, formatDate, sortRoomsByNumber, cn } from '@/lib/utils'
+import { CARD_STYLES, type CardColor } from '@/lib/card-colors'
 import { toast } from '@/hooks/use-toast'
 import { useLanguage } from '@/contexts/language-context'
 import { useBranches, useRoomLabel } from '@/contexts/branches-context'
 import { useDeleteWithUndo } from '@/hooks/use-delete-with-undo'
 import { DeleteConfirmDialog } from '@/components/ui/delete-confirm-dialog'
+
+/** Gradient-wash colour for each maintenance status summary card. */
+const STATUS_CARD_COLOR: Record<'all' | 'pending' | 'in_progress' | 'completed', CardColor> = {
+  all: 'slate',
+  pending: 'amber',
+  in_progress: 'blue',
+  completed: 'green',
+}
 
 type MaintenanceRecord = {
   id: string
@@ -204,11 +213,12 @@ export function MaintenanceClient({ records: initial, rooms, tenants }: Props) {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {(['all', 'pending', 'in_progress', 'completed'] as const).map((s) => {
           const count = s === 'all' ? filtered.length : filtered.filter((r) => r.status === s).length
+          const cs = CARD_STYLES[STATUS_CARD_COLOR[s]]
           return (
-            <Card key={s} className={`p-4 cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 ${statusFilter === s ? 'ring-2 ring-primary/70' : ''}`}
+            <Card key={s} className={cn('p-4 cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-0.5', cs.card, statusFilter === s ? 'ring-2 ring-primary' : '')}
               onClick={() => setStatusFilter(s)}>
               <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{s === 'all' ? t('maintenance_total') : t(`status_${s}` as Parameters<typeof t>[0])}</p>
-              <p className="text-2xl font-bold mt-1.5 tabular-nums">{count}</p>
+              <p className={cn('text-2xl font-bold mt-1.5 tabular-nums', cs.value)}>{count}</p>
             </Card>
           )
         })}

@@ -15,7 +15,8 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { toast } from '@/hooks/use-toast'
-import { formatCurrency, formatCompact, exportToCSV } from '@/lib/utils'
+import { formatCurrency, formatCompact, exportToCSV, cn } from '@/lib/utils'
+import { CARD_STYLES } from '@/lib/card-colors'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { useLanguage } from '@/contexts/language-context'
@@ -226,47 +227,47 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <Card className="hover:shadow-md transition-all duration-200 hover:-translate-y-0.5">
+        <Card className={cn('hover:shadow-md transition-all duration-200 hover:-translate-y-0.5', CARD_STYLES.red.card)}>
           <CardContent className="p-4 flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-red-50 dark:bg-red-950/40 flex items-center justify-center flex-shrink-0">
-              <TrendingDown className="w-4 h-4 text-red-600" />
+            <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm', CARD_STYLES.red.icon)}>
+              <TrendingDown className="w-4 h-4 text-white" />
             </div>
             <div className="min-w-0">
               <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{t('expenses_total_this_month')}</p>
-              <p className="text-lg font-bold text-red-600 mt-0.5 tabular-nums">{formatCompact(thisMonthTotal)}</p>
+              <p className={cn('text-lg font-bold mt-0.5 tabular-nums', CARD_STYLES.red.value)}>{formatCompact(thisMonthTotal)}</p>
             </div>
           </CardContent>
         </Card>
-        <Card className="hover:shadow-md transition-all duration-200 hover:-translate-y-0.5">
+        <Card className={cn('hover:shadow-md transition-all duration-200 hover:-translate-y-0.5', CARD_STYLES.orange.card)}>
           <CardContent className="p-4 flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-orange-50 dark:bg-orange-950/40 flex items-center justify-center flex-shrink-0">
-              <DollarSign className="w-4 h-4 text-orange-600" />
+            <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm', CARD_STYLES.orange.icon)}>
+              <DollarSign className="w-4 h-4 text-white" />
             </div>
             <div className="min-w-0">
               <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{t('expenses_total_all')}</p>
-              <p className="text-lg font-bold mt-0.5 tabular-nums">{formatCompact(filteredTotal)}</p>
+              <p className={cn('text-lg font-bold mt-0.5 tabular-nums', CARD_STYLES.orange.value)}>{formatCompact(filteredTotal)}</p>
             </div>
           </CardContent>
         </Card>
-        <Card className="hover:shadow-md transition-all duration-200 hover:-translate-y-0.5">
+        <Card className={cn('hover:shadow-md transition-all duration-200 hover:-translate-y-0.5', CARD_STYLES.blue.card)}>
           <CardContent className="p-4 flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-950/40 flex items-center justify-center flex-shrink-0">
-              <Tag className="w-4 h-4 text-blue-600" />
+            <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm', CARD_STYLES.blue.icon)}>
+              <Tag className="w-4 h-4 text-white" />
             </div>
             <div className="min-w-0">
               <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{t('expenses_col_category')}</p>
-              <p className="text-lg font-bold mt-0.5 tabular-nums">{Object.keys(byCategory).length}</p>
+              <p className={cn('text-lg font-bold mt-0.5 tabular-nums', CARD_STYLES.blue.value)}>{Object.keys(byCategory).length}</p>
             </div>
           </CardContent>
         </Card>
-        <Card className="hover:shadow-md transition-all duration-200 hover:-translate-y-0.5">
+        <Card className={cn('hover:shadow-md transition-all duration-200 hover:-translate-y-0.5', CARD_STYLES.slate.card)}>
           <CardContent className="p-4 flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-slate-50 dark:bg-slate-900/40 flex items-center justify-center flex-shrink-0">
-              <Calendar className="w-4 h-4 text-slate-600" />
+            <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm', CARD_STYLES.slate.icon)}>
+              <Calendar className="w-4 h-4 text-white" />
             </div>
             <div className="min-w-0">
               <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{t('billing_records')}</p>
-              <p className="text-lg font-bold mt-0.5 tabular-nums">{filtered.length}</p>
+              <p className={cn('text-lg font-bold mt-0.5 tabular-nums', CARD_STYLES.slate.value)}>{filtered.length}</p>
             </div>
           </CardContent>
         </Card>

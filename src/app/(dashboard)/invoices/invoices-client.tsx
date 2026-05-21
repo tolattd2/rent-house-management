@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Search, FileText, Printer, Trash2 } from 'lucide-react'
-import { formatCurrency } from '@/lib/utils'
+import { formatCurrency, cn } from '@/lib/utils'
+import { CARD_STYLES } from '@/lib/card-colors'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import { TableScroll } from '@/components/ui/table-scroll'
@@ -126,28 +127,28 @@ export function InvoicesClient({ invoices: initial }: Props) {
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <Card className="hover:shadow-md transition-all duration-200 hover:-translate-y-0.5">
+        <Card className={cn('hover:shadow-md transition-all duration-200 hover:-translate-y-0.5', CARD_STYLES.indigo.card)}>
           <div className="p-4">
             <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{t('invoices_generated')}</p>
-            <p className="text-xl font-bold mt-1.5 tabular-nums">{filtered.length}</p>
+            <p className={cn('text-xl font-bold mt-1.5 tabular-nums', CARD_STYLES.indigo.value)}>{filtered.length}</p>
           </div>
         </Card>
-        <Card className="hover:shadow-md transition-all duration-200 hover:-translate-y-0.5">
+        <Card className={cn('hover:shadow-md transition-all duration-200 hover:-translate-y-0.5', CARD_STYLES.green.card)}>
           <div className="p-4">
             <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{t('billing_paid_count')}</p>
-            <p className="text-xl font-bold text-green-600 mt-1.5 tabular-nums">{paidCount}</p>
+            <p className={cn('text-xl font-bold mt-1.5 tabular-nums', CARD_STYLES.green.value)}>{paidCount}</p>
           </div>
         </Card>
-        <Card className="hover:shadow-md transition-all duration-200 hover:-translate-y-0.5">
+        <Card className={cn('hover:shadow-md transition-all duration-200 hover:-translate-y-0.5', CARD_STYLES.orange.card)}>
           <div className="p-4">
             <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{t('billing_unpaid_count')}</p>
-            <p className="text-xl font-bold text-orange-500 mt-1.5 tabular-nums">{unpaidCount}</p>
+            <p className={cn('text-xl font-bold mt-1.5 tabular-nums', CARD_STYLES.orange.value)}>{unpaidCount}</p>
           </div>
         </Card>
-        <Card className="hover:shadow-md transition-all duration-200 hover:-translate-y-0.5">
+        <Card className={cn('hover:shadow-md transition-all duration-200 hover:-translate-y-0.5', CARD_STYLES.blue.card)}>
           <div className="p-4">
             <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{t('amount')}</p>
-            <p className="text-xl font-bold text-blue-600 mt-1.5 tabular-nums">{formatCurrency(totalAmount)}</p>
+            <p className={cn('text-xl font-bold mt-1.5 tabular-nums', CARD_STYLES.blue.value)}>{formatCurrency(totalAmount)}</p>
           </div>
         </Card>
       </div>

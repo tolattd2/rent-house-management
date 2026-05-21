@@ -10,7 +10,8 @@ import { TableScroll } from '@/components/ui/table-scroll'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
-import { formatCurrency, exportToCSV } from '@/lib/utils'
+import { formatCurrency, exportToCSV, cn } from '@/lib/utils'
+import { CARD_STYLES } from '@/lib/card-colors'
 import { Download, TrendingDown } from 'lucide-react'
 import { useLanguage } from '@/contexts/language-context'
 import { useBranches } from '@/contexts/branches-context'
@@ -133,29 +134,29 @@ export function ReportsClient({ billings, expenses }: Props) {
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
-        <Card><CardContent className="p-3 sm:p-4">
+        <Card className={CARD_STYLES.green.card}><CardContent className="p-3 sm:p-4">
           <p className="text-xs text-muted-foreground leading-tight">{t('reports_revenue_collected')}</p>
-          <p className="text-base sm:text-xl font-bold text-green-600 mt-0.5 truncate">{formatCurrency(totalRevenue)}</p>
+          <p className={cn('text-base sm:text-xl font-bold mt-0.5 truncate', CARD_STYLES.green.value)}>{formatCurrency(totalRevenue)}</p>
         </CardContent></Card>
-        <Card><CardContent className="p-3 sm:p-4">
+        <Card className={CARD_STYLES.red.card}><CardContent className="p-3 sm:p-4">
           <p className="text-xs text-muted-foreground leading-tight">{t('dashboard_outstanding')}</p>
-          <p className="text-base sm:text-xl font-bold text-red-600 mt-0.5 truncate">{formatCurrency(totalOutstanding)}</p>
+          <p className={cn('text-base sm:text-xl font-bold mt-0.5 truncate', CARD_STYLES.red.value)}>{formatCurrency(totalOutstanding)}</p>
         </CardContent></Card>
-        <Card><CardContent className="p-3 sm:p-4">
+        <Card className={CARD_STYLES.orange.card}><CardContent className="p-3 sm:p-4">
           <p className="text-xs text-muted-foreground leading-tight">{t('reports_total_expenses')}</p>
-          <p className="text-base sm:text-xl font-bold text-orange-600 mt-0.5 truncate">{formatCurrency(totalExpenses)}</p>
+          <p className={cn('text-base sm:text-xl font-bold mt-0.5 truncate', CARD_STYLES.orange.value)}>{formatCurrency(totalExpenses)}</p>
         </CardContent></Card>
-        <Card><CardContent className="p-3 sm:p-4">
+        <Card className={(netIncome >= 0 ? CARD_STYLES.emerald : CARD_STYLES.red).card}><CardContent className="p-3 sm:p-4">
           <p className="text-xs text-muted-foreground leading-tight">{t('reports_net_income')}</p>
-          <p className={`text-base sm:text-xl font-bold mt-0.5 truncate ${netIncome >= 0 ? 'text-green-600' : 'text-red-600'}`}>{formatCurrency(netIncome)}</p>
+          <p className={cn('text-base sm:text-xl font-bold mt-0.5 truncate', (netIncome >= 0 ? CARD_STYLES.emerald : CARD_STYLES.red).value)}>{formatCurrency(netIncome)}</p>
         </CardContent></Card>
-        <Card><CardContent className="p-3 sm:p-4">
+        <Card className={CARD_STYLES.blue.card}><CardContent className="p-3 sm:p-4">
           <p className="text-xs text-muted-foreground leading-tight">{t('reports_paid_billings')}</p>
-          <p className="text-base sm:text-xl font-bold mt-0.5">{monthBillings.filter((b) => b.paymentStatus === 'paid').length}</p>
+          <p className={cn('text-base sm:text-xl font-bold mt-0.5', CARD_STYLES.blue.value)}>{monthBillings.filter((b) => b.paymentStatus === 'paid').length}</p>
         </CardContent></Card>
-        <Card><CardContent className="p-3 sm:p-4">
+        <Card className={CARD_STYLES.amber.card}><CardContent className="p-3 sm:p-4">
           <p className="text-xs text-muted-foreground leading-tight">{t('reports_unpaid_billings')}</p>
-          <p className="text-base sm:text-xl font-bold text-orange-600 mt-0.5">{monthBillings.filter((b) => b.paymentStatus !== 'paid').length}</p>
+          <p className={cn('text-base sm:text-xl font-bold mt-0.5', CARD_STYLES.amber.value)}>{monthBillings.filter((b) => b.paymentStatus !== 'paid').length}</p>
         </CardContent></Card>
       </div>
 

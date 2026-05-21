@@ -14,7 +14,8 @@ import { PaymentDialog } from '@/components/billing/payment-dialog'
 import { BatchDeleteDialog } from '@/components/billing/batch-delete-dialog'
 import { GenerateMonthlyDialog } from '@/components/billing/generate-monthly-dialog'
 import { BatchGenerateInvoiceDialog } from '@/components/invoices/batch-generate-dialog'
-import { formatCurrency, formatCompact, exportToCSV, sortRoomsByNumber } from '@/lib/utils'
+import { formatCurrency, formatCompact, exportToCSV, sortRoomsByNumber, cn } from '@/lib/utils'
+import { CARD_STYLES } from '@/lib/card-colors'
 import { toast } from '@/hooks/use-toast'
 import { useSession } from 'next-auth/react'
 import { useLanguage } from '@/contexts/language-context'
@@ -161,10 +162,10 @@ export function BillingListClient({ billings: initial }: Props) {
 
       {/* Summary */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <Card className="hover:shadow-md transition-all duration-200 hover:-translate-y-0.5"><div className="p-4"><p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{t('billing_revenue')}</p><p className="text-xl font-bold text-green-600 mt-1.5 tabular-nums">{formatCompact(totalRevenue)}</p></div></Card>
-        <Card className="hover:shadow-md transition-all duration-200 hover:-translate-y-0.5"><div className="p-4"><p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{t('billing_outstanding')}</p><p className="text-xl font-bold text-red-500 mt-1.5 tabular-nums">{formatCompact(totalOutstanding)}</p></div></Card>
-        <Card className="hover:shadow-md transition-all duration-200 hover:-translate-y-0.5"><div className="p-4"><p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{t('billing_paid_count')}</p><p className="text-xl font-bold text-foreground mt-1.5 tabular-nums">{filtered.filter((b) => b.paymentStatus === 'paid').length}</p></div></Card>
-        <Card className="hover:shadow-md transition-all duration-200 hover:-translate-y-0.5"><div className="p-4"><p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{t('billing_unpaid_count')}</p><p className="text-xl font-bold text-orange-500 mt-1.5 tabular-nums">{filtered.filter((b) => b.paymentStatus !== 'paid').length}</p></div></Card>
+        <Card className={cn('hover:shadow-md transition-all duration-200 hover:-translate-y-0.5', CARD_STYLES.green.card)}><div className="p-4"><p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{t('billing_revenue')}</p><p className={cn('text-xl font-bold mt-1.5 tabular-nums', CARD_STYLES.green.value)}>{formatCompact(totalRevenue)}</p></div></Card>
+        <Card className={cn('hover:shadow-md transition-all duration-200 hover:-translate-y-0.5', CARD_STYLES.red.card)}><div className="p-4"><p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{t('billing_outstanding')}</p><p className={cn('text-xl font-bold mt-1.5 tabular-nums', CARD_STYLES.red.value)}>{formatCompact(totalOutstanding)}</p></div></Card>
+        <Card className={cn('hover:shadow-md transition-all duration-200 hover:-translate-y-0.5', CARD_STYLES.emerald.card)}><div className="p-4"><p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{t('billing_paid_count')}</p><p className={cn('text-xl font-bold mt-1.5 tabular-nums', CARD_STYLES.emerald.value)}>{filtered.filter((b) => b.paymentStatus === 'paid').length}</p></div></Card>
+        <Card className={cn('hover:shadow-md transition-all duration-200 hover:-translate-y-0.5', CARD_STYLES.orange.card)}><div className="p-4"><p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{t('billing_unpaid_count')}</p><p className={cn('text-xl font-bold mt-1.5 tabular-nums', CARD_STYLES.orange.value)}>{filtered.filter((b) => b.paymentStatus !== 'paid').length}</p></div></Card>
       </div>
 
       {/* Filters */}

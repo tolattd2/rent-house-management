@@ -7,7 +7,8 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { RoomFormDialog } from '@/components/rooms/room-form-dialog'
-import { formatCurrency, formatPhones, sortRoomsByNumber } from '@/lib/utils'
+import { formatCurrency, formatPhones, sortRoomsByNumber, cn } from '@/lib/utils'
+import { CARD_STYLES, type CardColor } from '@/lib/card-colors'
 import { toast } from '@/hooks/use-toast'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
@@ -116,26 +117,30 @@ export function RoomsClient({ rooms: initialRooms, settings }: Props) {
 
       {/* Status summary */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
-        <button onClick={() => setStatusFilter('all')}
-          className={`flex items-center gap-2 sm:gap-3 p-3 sm:p-4 rounded-xl border transition-all text-blue-600 bg-blue-50 dark:bg-blue-950/30 ${statusFilter === 'all' ? 'ring-2 ring-primary' : 'hover:bg-muted/50'}`}
-        >
-          <Building2 className="w-5 h-5" />
-          <div className="text-left">
-            <p className="text-2xl font-bold">{stats.total}</p>
-            <p className="text-xs opacity-80">{t('rooms_total_card')}</p>
-          </div>
-        </button>
-        {(['occupied', 'vacant', 'maintenance'] as const).map((s) => {
-          const Icon = statusIcon[s]
-          const colors = { occupied: 'text-green-600 bg-green-50 dark:bg-green-950/30', vacant: 'text-slate-600 bg-slate-50 dark:bg-slate-900/30', maintenance: 'text-yellow-600 bg-yellow-50 dark:bg-yellow-950/30' }
+        {([
+          { key: 'all',         icon: Building2, label: t('rooms_total_card'),  count: stats.total,       color: 'blue'   as CardColor },
+          { key: 'occupied',    icon: Users,     label: statusLabels.occupied,    count: stats.occupied,    color: 'green'  as CardColor },
+          { key: 'vacant',      icon: Home,      label: statusLabels.vacant,      count: stats.vacant,      color: 'slate'  as CardColor },
+          { key: 'maintenance', icon: Wrench,    label: statusLabels.maintenance, count: stats.maintenance, color: 'yellow' as CardColor },
+        ]).map(({ key, icon: Icon, label, count, color }) => {
+          const cs = CARD_STYLES[color]
+          const active = statusFilter === key
           return (
-            <button key={s} onClick={() => setStatusFilter(statusFilter === s ? 'all' : s)}
-              className={`flex items-center gap-2 sm:gap-3 p-3 sm:p-4 rounded-xl border transition-all ${statusFilter === s ? 'ring-2 ring-primary' : 'hover:bg-muted/50'} ${colors[s]}`}
+            <button
+              key={key}
+              onClick={() => setStatusFilter(key !== 'all' && statusFilter === key ? 'all' : key)}
+              className={cn(
+                'flex items-center gap-3 p-3 sm:p-4 rounded-2xl border shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5',
+                cs.card,
+                active ? 'ring-2 ring-primary' : '',
+              )}
             >
-              <Icon className="w-5 h-5" />
-              <div className="text-left">
-                <p className="text-2xl font-bold">{stats[s]}</p>
-                <p className="text-xs opacity-80">{statusLabels[s]}</p>
+              <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm', cs.icon)}>
+                <Icon className="w-4 h-4 text-white" />
+              </div>
+              <div className="text-left min-w-0">
+                <p className={cn('text-2xl font-bold leading-none tabular-nums', cs.value)}>{count}</p>
+                <p className="text-xs text-muted-foreground mt-0.5 truncate">{label}</p>
               </div>
             </button>
           )
