@@ -39,7 +39,7 @@ export const getTenantsList = unstable_cache(
         room: { select: { id: true, roomNumber: true, branch: true, rentPriceUsd: true } },
         billings: {
           where: { paymentStatus: { in: ['unpaid', 'partial'] } },
-          select: { id: true, totalUsd: true, paymentStatus: true },
+          select: { id: true, totalUsd: true, paymentStatus: true, billingMonth: true },
         },
       },
       orderBy: { createdAt: 'desc' },

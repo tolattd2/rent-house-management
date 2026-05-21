@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import { TableScroll } from '@/components/ui/table-scroll'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { TenantFormDialog } from '@/components/tenants/tenant-form-dialog'
 import { formatCurrency, formatDate, formatPhones, sortRoomsByNumber, cn } from '@/lib/utils'
 import { CARD_STYLES, type CardColor } from '@/lib/card-colors'
@@ -26,7 +27,7 @@ type Tenant = {
   depositAmount: number; payDay: number; status: string; notes: string; createdAt: Date
   roomId: string | null
   room: { id: string; roomNumber: string; branch?: string; rentPriceUsd: number } | null
-  billings: Array<{ id: string; totalUsd: number; paymentStatus: string }>
+  billings: Array<{ id: string; totalUsd: number; paymentStatus: string; billingMonth: string }>
 }
 
 interface Props { tenants: Tenant[]; rooms: Room[] }
@@ -40,12 +41,39 @@ export function TenantsClient({ tenants: initial, rooms }: Props) {
   const roomLabel = useRoomLabel()
   const [tenants, setTenants] = useState(initial)
   useEffect(() => { setTenants(initial) }, [initial])
+  const currentMonth = new Date().toISOString().slice(0, 7)
+  const [month, setMonth] = useState('all')
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive' | 'owing'>('active')
   const [branchFilter, setBranchFilter] = useState<string>('all')
   const [showForm, setShowForm] = useState(false)
 
-  const outstandingOf = (tn: Tenant) => tn.billings.reduce((s, b) => s + b.totalUsd, 0)
+  // ── Monthly snapshot helpers ────────────────────────────────────────
+  // Every card describes the tenant population as it stood at the END of
+  // the selected month, so the page doubles as a month-by-month history.
+  // 'all' becomes an open-ended bound — a live, all-time view.
+  const monthOf = (d: string) => (d || '').slice(0, 7)
+  const effMonth = month === 'all' ? '9999-12' : month
+  const existedBy = (tn: Tenant) => !!tn.moveInDate && monthOf(tn.moveInDate) <= effMonth
+  const movedOutBy = (tn: Tenant) => !!tn.moveOutDate && monthOf(tn.moveOutDate) <= effMonth
+  const owingBy = (tn: Tenant) =>
+    tn.billings.some((b) => b.totalUsd > 0 && monthOf(b.billingMonth) <= effMonth)
+
+  // Continuous list of months from the earliest move-in up to today, so the
+  // snapshot can be scrubbed across the property's whole history.
+  const months = (() => {
+    const moveIns = tenants.map((tn) => monthOf(tn.moveInDate)).filter(Boolean)
+    let cursor = moveIns.length ? moveIns.reduce((a, b) => (a < b ? a : b)) : currentMonth
+    if (cursor > currentMonth) cursor = currentMonth
+    const list: string[] = []
+    let [y, m] = cursor.split('-').map(Number)
+    const [cy, cm] = currentMonth.split('-').map(Number)
+    while (y < cy || (y === cy && m <= cm)) {
+      list.push(`${y}-${String(m).padStart(2, '0')}`)
+      if (++m > 12) { m = 1; y++ }
+    }
+    return list.reverse()
+  })()
 
   // Counts respect the active branch filter, so the cards always describe
   // exactly the population the table below is drawn from.
@@ -53,11 +81,12 @@ export function TenantsClient({ tenants: initial, rooms }: Props) {
     ? tenants
     : tenants.filter((tn) => tn.room?.branch === branchFilter)
 
+  const snapshot = branchTenants.filter(existedBy)
   const stats = {
-    total: branchTenants.length,
-    active: branchTenants.filter((tn) => tn.status === 'active').length,
-    inactive: branchTenants.filter((tn) => tn.status === 'inactive').length,
-    owing: branchTenants.filter((tn) => outstandingOf(tn) > 0).length,
+    total: snapshot.length,
+    active: snapshot.filter((tn) => !movedOutBy(tn)).length,
+    inactive: snapshot.filter(movedOutBy).length,
+    owing: snapshot.filter(owingBy).length,
   }
 
   const filtered = sortRoomsByNumber(
@@ -69,10 +98,11 @@ export function TenantsClient({ tenants: initial, rooms }: Props) {
         (t.room?.roomNumber ?? '').toLowerCase().includes(search.toLowerCase())
       const matchStatus =
         statusFilter === 'all' ? true
-          : statusFilter === 'owing' ? outstandingOf(t) > 0
-            : t.status === statusFilter
+          : statusFilter === 'active' ? !movedOutBy(t)
+            : statusFilter === 'inactive' ? movedOutBy(t)
+              : owingBy(t)
       const matchBranch = branchFilter === 'all' || t.room?.branch === branchFilter
-      return matchSearch && matchStatus && matchBranch
+      return matchSearch && existedBy(t) && matchStatus && matchBranch
     }).map((t) => ({ ...t, roomNumber: t.room?.roomNumber ?? '' }))
   )
 
@@ -155,6 +185,13 @@ export function TenantsClient({ tenants: initial, rooms }: Props) {
             {b === 'all' ? t('all_branches') : b}
           </Button>
         ))}
+        <Select value={month} onValueChange={setMonth}>
+          <SelectTrigger className="w-40 h-9"><SelectValue placeholder="All months" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{t('billing_all_months')}</SelectItem>
+            {months.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Mobile card list — visible on small screens */}
