@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Plus, Search, User, Phone, Home, AlertCircle, Building2 } from 'lucide-react'
+import { Plus, Search, User, Users, UserCheck, UserMinus, Phone, Home, AlertCircle } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
@@ -11,7 +11,8 @@ import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import { TableScroll } from '@/components/ui/table-scroll'
 import { TenantFormDialog } from '@/components/tenants/tenant-form-dialog'
-import { formatCurrency, formatDate, formatPhones, sortRoomsByNumber } from '@/lib/utils'
+import { formatCurrency, formatDate, formatPhones, sortRoomsByNumber, cn } from '@/lib/utils'
+import { CARD_STYLES, type CardColor } from '@/lib/card-colors'
 import { toast } from '@/hooks/use-toast'
 import { useLanguage } from '@/contexts/language-context'
 import { useBranches, useRoomLabel } from '@/contexts/branches-context'
@@ -40,9 +41,24 @@ export function TenantsClient({ tenants: initial, rooms }: Props) {
   const [tenants, setTenants] = useState(initial)
   useEffect(() => { setTenants(initial) }, [initial])
   const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('active')
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive' | 'owing'>('active')
   const [branchFilter, setBranchFilter] = useState<string>('all')
   const [showForm, setShowForm] = useState(false)
+
+  const outstandingOf = (tn: Tenant) => tn.billings.reduce((s, b) => s + b.totalUsd, 0)
+
+  // Counts respect the active branch filter, so the cards always describe
+  // exactly the population the table below is drawn from.
+  const branchTenants = branchFilter === 'all'
+    ? tenants
+    : tenants.filter((tn) => tn.room?.branch === branchFilter)
+
+  const stats = {
+    total: branchTenants.length,
+    active: branchTenants.filter((tn) => tn.status === 'active').length,
+    inactive: branchTenants.filter((tn) => tn.status === 'inactive').length,
+    owing: branchTenants.filter((tn) => outstandingOf(tn) > 0).length,
+  }
 
   const filtered = sortRoomsByNumber(
     tenants.filter((t) => {
@@ -51,7 +67,10 @@ export function TenantsClient({ tenants: initial, rooms }: Props) {
         t.phone.includes(search) ||
         t.phonesExtra.some((p) => p.includes(search)) ||
         (t.room?.roomNumber ?? '').toLowerCase().includes(search.toLowerCase())
-      const matchStatus = statusFilter === 'all' || t.status === statusFilter
+      const matchStatus =
+        statusFilter === 'all' ? true
+          : statusFilter === 'owing' ? outstandingOf(t) > 0
+            : t.status === statusFilter
       const matchBranch = branchFilter === 'all' || t.room?.branch === branchFilter
       return matchSearch && matchStatus && matchBranch
     }).map((t) => ({ ...t, roomNumber: t.room?.roomNumber ?? '' }))
@@ -80,7 +99,7 @@ export function TenantsClient({ tenants: initial, rooms }: Props) {
         <div>
           <h1 className="text-2xl font-bold">{t('tenants_title')}</h1>
           <p className="text-muted-foreground text-sm">
-            {tenants.filter((t) => t.status === 'active').length} {t('tenants_active_count')}
+            {stats.active} {t('tenants_active_count')}
           </p>
         </div>
         {isAdmin && (
@@ -90,20 +109,45 @@ export function TenantsClient({ tenants: initial, rooms }: Props) {
         )}
       </div>
 
-      {/* Filters */}
+      {/* Summary cards — also act as the status filter */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
+        {([
+          { key: 'all',      icon: Users,       label: t('tenants_total_card'),      count: stats.total,    color: 'blue'  as CardColor },
+          { key: 'active',   icon: UserCheck,   label: t('status_active'),           count: stats.active,   color: 'green' as CardColor },
+          { key: 'inactive', icon: UserMinus,   label: t('tenants_moved_out'),       count: stats.inactive, color: 'slate' as CardColor },
+          { key: 'owing',    icon: AlertCircle, label: t('tenants_owing_card'),      count: stats.owing,    color: 'red'   as CardColor },
+        ] as const).map(({ key, icon: Icon, label, count, color }) => {
+          const cs = CARD_STYLES[color]
+          const active = statusFilter === key
+          return (
+            <button
+              key={key}
+              onClick={() => setStatusFilter(statusFilter === key && key !== 'all' ? 'all' : key)}
+              className={cn(
+                'flex items-center gap-3 p-3 sm:p-4 rounded-2xl border shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5',
+                cs.card,
+                active ? 'ring-2 ring-primary' : '',
+              )}
+            >
+              <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm', cs.icon)}>
+                <Icon className={cn('w-4 h-4', cs.value)} />
+              </div>
+              <div className="text-left min-w-0">
+                <p className={cn('text-2xl font-bold leading-none tabular-nums', cs.value)}>{count}</p>
+                <p className="text-xs text-muted-foreground mt-0.5 truncate">{label}</p>
+              </div>
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Search & Branch filter */}
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative flex-1 min-w-[200px] max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input placeholder={t('tenants_search')} className="pl-9 h-9 bg-muted/50 border-0 focus-visible:ring-1" value={search}
             onChange={(e) => setSearch(e.target.value)} />
         </div>
-        {(['all', 'active', 'inactive'] as const).map((s) => (
-          <Button key={s} variant={statusFilter === s ? 'default' : 'outline'} size="sm"
-            className="h-9 px-3 text-sm"
-            onClick={() => setStatusFilter(s)}>
-            {t(`status_${s}` as Parameters<typeof t>[0])}
-          </Button>
-        ))}
         {['all', ...branches.map((br) => br.name)].map((b) => (
           <Button key={b} variant={branchFilter === b ? 'default' : 'outline'} size="sm"
             className="h-9 px-3 text-sm"
