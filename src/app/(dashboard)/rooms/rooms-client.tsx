@@ -103,7 +103,7 @@ export function RoomsClient({ rooms: initialRooms }: Props) {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">{t('rooms_title')}</h1>
-          <p className="text-muted-foreground text-sm">{rooms.length} {t('rooms_total')}</p>
+          <p className="text-muted-foreground text-sm">{branchRooms.length} {t('rooms_total')}</p>
         </div>
         {isAdmin && (
           <Button onClick={() => { setEditRoom(null); setShowForm(true) }}>
