@@ -33,7 +33,7 @@ export function StatsCard({
         )}
       >
         <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm', style.icon)}>
-          <Icon className="w-4 h-4 text-white" />
+          <Icon className={cn('w-4 h-4', style.value)} />
         </div>
         <div className="min-w-0">
           <p className={cn('text-xl font-bold tracking-tight leading-none tabular-nums', style.value)}>{value}</p>
@@ -59,7 +59,7 @@ export function StatsCard({
           {title}
         </p>
         <div className={cn('w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm', style.icon)}>
-          <Icon className="w-4 h-4 text-white" />
+          <Icon className={cn('w-4 h-4', style.value)} />
         </div>
       </div>
 

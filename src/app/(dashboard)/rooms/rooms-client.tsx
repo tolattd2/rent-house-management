@@ -136,7 +136,7 @@ export function RoomsClient({ rooms: initialRooms, settings }: Props) {
               )}
             >
               <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm', cs.icon)}>
-                <Icon className="w-4 h-4 text-white" />
+                <Icon className={cn('w-4 h-4', cs.value)} />
               </div>
               <div className="text-left min-w-0">
                 <p className={cn('text-2xl font-bold leading-none tabular-nums', cs.value)}>{count}</p>

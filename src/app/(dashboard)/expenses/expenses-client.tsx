@@ -230,7 +230,7 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
         <Card className={cn('hover:shadow-md transition-all duration-200 hover:-translate-y-0.5', CARD_STYLES.red.card)}>
           <CardContent className="p-4 flex items-center gap-3">
             <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm', CARD_STYLES.red.icon)}>
-              <TrendingDown className="w-4 h-4 text-white" />
+              <TrendingDown className={cn('w-4 h-4', CARD_STYLES.red.value)} />
             </div>
             <div className="min-w-0">
               <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{t('expenses_total_this_month')}</p>
@@ -241,7 +241,7 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
         <Card className={cn('hover:shadow-md transition-all duration-200 hover:-translate-y-0.5', CARD_STYLES.orange.card)}>
           <CardContent className="p-4 flex items-center gap-3">
             <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm', CARD_STYLES.orange.icon)}>
-              <DollarSign className="w-4 h-4 text-white" />
+              <DollarSign className={cn('w-4 h-4', CARD_STYLES.orange.value)} />
             </div>
             <div className="min-w-0">
               <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{t('expenses_total_all')}</p>
@@ -252,7 +252,7 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
         <Card className={cn('hover:shadow-md transition-all duration-200 hover:-translate-y-0.5', CARD_STYLES.blue.card)}>
           <CardContent className="p-4 flex items-center gap-3">
             <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm', CARD_STYLES.blue.icon)}>
-              <Tag className="w-4 h-4 text-white" />
+              <Tag className={cn('w-4 h-4', CARD_STYLES.blue.value)} />
             </div>
             <div className="min-w-0">
               <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{t('expenses_col_category')}</p>
@@ -263,7 +263,7 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
         <Card className={cn('hover:shadow-md transition-all duration-200 hover:-translate-y-0.5', CARD_STYLES.slate.card)}>
           <CardContent className="p-4 flex items-center gap-3">
             <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm', CARD_STYLES.slate.icon)}>
-              <Calendar className="w-4 h-4 text-white" />
+              <Calendar className={cn('w-4 h-4', CARD_STYLES.slate.value)} />
             </div>
             <div className="min-w-0">
               <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{t('billing_records')}</p>

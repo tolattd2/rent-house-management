@@ -1,84 +1,83 @@
 /**
  * Shared solid-pastel palette for stat / summary cards: a flat pastel
- * background, a matching border, a bold solid icon badge, and an accent
- * colour for the headline value.
+ * background, a matching border, a soft tinted icon badge, and an accent
+ * colour used for both the icon glyph and the headline value.
  *
  * Every class string is spelled out in full so Tailwind's JIT compiler can
- * see it — do not build these names dynamically. The background uses a solid
- * `bg-*` (not a gradient) so it fully replaces the card's white background.
+ * see it — do not build these names dynamically.
  */
 export type CardColor =
   | 'blue' | 'green' | 'emerald' | 'red' | 'orange' | 'amber'
   | 'yellow' | 'purple' | 'indigo' | 'cyan' | 'pink' | 'slate'
 
 export interface CardStyle {
-  /** Solid pastel background + accent border. */
+  /** Solid pastel card background + accent border. */
   card: string
-  /** Bold solid icon badge background (pair with a white icon). */
+  /** Tinted icon badge background (pair the glyph with `value`). */
   icon: string
-  /** Accent colour for the headline value. */
+  /** Accent colour — used for the icon glyph and the headline value. */
   value: string
 }
 
 export const CARD_STYLES: Record<CardColor, CardStyle> = {
   blue: {
     card: 'bg-blue-100 border-blue-200 dark:bg-blue-950 dark:border-blue-900',
-    icon: 'bg-blue-600',
+    icon: 'bg-blue-200 dark:bg-blue-900',
     value: 'text-blue-700 dark:text-blue-200',
   },
   green: {
     card: 'bg-green-100 border-green-200 dark:bg-green-950 dark:border-green-900',
-    icon: 'bg-green-600',
+    icon: 'bg-green-200 dark:bg-green-900',
     value: 'text-green-700 dark:text-green-200',
   },
   emerald: {
     card: 'bg-emerald-100 border-emerald-200 dark:bg-emerald-950 dark:border-emerald-900',
-    icon: 'bg-emerald-600',
+    icon: 'bg-emerald-200 dark:bg-emerald-900',
     value: 'text-emerald-700 dark:text-emerald-200',
   },
   red: {
     card: 'bg-red-100 border-red-200 dark:bg-red-950 dark:border-red-900',
-    icon: 'bg-red-600',
+    icon: 'bg-red-200 dark:bg-red-900',
     value: 'text-red-700 dark:text-red-200',
   },
   orange: {
     card: 'bg-orange-100 border-orange-200 dark:bg-orange-950 dark:border-orange-900',
-    icon: 'bg-orange-600',
+    icon: 'bg-orange-200 dark:bg-orange-900',
     value: 'text-orange-700 dark:text-orange-200',
   },
   amber: {
     card: 'bg-amber-100 border-amber-200 dark:bg-amber-950 dark:border-amber-900',
-    icon: 'bg-amber-600',
+    icon: 'bg-amber-200 dark:bg-amber-900',
     value: 'text-amber-700 dark:text-amber-200',
   },
   yellow: {
     card: 'bg-yellow-100 border-yellow-200 dark:bg-yellow-950 dark:border-yellow-900',
-    icon: 'bg-yellow-700',
+    icon: 'bg-yellow-200 dark:bg-yellow-900',
     value: 'text-yellow-700 dark:text-yellow-200',
   },
   purple: {
     card: 'bg-purple-100 border-purple-200 dark:bg-purple-950 dark:border-purple-900',
-    icon: 'bg-purple-600',
+    icon: 'bg-purple-200 dark:bg-purple-900',
     value: 'text-purple-700 dark:text-purple-200',
   },
   indigo: {
     card: 'bg-indigo-100 border-indigo-200 dark:bg-indigo-950 dark:border-indigo-900',
-    icon: 'bg-indigo-600',
+    icon: 'bg-indigo-200 dark:bg-indigo-900',
     value: 'text-indigo-700 dark:text-indigo-200',
   },
   cyan: {
     card: 'bg-cyan-100 border-cyan-200 dark:bg-cyan-950 dark:border-cyan-900',
-    icon: 'bg-cyan-600',
+    icon: 'bg-cyan-200 dark:bg-cyan-900',
     value: 'text-cyan-700 dark:text-cyan-200',
   },
   pink: {
     card: 'bg-pink-100 border-pink-200 dark:bg-pink-950 dark:border-pink-900',
-    icon: 'bg-pink-600',
+    icon: 'bg-pink-200 dark:bg-pink-900',
     value: 'text-pink-700 dark:text-pink-200',
   },
   slate: {
     card: 'bg-slate-100 border-slate-300 dark:bg-slate-800 dark:border-slate-700',
-    icon: 'bg-slate-600',
+    icon: 'bg-slate-200 dark:bg-slate-700',
     value: 'text-slate-700 dark:text-slate-200',
   },
 }
