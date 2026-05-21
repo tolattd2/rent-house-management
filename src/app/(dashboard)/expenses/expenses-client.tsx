@@ -96,6 +96,8 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
   const [editExpense, setEditExpense] = useState<Expense | null>(null)
   const [loading, setLoading] = useState(false)
   const [form, setForm] = useState(emptyForm)
+  // Narrows the room dropdown in the Add/Edit dialog by branch.
+  const [formBranch, setFormBranch] = useState('all')
   const { triggerDelete, dialogState, closeDialog } = useDeleteWithUndo()
 
   const currentMonth = new Date().toISOString().slice(0, 7)
@@ -135,6 +137,7 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
   function openAdd() {
     setEditExpense(null)
     setForm(emptyForm)
+    setFormBranch('all')
     setShowForm(true)
   }
 
@@ -149,6 +152,7 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
       notes: e.notes,
       roomId: e.roomId ?? '',
     })
+    setFormBranch(e.room?.branch ?? 'all')
     setShowForm(true)
   }
 
@@ -522,17 +526,36 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
                 </div>
               </div>
 
-              <div className="space-y-1.5">
-                <Label>{t('expenses_form_room_label')}</Label>
-                <Select value={form.roomId || 'none'} onValueChange={(v) => setForm((f) => ({ ...f, roomId: v === 'none' ? '' : v }))}>
-                  <SelectTrigger><SelectValue placeholder={t('expenses_form_room_placeholder')} /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">{t('none')}</SelectItem>
-                    {rooms.map((r) => (
-                      <SelectItem key={r.id} value={r.id}>{t('room')} {r.roomNumber} ({r.branch})</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label>{t('branch')}</Label>
+                  <Select
+                    value={formBranch}
+                    onValueChange={(v) => { setFormBranch(v); setForm((f) => ({ ...f, roomId: '' })) }}
+                  >
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">{t('all_branches')}</SelectItem>
+                      {branchOptions.filter((b) => b !== 'all').map((b) => (
+                        <SelectItem key={b} value={b}>{b}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>{t('expenses_form_room_label')}</Label>
+                  <Select value={form.roomId || 'none'} onValueChange={(v) => setForm((f) => ({ ...f, roomId: v === 'none' ? '' : v }))}>
+                    <SelectTrigger><SelectValue placeholder={t('expenses_form_room_placeholder')} /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">{t('none')}</SelectItem>
+                      {rooms
+                        .filter((r) => formBranch === 'all' || r.branch === formBranch)
+                        .map((r) => (
+                          <SelectItem key={r.id} value={r.id}>{t('room')} {r.roomNumber} ({r.branch})</SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
               <div className="space-y-1.5">
