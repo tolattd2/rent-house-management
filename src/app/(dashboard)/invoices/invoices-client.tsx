@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useLanguage } from '@/contexts/language-context'
-import { useBranches } from '@/contexts/branches-context'
+import { useBranches, useRoomLabel } from '@/contexts/branches-context'
 import { useSession } from 'next-auth/react'
 import { toast } from '@/hooks/use-toast'
 import { InvoiceBatchPrintDialog } from '@/components/invoices/batch-print-dialog'
@@ -54,6 +54,7 @@ export function InvoicesClient({ invoices: initial }: Props) {
   const { triggerDelete, dialogState, closeDialog } = useDeleteWithUndo()
 
   const branches = useBranches().map((b) => b.name)
+  const roomLabel = useRoomLabel()
   const months = [...new Set(invoices.map((inv) => inv.billing?.billingMonth).filter(Boolean) as string[])].sort().reverse()
 
   const filtered = invoices.filter((inv) => {
@@ -190,12 +191,13 @@ export function InvoicesClient({ invoices: initial }: Props) {
       {/* Table */}
       <Card>
         <TableScroll>
-          <table className="w-full min-w-[700px] text-sm">
+          <table className="w-full min-w-[820px] text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/30">
                 <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{t('invoices_col_invoice')}</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{t('tenant')}</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{t('room')}</th>
                 <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{t('branch')}</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{t('tenant')}</th>
                 <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{t('billing_col_month')}</th>
                 <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground">{t('amount')}</th>
                 <th className="text-center px-4 py-3 text-xs font-medium text-muted-foreground">{t('status')}</th>
@@ -207,12 +209,13 @@ export function InvoicesClient({ invoices: initial }: Props) {
                 <tr key={inv.id}
                   className={`border-b border-border last:border-0 hover:bg-muted/30 ${i % 2 ? 'bg-muted/10' : ''}`}>
                   <td className="px-4 py-3 font-mono text-xs">{inv.invoiceNumber}</td>
+                  <td className="px-4 py-3 font-medium">{inv.billing?.room ? roomLabel(inv.billing.room) : '—'}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{inv.billing?.room?.branch ?? '—'}</td>
                   <td className="px-4 py-3">
                     <Link href={`/tenants/${inv.tenant?.id}`} className="hover:text-primary font-medium">
                       {inv.tenant?.fullName ?? '—'}
                     </Link>
                   </td>
-                  <td className="px-4 py-3 text-muted-foreground">{inv.billing?.room?.branch ?? '—'}</td>
                   <td className="px-4 py-3">{inv.billing?.billingMonth ?? '—'}</td>
                   <td className="px-4 py-3 text-right font-medium">{formatCurrency(inv.billing?.totalUsd ?? 0)}</td>
                   <td className="px-4 py-3 text-center">
@@ -241,7 +244,7 @@ export function InvoicesClient({ invoices: initial }: Props) {
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-4 py-16 text-center text-muted-foreground">
+                  <td colSpan={8} className="px-4 py-16 text-center text-muted-foreground">
                     <FileText className="w-12 h-12 mx-auto mb-3 opacity-30" />
                     <p>{t('invoices_empty')}</p>
                   </td>
