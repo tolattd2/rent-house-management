@@ -245,6 +245,35 @@ export const getReportsData = unstable_cache(
   },
 )
 
+export const getNoticesData = unstable_cache(
+  async () => {
+    const [notices, tenants] = await Promise.all([
+      db.tenantNotice.findMany({
+        include: {
+          tenant: {
+            select: {
+              id: true, fullName: true,
+              room: { select: { id: true, roomNumber: true, branch: true } },
+            },
+          },
+        },
+        orderBy: [{ status: 'asc' }, { createdAt: 'desc' }],
+      }),
+      db.tenant.findMany({
+        where: { status: 'active' },
+        select: {
+          id: true, fullName: true,
+          room: { select: { roomNumber: true, branch: true } },
+        },
+        orderBy: { fullName: 'asc' },
+      }),
+    ])
+    return { notices, tenants }
+  },
+  ['notices-data'],
+  { tags: [TAGS.tenants], revalidate: REVALIDATE_SECONDS },
+)
+
 export const getNotificationsData = unstable_cache(
   async () => {
     const [notifications, unpaidBillings, linkedTenants] = await Promise.all([

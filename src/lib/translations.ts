@@ -546,6 +546,15 @@ export const translations = {
     notice_reopened_toast: 'Notice reopened',
     notice_billing_banner_title: 'This tenant has open notices — review before billing',
     notice_dashboard_title: 'Open Tenant Notices',
+    notice_tenant_required: 'Please select a tenant',
+    notice_select_tenant: 'Select tenant…',
+    // Notices page
+    nav_notices: 'Notices',
+    notices_title: 'Tenant Notices',
+    notices_search: 'Search by tenant, room, details…',
+    notices_empty: 'No notices found',
+    notices_total: 'Total',
+    notices_all_types: 'All types',
   },
   kh: {
     // Nav
@@ -1094,6 +1103,15 @@ export const translations = {
     notice_reopened_toast: 'បានបើកដំណឹងឡើងវិញ',
     notice_billing_banner_title: 'អ្នកជួលនេះមានដំណឹងកំពុងបើក — សូមពិនិត្យមុនពេលធ្វើវិក្កយបត្រ',
     notice_dashboard_title: 'ដំណឹងអ្នកជួលកំពុងបើក',
+    notice_tenant_required: 'សូមជ្រើសរើសអ្នកជួល',
+    notice_select_tenant: 'ជ្រើសរើសអ្នកជួល…',
+    // Notices page
+    nav_notices: 'ដំណឹង',
+    notices_title: 'ដំណឹងអ្នកជួល',
+    notices_search: 'ស្វែងរកតាមអ្នកជួល បន្ទប់ ព័ត៌មាន…',
+    notices_empty: 'រកមិនឃើញដំណឹង',
+    notices_total: 'សរុប',
+    notices_all_types: 'គ្រប់ប្រភេទ',
   },
 }
 

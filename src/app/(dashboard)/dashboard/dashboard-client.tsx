@@ -404,6 +404,9 @@ export function DashboardClient({ rooms, tenants, billings, expenses, unpaidBill
                 </CardTitle>
                 <p className="text-xs text-muted-foreground mt-0.5">{filteredNotices.length} {t('notice_open_count')}</p>
               </div>
+              <Link href="/notices" className="text-xs text-primary hover:underline font-medium">
+                {t('view_all')}
+              </Link>
             </CardHeader>
             <CardContent className="p-0">
               <TableScroll>
