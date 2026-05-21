@@ -1,19 +1,20 @@
 /**
- * Shared "gradient wash" palette for stat / summary cards: a soft tinted
- * gradient background, a matching border, a bold icon badge, and an accent
+ * Shared solid-pastel palette for stat / summary cards: a flat pastel
+ * background, a matching border, a bold solid icon badge, and an accent
  * colour for the headline value.
  *
  * Every class string is spelled out in full so Tailwind's JIT compiler can
- * see it — do not build these names dynamically.
+ * see it — do not build these names dynamically. The background uses a solid
+ * `bg-*` (not a gradient) so it fully replaces the card's white background.
  */
 export type CardColor =
   | 'blue' | 'green' | 'emerald' | 'red' | 'orange' | 'amber'
   | 'yellow' | 'purple' | 'indigo' | 'cyan' | 'pink' | 'slate'
 
 export interface CardStyle {
-  /** Tinted gradient background + accent border. */
+  /** Solid pastel background + accent border. */
   card: string
-  /** Bold icon badge background (pair with a white icon). */
+  /** Bold solid icon badge background (pair with a white icon). */
   icon: string
   /** Accent colour for the headline value. */
   value: string
@@ -21,63 +22,63 @@ export interface CardStyle {
 
 export const CARD_STYLES: Record<CardColor, CardStyle> = {
   blue: {
-    card: 'bg-gradient-to-br from-blue-50 to-blue-100/50 border-blue-200/70 dark:from-blue-950/50 dark:to-blue-900/20 dark:border-blue-900/60',
-    icon: 'bg-gradient-to-br from-blue-500 to-blue-600',
-    value: 'text-blue-700 dark:text-blue-300',
+    card: 'bg-blue-100 border-blue-200 dark:bg-blue-950 dark:border-blue-900',
+    icon: 'bg-blue-500',
+    value: 'text-blue-700 dark:text-blue-200',
   },
   green: {
-    card: 'bg-gradient-to-br from-green-50 to-emerald-100/50 border-green-200/70 dark:from-green-950/50 dark:to-emerald-900/20 dark:border-green-900/60',
-    icon: 'bg-gradient-to-br from-green-500 to-emerald-600',
-    value: 'text-green-700 dark:text-green-300',
+    card: 'bg-green-100 border-green-200 dark:bg-green-950 dark:border-green-900',
+    icon: 'bg-green-500',
+    value: 'text-green-700 dark:text-green-200',
   },
   emerald: {
-    card: 'bg-gradient-to-br from-emerald-50 to-teal-100/50 border-emerald-200/70 dark:from-emerald-950/50 dark:to-teal-900/20 dark:border-emerald-900/60',
-    icon: 'bg-gradient-to-br from-emerald-500 to-teal-600',
-    value: 'text-emerald-700 dark:text-emerald-300',
+    card: 'bg-emerald-100 border-emerald-200 dark:bg-emerald-950 dark:border-emerald-900',
+    icon: 'bg-emerald-500',
+    value: 'text-emerald-700 dark:text-emerald-200',
   },
   red: {
-    card: 'bg-gradient-to-br from-red-50 to-rose-100/50 border-red-200/70 dark:from-red-950/50 dark:to-rose-900/20 dark:border-red-900/60',
-    icon: 'bg-gradient-to-br from-red-500 to-rose-600',
-    value: 'text-red-600 dark:text-red-300',
+    card: 'bg-red-100 border-red-200 dark:bg-red-950 dark:border-red-900',
+    icon: 'bg-red-500',
+    value: 'text-red-700 dark:text-red-200',
   },
   orange: {
-    card: 'bg-gradient-to-br from-orange-50 to-amber-100/50 border-orange-200/70 dark:from-orange-950/50 dark:to-amber-900/20 dark:border-orange-900/60',
-    icon: 'bg-gradient-to-br from-orange-500 to-amber-600',
-    value: 'text-orange-600 dark:text-orange-300',
+    card: 'bg-orange-100 border-orange-200 dark:bg-orange-950 dark:border-orange-900',
+    icon: 'bg-orange-500',
+    value: 'text-orange-700 dark:text-orange-200',
   },
   amber: {
-    card: 'bg-gradient-to-br from-amber-50 to-yellow-100/50 border-amber-200/70 dark:from-amber-950/50 dark:to-yellow-900/20 dark:border-amber-900/60',
-    icon: 'bg-gradient-to-br from-amber-500 to-yellow-500',
-    value: 'text-amber-600 dark:text-amber-300',
+    card: 'bg-amber-100 border-amber-200 dark:bg-amber-950 dark:border-amber-900',
+    icon: 'bg-amber-500',
+    value: 'text-amber-700 dark:text-amber-200',
   },
   yellow: {
-    card: 'bg-gradient-to-br from-yellow-50 to-amber-100/50 border-yellow-200/70 dark:from-yellow-950/50 dark:to-amber-900/20 dark:border-yellow-900/60',
-    icon: 'bg-gradient-to-br from-yellow-400 to-amber-500',
-    value: 'text-yellow-700 dark:text-yellow-300',
+    card: 'bg-yellow-100 border-yellow-200 dark:bg-yellow-950 dark:border-yellow-900',
+    icon: 'bg-yellow-500',
+    value: 'text-yellow-700 dark:text-yellow-200',
   },
   purple: {
-    card: 'bg-gradient-to-br from-purple-50 to-fuchsia-100/50 border-purple-200/70 dark:from-purple-950/50 dark:to-fuchsia-900/20 dark:border-purple-900/60',
-    icon: 'bg-gradient-to-br from-purple-500 to-fuchsia-600',
-    value: 'text-purple-700 dark:text-purple-300',
+    card: 'bg-purple-100 border-purple-200 dark:bg-purple-950 dark:border-purple-900',
+    icon: 'bg-purple-500',
+    value: 'text-purple-700 dark:text-purple-200',
   },
   indigo: {
-    card: 'bg-gradient-to-br from-indigo-50 to-blue-100/50 border-indigo-200/70 dark:from-indigo-950/50 dark:to-blue-900/20 dark:border-indigo-900/60',
-    icon: 'bg-gradient-to-br from-indigo-500 to-blue-600',
-    value: 'text-indigo-700 dark:text-indigo-300',
+    card: 'bg-indigo-100 border-indigo-200 dark:bg-indigo-950 dark:border-indigo-900',
+    icon: 'bg-indigo-500',
+    value: 'text-indigo-700 dark:text-indigo-200',
   },
   cyan: {
-    card: 'bg-gradient-to-br from-cyan-50 to-sky-100/50 border-cyan-200/70 dark:from-cyan-950/50 dark:to-sky-900/20 dark:border-cyan-900/60',
-    icon: 'bg-gradient-to-br from-cyan-500 to-sky-600',
-    value: 'text-cyan-700 dark:text-cyan-300',
+    card: 'bg-cyan-100 border-cyan-200 dark:bg-cyan-950 dark:border-cyan-900',
+    icon: 'bg-cyan-500',
+    value: 'text-cyan-700 dark:text-cyan-200',
   },
   pink: {
-    card: 'bg-gradient-to-br from-pink-50 to-rose-100/50 border-pink-200/70 dark:from-pink-950/50 dark:to-rose-900/20 dark:border-pink-900/60',
-    icon: 'bg-gradient-to-br from-pink-500 to-rose-600',
-    value: 'text-pink-700 dark:text-pink-300',
+    card: 'bg-pink-100 border-pink-200 dark:bg-pink-950 dark:border-pink-900',
+    icon: 'bg-pink-500',
+    value: 'text-pink-700 dark:text-pink-200',
   },
   slate: {
-    card: 'bg-gradient-to-br from-slate-50 to-slate-100/70 border-slate-200/80 dark:from-slate-800/50 dark:to-slate-900/30 dark:border-slate-700/60',
-    icon: 'bg-gradient-to-br from-slate-500 to-slate-600',
-    value: 'text-slate-700 dark:text-slate-300',
+    card: 'bg-slate-100 border-slate-300 dark:bg-slate-800 dark:border-slate-700',
+    icon: 'bg-slate-500',
+    value: 'text-slate-700 dark:text-slate-200',
   },
 }
