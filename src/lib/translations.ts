@@ -8,6 +8,7 @@ export const translations = {
     nav_invoices: 'Invoices',
     nav_maintenance: 'Maintenance',
     nav_reports: 'Reports',
+    nav_property_summary: 'Property Summary',
     nav_notifications: 'Notifications',
     nav_settings: 'Settings',
     nav_signout: 'Sign out',
@@ -155,6 +156,15 @@ export const translations = {
     invoices_title: 'Invoices',
     // Reports
     reports_title: 'Reports',
+    // Property Summary
+    property_summary_title: 'Property Summary',
+    property_summary_subtitle: 'Compare every property at a glance',
+    ps_snapshot: 'Property Snapshot',
+    ps_comparison: 'Comparison',
+    ps_financial: 'Financial Comparison',
+    ps_profile: 'Property Profile',
+    ps_open_maintenance: 'Open Maintenance',
+    ps_no_branches: 'No properties configured yet',
     // Notifications
     notifications_title: 'Notifications',
     // Settings
@@ -509,6 +519,7 @@ export const translations = {
     nav_invoices: 'វិក្កយបត្រ',
     nav_maintenance: 'ការថែទាំ',
     nav_reports: 'របាយការណ៍',
+    nav_property_summary: 'សង្ខេបអចលនទ្រព្យ',
     nav_notifications: 'ការជូនដំណឹង',
     nav_settings: 'ការកំណត់',
     nav_signout: 'ចាកចេញ',
@@ -656,6 +667,15 @@ export const translations = {
     invoices_title: 'វិក្កយបត្រ',
     // Reports
     reports_title: 'របាយការណ៍',
+    // Property Summary
+    property_summary_title: 'សង្ខេបអចលនទ្រព្យ',
+    property_summary_subtitle: 'ប្រៀបធៀបអចលនទ្រព្យទាំងអស់ក្នុងមួយការមើល',
+    ps_snapshot: 'ទិដ្ឋភាពអចលនទ្រព្យ',
+    ps_comparison: 'ការប្រៀបធៀប',
+    ps_financial: 'ការប្រៀបធៀបហិរញ្ញវត្ថុ',
+    ps_profile: 'ប្រវត្តិអចលនទ្រព្យ',
+    ps_open_maintenance: 'ការជួសជុលមិនទាន់រួច',
+    ps_no_branches: 'មិនទាន់មានអចលនទ្រព្យ',
     // Notifications
     notifications_title: 'ការជូនដំណឹង',
     // Settings

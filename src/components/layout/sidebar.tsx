@@ -24,6 +24,7 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { href: '/dashboard', labelKey: 'nav_dashboard', icon: LayoutDashboard },
+  { href: '/property-summary', labelKey: 'nav_property_summary', icon: Building2 },
   { href: '/tenants', labelKey: 'nav_tenants', icon: Users },
   { href: '/rooms', labelKey: 'nav_rooms', icon: DoorOpen },
   { href: '/billing', labelKey: 'nav_billing', icon: FileText },
