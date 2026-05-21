@@ -199,6 +199,7 @@ export const translations = {
     dashboard_outstanding_payments: 'Outstanding Payments',
     // Rooms extra
     rooms_total: 'total rooms',
+    rooms_total_card: 'Total',
     // Notifications extra
     notifications_send_all: 'Send All Reminders',
     notifications_pending_reminders: 'Pending Payment Reminders',
@@ -698,6 +699,7 @@ export const translations = {
     dashboard_outstanding_payments: 'ការទូទាត់ជំពាក់',
     // Rooms extra
     rooms_total: 'បន្ទប់សរុប',
+    rooms_total_card: 'សរុប',
     // Notifications extra
     notifications_send_all: 'ផ្ញើការរំលឹកទាំងអស់',
     notifications_pending_reminders: 'ការរំលឹកការទូទាត់រង់ចាំ',
