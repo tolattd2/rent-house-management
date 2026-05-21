@@ -44,36 +44,39 @@ export function TenantsClient({ tenants: initial, rooms }: Props) {
   const currentMonth = new Date().toISOString().slice(0, 7)
   const [month, setMonth] = useState('all')
   const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive' | 'owing'>('active')
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive' | 'movedout' | 'owing'>('active')
   const [branchFilter, setBranchFilter] = useState<string>('all')
   const [showForm, setShowForm] = useState(false)
 
   // ── Monthly snapshot helpers ────────────────────────────────────────
   // Active / With Outstanding / All-Time describe the population as it
   // stood at the END of the selected month; Moved Out counts only the
-  // move-outs that happened *within* that month. 'all' is an open-ended
-  // bound — a live, all-time view.
+  // move-outs that happened *within* that month. 'All months' is an alias
+  // for the current month, so it always reads "up to now" — future-dated
+  // records never inflate the totals.
   const monthOf = (d: string) => (d || '').slice(0, 7)
-  const effMonth = month === 'all' ? '9999-12' : month
+  const effMonth = month === 'all' ? currentMonth : month
   const existedBy = (tn: Tenant) => !!tn.moveInDate && monthOf(tn.moveInDate) <= effMonth
   // Moved out on or before the selected month — no longer active by then.
   const movedOutBy = (tn: Tenant) => !!tn.moveOutDate && monthOf(tn.moveOutDate) <= effMonth
-  // Moved out exactly within the selected month ('all' → ever moved out).
+  // Moved out exactly within the selected month.
   const movedOutInMonth = (tn: Tenant) =>
-    !!tn.moveOutDate && (month === 'all' || monthOf(tn.moveOutDate) === month)
+    !!tn.moveOutDate && monthOf(tn.moveOutDate) === effMonth
   const owingBy = (tn: Tenant) =>
     tn.billings.some((b) => b.totalUsd > 0 && monthOf(b.billingMonth) <= effMonth)
 
-  // Continuous list of months from the earliest move-in up to today, so the
-  // snapshot can be scrubbed across the property's whole history.
+  // Month list for the dropdown: earliest move-in → latest activity (at least
+  // the current month), newest first, so any upcoming move-ins stay reachable.
   const months = (() => {
     const moveIns = tenants.map((tn) => monthOf(tn.moveInDate)).filter(Boolean)
-    let cursor = moveIns.length ? moveIns.reduce((a, b) => (a < b ? a : b)) : currentMonth
-    if (cursor > currentMonth) cursor = currentMonth
+    let start = moveIns.length ? moveIns.reduce((a, b) => (a < b ? a : b)) : currentMonth
+    if (start > currentMonth) start = currentMonth
+    let end = moveIns.length ? moveIns.reduce((a, b) => (a > b ? a : b)) : currentMonth
+    if (end < currentMonth) end = currentMonth
     const list: string[] = []
-    let [y, m] = cursor.split('-').map(Number)
-    const [cy, cm] = currentMonth.split('-').map(Number)
-    while (y < cy || (y === cy && m <= cm)) {
+    let [y, m] = start.split('-').map(Number)
+    const [ey, em] = end.split('-').map(Number)
+    while (y < ey || (y === ey && m <= em)) {
       list.push(`${y}-${String(m).padStart(2, '0')}`)
       if (++m > 12) { m = 1; y++ }
     }
@@ -86,11 +89,14 @@ export function TenantsClient({ tenants: initial, rooms }: Props) {
     ? tenants
     : tenants.filter((tn) => tn.room?.branch === branchFilter)
 
+  // All-Time = Active + Inactive: every tenant who existed by the period is
+  // either still active or has moved out. "Moved Out" is a separate metric —
+  // just the move-outs dated within the selected month.
   const snapshot = branchTenants.filter(existedBy)
   const stats = {
     total: snapshot.length,
     active: snapshot.filter((tn) => !movedOutBy(tn)).length,
-    inactive: snapshot.filter(movedOutInMonth).length,
+    movedout: snapshot.filter(movedOutInMonth).length,
     owing: snapshot.filter(owingBy).length,
   }
 
@@ -104,8 +110,9 @@ export function TenantsClient({ tenants: initial, rooms }: Props) {
       const matchStatus =
         statusFilter === 'all' ? true
           : statusFilter === 'active' ? !movedOutBy(t)
-            : statusFilter === 'inactive' ? movedOutInMonth(t)
-              : owingBy(t)
+            : statusFilter === 'inactive' ? movedOutBy(t)
+              : statusFilter === 'movedout' ? movedOutInMonth(t)
+                : owingBy(t)
       const matchBranch = branchFilter === 'all' || t.room?.branch === branchFilter
       return matchSearch && existedBy(t) && matchStatus && matchBranch
     }).map((t) => ({ ...t, roomNumber: t.room?.roomNumber ?? '' }))
@@ -149,7 +156,7 @@ export function TenantsClient({ tenants: initial, rooms }: Props) {
         {([
           { key: 'active',   icon: UserCheck,   label: t('status_active'),           count: stats.active,   color: 'green' as CardColor },
           { key: 'owing',    icon: AlertCircle, label: t('tenants_owing_card'),      count: stats.owing,    color: 'red'   as CardColor },
-          { key: 'inactive', icon: UserMinus,   label: t('tenants_moved_out'),       count: stats.inactive, color: 'slate' as CardColor },
+          { key: 'movedout', icon: UserMinus,   label: t('tenants_moved_out'),       count: stats.movedout, color: 'slate' as CardColor },
           { key: 'all',      icon: Users,       label: t('tenants_alltime_card'),    count: stats.total,    color: 'blue'  as CardColor },
         ] as const).map(({ key, icon: Icon, label, count, color }) => {
           const cs = CARD_STYLES[color]
