@@ -250,11 +250,19 @@ export function CreateBillingClient({ tenants, settings, preselectedTenantId, ed
                       <SelectContent>
                         {tenants
                           .filter((tenant) => tenant.room?.branch === branchFilter)
-                          .map((tenant) => (
-                            <SelectItem key={tenant.id} value={tenant.id}>
-                              {t('room')} {tenant.room ? roomLabel(tenant.room) : '—'} — {tenant.fullName}
-                            </SelectItem>
-                          ))}
+                          .map((tenant) => {
+                            // Block tenants that already have a bill for the
+                            // chosen month — they stay visible but unselectable.
+                            const alreadyBilled = tenant.billings.some(
+                              (b) => b.billingMonth === formValues.billingMonth,
+                            )
+                            return (
+                              <SelectItem key={tenant.id} value={tenant.id} disabled={alreadyBilled}>
+                                {t('room')} {tenant.room ? roomLabel(tenant.room) : '—'} — {tenant.fullName}
+                                {alreadyBilled ? ' — already billed' : ''}
+                              </SelectItem>
+                            )
+                          })}
                       </SelectContent>
                     </Select>
                   )}

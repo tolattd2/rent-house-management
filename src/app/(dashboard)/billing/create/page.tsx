@@ -8,7 +8,6 @@ async function getActiveTenantsWithRooms() {
       room: true,
       billings: {
         orderBy: { billingMonth: 'desc' },
-        take: 1,
         select: {
           billingMonth: true, currWaterReading: true, currElectricReading: true,
           totalUsd: true, paymentStatus: true,
