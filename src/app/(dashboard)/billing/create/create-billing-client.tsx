@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -71,9 +71,11 @@ interface Props {
   settings: Record<string, string>
   preselectedTenantId?: string
   editBilling?: EditBilling
+  /** "tenantId|billingMonth" keys that already have a bill. */
+  billedKeys?: string[]
 }
 
-export function CreateBillingClient({ tenants, settings, preselectedTenantId, editBilling }: Props) {
+export function CreateBillingClient({ tenants, settings, preselectedTenantId, editBilling, billedKeys }: Props) {
   const router = useRouter()
   const { t } = useLanguage()
   const roomLabel = useRoomLabel()
@@ -86,6 +88,7 @@ export function CreateBillingClient({ tenants, settings, preselectedTenantId, ed
   const [branchFilter, setBranchFilter] = useState<string>(
     tenants.find((tn) => tn.id === preselectedTenantId)?.room?.branch ?? '',
   )
+  const billedSet = useMemo(() => new Set(billedKeys ?? []), [billedKeys])
 
   const currentMonth = new Date().toISOString().slice(0, 7)
 
@@ -253,9 +256,7 @@ export function CreateBillingClient({ tenants, settings, preselectedTenantId, ed
                           .map((tenant) => {
                             // Block tenants that already have a bill for the
                             // chosen month — they stay visible but unselectable.
-                            const alreadyBilled = tenant.billings.some(
-                              (b) => b.billingMonth === formValues.billingMonth,
-                            )
+                            const alreadyBilled = billedSet.has(`${tenant.id}|${formValues.billingMonth}`)
                             return (
                               <SelectItem key={tenant.id} value={tenant.id} disabled={alreadyBilled}>
                                 {t('room')} {tenant.room ? roomLabel(tenant.room) : '—'} — {tenant.fullName}

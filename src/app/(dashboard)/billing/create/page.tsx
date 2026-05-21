@@ -8,6 +8,7 @@ async function getActiveTenantsWithRooms() {
       room: true,
       billings: {
         orderBy: { billingMonth: 'desc' },
+        take: 1,
         select: {
           billingMonth: true, currWaterReading: true, currElectricReading: true,
           totalUsd: true, paymentStatus: true,
@@ -23,7 +24,23 @@ async function getSettings() {
   return Object.fromEntries(rows.map((r) => [r.key, r.value]))
 }
 
+/** Every (tenant, month) pair that already has a bill — used to block duplicates.
+ *  Two narrow columns only, so it stays cheap as the billing table grows. */
+async function getBilledKeys() {
+  const rows = await db.billing.findMany({ select: { tenantId: true, billingMonth: true } })
+  return rows.map((r) => `${r.tenantId}|${r.billingMonth}`)
+}
+
 export default async function CreateBillingPage({ searchParams }: { searchParams: Promise<{ tenantId?: string }> }) {
-  const [tenants, settings, params] = await Promise.all([getActiveTenantsWithRooms(), getSettings(), searchParams])
-  return <CreateBillingClient tenants={tenants} settings={settings} preselectedTenantId={params.tenantId} />
+  const [tenants, settings, billedKeys, params] = await Promise.all([
+    getActiveTenantsWithRooms(), getSettings(), getBilledKeys(), searchParams,
+  ])
+  return (
+    <CreateBillingClient
+      tenants={tenants}
+      settings={settings}
+      preselectedTenantId={params.tenantId}
+      billedKeys={billedKeys}
+    />
+  )
 }
