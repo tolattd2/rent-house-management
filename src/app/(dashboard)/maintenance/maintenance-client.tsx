@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Plus, Search, Wrench, Trash2, Pencil, CheckCircle2, Clock, AlertCircle } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
@@ -70,6 +70,7 @@ export function MaintenanceClient({ records: initial, rooms, tenants }: Props) {
   const { t } = useLanguage()
   const roomLabel = useRoomLabel()
   const [records, setRecords] = useState(initial)
+  useEffect(() => { setRecords(initial) }, [initial])
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [branchFilter, setBranchFilter] = useState('all')

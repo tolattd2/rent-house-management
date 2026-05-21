@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Plus, Search, User, Phone, Home, AlertCircle, Building2 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -38,6 +38,7 @@ export function TenantsClient({ tenants: initial, rooms }: Props) {
   const branches = useBranches()
   const roomLabel = useRoomLabel()
   const [tenants, setTenants] = useState(initial)
+  useEffect(() => { setTenants(initial) }, [initial])
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('active')
   const [branchFilter, setBranchFilter] = useState<string>('all')

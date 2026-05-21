@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import {
   Plus, Search, TrendingDown, DollarSign, Tag, Calendar,
   Edit, Trash2, Download, Wrench, Zap, Users, Package, FileText, HelpCircle,
@@ -86,6 +86,7 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
   const { t } = useLanguage()
   const branchOptions = ['all', ...useBranches().map((b) => b.name)]
   const [expenses, setExpenses] = useState(initialExpenses)
+  useEffect(() => { setExpenses(initialExpenses) }, [initialExpenses])
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('all')
   const [monthFilter, setMonthFilter] = useState('all')

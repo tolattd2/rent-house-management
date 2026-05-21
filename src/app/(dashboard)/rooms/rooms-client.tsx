@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Plus, Search, Home, Users, DollarSign, Wrench, Edit, Trash2, Building2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -54,6 +54,7 @@ export function RoomsClient({ rooms: initialRooms }: Props) {
   const branches = useBranches()
   const roomLabel = useRoomLabel()
   const [rooms, setRooms] = useState(initialRooms)
+  useEffect(() => { setRooms(initialRooms) }, [initialRooms])
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [branchFilter, setBranchFilter] = useState<string>('all')
