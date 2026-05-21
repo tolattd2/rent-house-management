@@ -65,18 +65,20 @@ export function TenantsClient({ tenants: initial, rooms }: Props) {
   const owingBy = (tn: Tenant) =>
     tn.billings.some((b) => b.totalUsd > 0 && monthOf(b.billingMonth) <= effMonth)
 
-  // Month list for the dropdown: earliest move-in → latest activity (at least
-  // the current month), newest first, so any upcoming move-ins stay reachable.
+  // Continuous month list from the earliest move-in up to the current month,
+  // newest first. Only well-formed "YYYY-MM" values at or before now are
+  // considered, and the loop is hard-capped, so a stray far-future or
+  // mistyped date can't blow the dropdown up.
   const months = (() => {
-    const moveIns = tenants.map((tn) => monthOf(tn.moveInDate)).filter(Boolean)
-    let start = moveIns.length ? moveIns.reduce((a, b) => (a < b ? a : b)) : currentMonth
-    if (start > currentMonth) start = currentMonth
-    let end = moveIns.length ? moveIns.reduce((a, b) => (a > b ? a : b)) : currentMonth
-    if (end < currentMonth) end = currentMonth
+    const moveIns = tenants
+      .map((tn) => monthOf(tn.moveInDate))
+      .filter((mm) => /^\d{4}-\d{2}$/.test(mm) && mm <= currentMonth)
+    let cursor = moveIns.length ? moveIns.reduce((a, b) => (a < b ? a : b)) : currentMonth
+    if (cursor < '2000-01') cursor = currentMonth
     const list: string[] = []
-    let [y, m] = start.split('-').map(Number)
-    const [ey, em] = end.split('-').map(Number)
-    while (y < ey || (y === ey && m <= em)) {
+    let [y, m] = cursor.split('-').map(Number)
+    const [cy, cm] = currentMonth.split('-').map(Number)
+    while ((y < cy || (y === cy && m <= cm)) && list.length < 600) {
       list.push(`${y}-${String(m).padStart(2, '0')}`)
       if (++m > 12) { m = 1; y++ }
     }
