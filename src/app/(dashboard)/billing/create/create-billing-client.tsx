@@ -353,11 +353,17 @@ export function CreateBillingClient({ tenants, settings, preselectedTenantId, ed
                         </div>
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Water ({preview.waterUsage} {t('unit_kib')})</span>
-                          <span className="font-medium">{preview.waterCostRiel.toLocaleString()} ៛</span>
+                          <span className="font-medium text-right">
+                            {formatCurrency(preview.waterCostRiel / preview.exchangeRate)}
+                            <span className="block text-xs font-normal text-muted-foreground">{preview.waterCostRiel.toLocaleString()} ៛</span>
+                          </span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Electric ({preview.electricUsage} {t('unit_kw')})</span>
-                          <span className="font-medium">{preview.electricCostRiel.toLocaleString()} ៛</span>
+                          <span className="font-medium text-right">
+                            {formatCurrency(preview.electricCostRiel / preview.exchangeRate)}
+                            <span className="block text-xs font-normal text-muted-foreground">{preview.electricCostRiel.toLocaleString()} ៛</span>
+                          </span>
                         </div>
                         {(formValues.outstandingDebtUsd ?? 0) > 0 && (
                           <div className="flex justify-between text-red-600">
