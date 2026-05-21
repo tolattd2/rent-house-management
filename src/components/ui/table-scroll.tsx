@@ -45,7 +45,7 @@ export function TableScroll({ children }: { children: ReactNode }) {
       </div>
       <div
         ref={bodyRef}
-        className="table-scroll"
+        className={overflowing ? 'table-scroll table-scroll--overflowing' : 'table-scroll'}
         onScroll={() => sync(bodyRef.current, topRef.current)}
       >
         {children}

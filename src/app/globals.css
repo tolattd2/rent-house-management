@@ -154,8 +154,27 @@
   .table-scroll thead th {
     position: sticky;
     top: 0;
-    z-index: 1;
+    z-index: 2;
     background: hsl(var(--muted));
+  }
+  /* Freeze the first column during horizontal scroll so each row's key
+     identifier (room, invoice #, branch…) stays visible on narrow screens.
+     Only active while the table actually overflows — the class is toggled
+     by the TableScroll component. */
+  .table-scroll--overflowing table tbody td:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background: hsl(var(--card));
+    border-right: 1px solid hsl(var(--border));
+  }
+  .table-scroll--overflowing table tbody tr:hover td:first-child {
+    background: hsl(var(--muted));
+  }
+  .table-scroll--overflowing table thead th:first-child {
+    left: 0;
+    z-index: 3;
+    border-right: 1px solid hsl(var(--border));
   }
   /* Synced horizontal scrollbar shown above a table */
   .table-scroll-top {
@@ -201,6 +220,12 @@
     }
     .table-scroll thead th {
       position: static;
+    }
+    /* Keep the frozen first column working horizontally on touch, without
+       re-enabling the vertical sticky header. */
+    .table-scroll--overflowing table thead th:first-child {
+      position: sticky;
+      top: auto;
     }
     .table-scroll-top {
       display: none !important;
