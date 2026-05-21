@@ -194,13 +194,13 @@ export function InvoicesClient({ invoices: initial }: Props) {
           <table className="w-full min-w-[820px] text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/30">
-                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{t('invoices_col_invoice')}</th>
                 <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{t('room')}</th>
                 <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{t('branch')}</th>
                 <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{t('tenant')}</th>
                 <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{t('billing_col_month')}</th>
                 <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground">{t('amount')}</th>
                 <th className="text-center px-4 py-3 text-xs font-medium text-muted-foreground">{t('status')}</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{t('invoices_col_invoice')}</th>
                 <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground">{t('actions')}</th>
               </tr>
             </thead>
@@ -208,7 +208,6 @@ export function InvoicesClient({ invoices: initial }: Props) {
               {filtered.map((inv, i) => (
                 <tr key={inv.id}
                   className={`border-b border-border last:border-0 hover:bg-muted/30 ${i % 2 ? 'bg-muted/10' : ''}`}>
-                  <td className="px-4 py-3 font-mono text-xs">{inv.invoiceNumber}</td>
                   <td className="px-4 py-3 font-medium">{inv.billing?.room ? roomLabel(inv.billing.room) : '—'}</td>
                   <td className="px-4 py-3 text-muted-foreground">{inv.billing?.room?.branch ?? '—'}</td>
                   <td className="px-4 py-3">
@@ -223,6 +222,7 @@ export function InvoicesClient({ invoices: initial }: Props) {
                       {inv.billing?.paymentStatus === 'paid' ? t('status_paid') : t('status_unpaid')}
                     </Badge>
                   </td>
+                  <td className="px-4 py-3 font-mono text-xs">{inv.invoiceNumber}</td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-1">
                       <Link href={`/invoices/${inv.billingId}`}>
