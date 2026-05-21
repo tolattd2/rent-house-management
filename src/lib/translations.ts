@@ -65,7 +65,7 @@ export const translations = {
     tenant_send_message: 'Send Message',
     tenants_empty: 'No tenants found',
     tenants_per_month: '/mo',
-    tenants_total_card: 'Total Tenants',
+    tenants_alltime_card: 'All-Time Tenants',
     tenants_moved_out: 'Moved Out',
     tenants_owing_card: 'With Outstanding',
     // Rooms page
@@ -583,7 +583,7 @@ export const translations = {
     tenant_send_message: 'ផ្ញើសារ',
     tenants_empty: 'រកមិនឃើញអ្នករស់នៅ',
     tenants_per_month: '/ខែ',
-    tenants_total_card: 'អ្នករស់នៅសរុប',
+    tenants_alltime_card: 'អ្នករស់នៅទាំងអស់',
     tenants_moved_out: 'បានចេញ',
     tenants_owing_card: 'មានបំណុលជំពាក់',
     // Rooms page
