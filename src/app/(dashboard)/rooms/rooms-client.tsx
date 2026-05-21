@@ -241,6 +241,7 @@ export function RoomsClient({ rooms: initialRooms, settings }: Props) {
         <RoomFormDialog
           room={editRoom}
           settings={settings}
+          rooms={rooms}
           onClose={() => { setShowForm(false); setEditRoom(null) }}
           onSave={handleSave}
         />

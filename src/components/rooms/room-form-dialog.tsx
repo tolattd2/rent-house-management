@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -28,14 +28,52 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>
 
+/**
+ * Suggest the next room numbers for a branch by learning the pattern already
+ * used there: shared prefix, digit width, and the existing sequence.
+ */
+function suggestRoomNumbers(existing: string[]): string[] {
+  const used = new Set(existing)
+  const parsed = existing
+    .map((s) => {
+      const m = s.trim().match(/^(.*?)(\d+)$/)
+      return m ? { prefix: m[1], num: parseInt(m[2], 10), width: m[2].length } : null
+    })
+    .filter((x): x is { prefix: string; num: number; width: number } => x !== null)
+
+  if (parsed.length === 0) return ['101']
+
+  // Follow the most common prefix among the existing numbers.
+  const prefixCount = new Map<string, number>()
+  for (const p of parsed) prefixCount.set(p.prefix, (prefixCount.get(p.prefix) ?? 0) + 1)
+  const prefix = [...prefixCount.entries()].sort((a, b) => b[1] - a[1])[0][0]
+
+  const seq = parsed.filter((p) => p.prefix === prefix).sort((a, b) => a.num - b.num)
+  const width = Math.max(...seq.map((p) => p.width))
+  const fmt = (n: number) => prefix + String(n).padStart(width, '0')
+  const nums = seq.map((p) => p.num)
+  const max = nums[nums.length - 1]
+
+  const out: string[] = []
+  out.push(fmt(max + 1)) // next in sequence
+  if (width >= 3 && max >= 100) {
+    out.push(fmt((Math.floor(max / 100) + 1) * 100 + 1)) // start of the next floor
+  }
+  for (let i = 1; i < nums.length; i++) {
+    if (nums[i] - nums[i - 1] > 1) { out.push(fmt(nums[i - 1] + 1)); break } // fill first gap
+  }
+  return [...new Set(out)].filter((s) => !used.has(s)).slice(0, 3)
+}
+
 interface Props {
   room?: Partial<FormData & { id: string }> | null
   settings: Record<string, string>
+  rooms: Array<{ roomNumber: string; branch: string }>
   onClose: () => void
   onSave: () => void
 }
 
-export function RoomFormDialog({ room, settings, onClose, onSave }: Props) {
+export function RoomFormDialog({ room, settings, rooms, onClose, onSave }: Props) {
   const { t } = useLanguage()
   const branches = useBranches()
   const [loading, setLoading] = useState(false)
@@ -44,7 +82,7 @@ export function RoomFormDialog({ room, settings, onClose, onSave }: Props) {
   const defaultBranch = room?.branch ?? branches[0]?.name ?? ''
   const branchRates = resolveBranchRates(settings, branches, defaultBranch)
 
-  const { register, handleSubmit, setValue, formState: { errors } } = useForm<FormData>({
+  const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
       roomNumber: room?.roomNumber ?? '',
@@ -57,6 +95,14 @@ export function RoomFormDialog({ room, settings, onClose, onSave }: Props) {
       notes: room?.notes ?? '',
     },
   })
+
+  // Room-number suggestions, learned from the numbers already used in the
+  // currently selected branch. Shown for new rooms only.
+  const currentBranch = watch('branch')
+  const roomNumberSuggestions = useMemo(
+    () => suggestRoomNumbers(rooms.filter((r) => r.branch === currentBranch).map((r) => r.roomNumber)),
+    [rooms, currentBranch],
+  )
 
   // On a new room, switching branch refreshes the water/electric fields to that
   // branch's default rate. The inputs stay editable so the user can override.
@@ -96,6 +142,21 @@ export function RoomFormDialog({ room, settings, onClose, onSave }: Props) {
             <div className="space-y-1.5">
               <Label>{t('room_form_number')}</Label>
               <Input {...register('roomNumber')} placeholder="101" />
+              {!isEdit && roomNumberSuggestions.length > 0 && (
+                <div className="flex flex-wrap items-center gap-1">
+                  <span className="text-[11px] text-muted-foreground">{t('room_form_suggestions')}:</span>
+                  {roomNumberSuggestions.map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => setValue('roomNumber', s, { shouldValidate: true })}
+                      className="px-1.5 py-0.5 text-[11px] rounded border bg-muted/50 hover:bg-primary hover:text-primary-foreground transition-colors"
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              )}
               {errors.roomNumber && <p className="text-xs text-destructive">{errors.roomNumber.message}</p>}
             </div>
             <div className="space-y-1.5">
