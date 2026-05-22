@@ -88,8 +88,8 @@ export function PropertySummaryClient({ rooms, tenants, billings, expenses, main
       const paidBillings = monthBillings.filter((b) => b.paymentStatus === 'paid')
       const revenue = paidBillings.reduce((s, b) => s + b.totalUsd, 0)
 
-      const outstanding = billings
-        .filter((b) => b.room?.branch === br.name && (b.paymentStatus === 'unpaid' || b.paymentStatus === 'partial'))
+      const outstanding = monthBillings
+        .filter((b) => b.paymentStatus === 'unpaid' || b.paymentStatus === 'partial')
         .reduce((s, b) => s + Math.max(0, b.totalUsd - b.payments.reduce((p, x) => p + x.amountUsd, 0)), 0)
 
       const expenseTotal = expenses
