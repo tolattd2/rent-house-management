@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Upload, FileText, Download, Save, RefreshCw } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
+import { RichTextEditor, plainTextToHtml, looksLikeHtml } from '@/components/ui/rich-text-editor'
 import { toast } from '@/hooks/use-toast'
 import { useLanguage } from '@/contexts/language-context'
 import {
@@ -18,17 +18,23 @@ interface Props {
   tenantId: string
   vars: AgreementVars
   onClose: () => void
-  /** Existing saved agreement text, if any — opens directly in edit mode. */
+  /** Existing saved agreement text/HTML, if any — opens directly in edit mode. */
   initialText?: string
+}
+
+/** Normalize any incoming string (plain text or HTML) into editor-ready HTML. */
+function toEditorHtml(s: string): string {
+  if (!s) return ''
+  return looksLikeHtml(s) ? s : plainTextToHtml(s)
 }
 
 export function GenerateContractDialog({ tenantId, vars, onClose, initialText }: Props) {
   const { t } = useLanguage()
   const fileRef = useRef<HTMLInputElement>(null)
-  const [text, setText] = useState(() =>
+  const [html, setHtml] = useState(() =>
     initialText && initialText.trim().length > 0
-      ? initialText
-      : fillPlaceholders(DEFAULT_AGREEMENT_TEMPLATE, vars),
+      ? toEditorHtml(initialText)
+      : plainTextToHtml(fillPlaceholders(DEFAULT_AGREEMENT_TEMPLATE, vars)),
   )
   const [saving, setSaving] = useState(false)
   const [extracting, setExtracting] = useState(false)
@@ -38,8 +44,8 @@ export function GenerateContractDialog({ tenantId, vars, onClose, initialText }:
     [vars],
   )
 
-  // On open, pull any previously-saved agreement text so users keep editing
-  // the version they last saved instead of restarting from the template.
+  // On open, pull any previously-saved agreement so users keep editing the
+  // version they last saved instead of restarting from the template.
   useEffect(() => {
     if (initialText) return
     let cancelled = false
@@ -53,7 +59,7 @@ export function GenerateContractDialog({ tenantId, vars, onClose, initialText }:
         const active = contracts
           .filter((c) => c.status === 'active' && c.agreementText)
           .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))[0]
-        if (active?.agreementText) setText(active.agreementText)
+        if (active?.agreementText) setHtml(toEditorHtml(active.agreementText))
       } catch {
         // Silent — fall back to the default template already in state.
       }
@@ -64,7 +70,7 @@ export function GenerateContractDialog({ tenantId, vars, onClose, initialText }:
   }, [tenantId, initialText])
 
   function resetToDefault() {
-    setText(fillPlaceholders(DEFAULT_AGREEMENT_TEMPLATE, vars))
+    setHtml(plainTextToHtml(fillPlaceholders(DEFAULT_AGREEMENT_TEMPLATE, vars)))
     toast({ title: t('contract_gen_reset_done') })
   }
 
@@ -82,7 +88,7 @@ export function GenerateContractDialog({ tenantId, vars, onClose, initialText }:
         return
       }
       const filled = fillPlaceholders(data.text || '', vars)
-      setText(filled)
+      setHtml(plainTextToHtml(filled))
       toast({ title: t('contract_gen_upload_loaded') })
     } catch (err) {
       toast({
@@ -103,7 +109,7 @@ export function GenerateContractDialog({ tenantId, vars, onClose, initialText }:
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          agreementText: text,
+          agreementText: html,
           contractStart: vars.contractStart,
           contractEnd: vars.contractEnd,
           monthlyRent: vars.monthlyRent,
@@ -127,20 +133,22 @@ export function GenerateContractDialog({ tenantId, vars, onClose, initialText }:
       toast({ title: t('contract_gen_popup_blocked'), variant: 'destructive' })
       return
     }
-    const safe = text
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
     const title = `Agreement — ${vars.tenantName || ''}`
     win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${title}</title>
 <style>
   @page { size: A4; margin: 20mm; }
-  body { font-family: 'Khmer OS Siemreap', 'Noto Sans Khmer', 'Khmer OS', 'Times New Roman', serif; font-size: 12pt; line-height: 1.6; color: #111; white-space: pre-wrap; }
-  h1 { font-size: 16pt; text-align: center; }
-</style></head><body>${safe}</body></html>`)
+  body { font-family: 'Khmer OS Siemreap', 'Noto Sans Khmer', 'Khmer OS', 'Times New Roman', serif; font-size: 12pt; line-height: 1.6; color: #111; }
+  h1 { font-size: 18pt; text-align: center; margin: 0.4em 0; }
+  h2 { font-size: 14pt; margin: 0.6em 0 0.3em; }
+  h3 { font-size: 12pt; margin: 0.5em 0 0.25em; }
+  p  { margin: 0.35em 0; }
+  ul, ol { margin: 0.3em 0 0.3em 1.5em; }
+  blockquote { border-left: 3px solid #888; margin: 0.5em 0; padding-left: 0.6em; color: #444; }
+  pre { background: #f3f3f3; padding: 0.5em; border-radius: 4px; white-space: pre-wrap; }
+</style></head><body>${html}</body></html>`)
     win.document.close()
     win.focus()
-    setTimeout(() => win.print(), 250)
+    setTimeout(() => win.print(), 300)
   }
 
   return (
@@ -190,11 +198,11 @@ export function GenerateContractDialog({ tenantId, vars, onClose, initialText }:
           <span className="text-xs text-muted-foreground">{t('contract_gen_upload_hint')}</span>
         </div>
 
-        <Textarea
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          className="flex-1 min-h-[55vh] font-mono text-sm leading-relaxed"
-          spellCheck={false}
+        <RichTextEditor
+          value={html}
+          onChange={setHtml}
+          className="flex-1 min-h-[55vh] overflow-hidden"
+          ariaLabel={t('contract_gen_title')}
         />
 
         <div className="flex flex-wrap justify-end gap-2 pt-2 border-t">
