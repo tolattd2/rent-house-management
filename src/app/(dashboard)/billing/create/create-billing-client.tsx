@@ -6,7 +6,6 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { motion } from 'framer-motion'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
 import { ArrowLeft, Calculator, Save, Zap, Droplets, Bell } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -18,6 +17,7 @@ import { Separator } from '@/components/ui/separator'
 import { calculateBilling } from '@/lib/billing'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { toast } from '@/hooks/use-toast'
+import { useBack } from '@/hooks/use-back'
 import { useLanguage } from '@/contexts/language-context'
 import { useRoomLabel, useBranches } from '@/contexts/branches-context'
 import { resolveBranchRates } from '@/lib/branches'
@@ -78,6 +78,7 @@ interface Props {
 
 export function CreateBillingClient({ tenants, settings, preselectedTenantId, editBilling, billedKeys }: Props) {
   const router = useRouter()
+  const goBack = useBack('/billing')
   const { t } = useLanguage()
   const roomLabel = useRoomLabel()
   const branches = useBranches()
@@ -197,9 +198,7 @@ export function CreateBillingClient({ tenants, settings, preselectedTenantId, ed
   return (
     <div className="space-y-6 animate-fade-in max-w-4xl">
       <div className="flex items-center gap-4">
-        <Link href="/billing">
-          <Button variant="ghost" size="sm"><ArrowLeft className="w-4 h-4 mr-1" />Back</Button>
-        </Link>
+        <Button variant="ghost" size="sm" onClick={goBack}><ArrowLeft className="w-4 h-4 mr-1" />Back</Button>
         <div>
           <h1 className="text-2xl font-bold">{isEdit ? 'Edit Billing' : 'Create Billing'}</h1>
           <p className="text-muted-foreground text-sm">

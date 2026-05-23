@@ -21,6 +21,7 @@ import { TenantFormDialog } from '@/components/tenants/tenant-form-dialog'
 import { NoticeDialog, type TenantNotice } from '@/components/tenants/notice-dialog'
 import { formatCurrency, formatDate, formatMonth, formatPhones } from '@/lib/utils'
 import { toast } from '@/hooks/use-toast'
+import { useBack } from '@/hooks/use-back'
 import { useLanguage } from '@/contexts/language-context'
 import { useRoomLabel } from '@/contexts/branches-context'
 
@@ -63,6 +64,7 @@ const NOTICE_META: Record<TenantNotice['type'], { icon: typeof Bell; badge: 'err
 
 export function TenantDetailClient({ tenant, rooms }: Props) {
   const router = useRouter()
+  const goBack = useBack('/tenants')
   const { data: session } = useSession()
   const isAdmin = session?.user?.role === 'admin'
   const { t } = useLanguage()
@@ -172,9 +174,7 @@ export function TenantDetailClient({ tenant, rooms }: Props) {
     <div className="space-y-6 animate-fade-in max-w-5xl">
       {/* Header */}
       <div className="flex items-center gap-2 sm:gap-4">
-        <Link href="/tenants">
-          <Button variant="ghost" size="sm" className="h-10"><ArrowLeft className="w-4 h-4 sm:mr-1" /><span className="hidden sm:inline">{t('back')}</span></Button>
-        </Link>
+        <Button variant="ghost" size="sm" className="h-10" onClick={goBack}><ArrowLeft className="w-4 h-4 sm:mr-1" /><span className="hidden sm:inline">{t('back')}</span></Button>
         <div className="flex-1" />
         {isAdmin && tenant.status === 'active' && (
           <>

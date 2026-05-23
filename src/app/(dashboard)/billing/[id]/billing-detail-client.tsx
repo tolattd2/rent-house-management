@@ -12,6 +12,7 @@ import { Separator } from '@/components/ui/separator'
 import { PaymentDialog } from '@/components/billing/payment-dialog'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { toast } from '@/hooks/use-toast'
+import { useBack } from '@/hooks/use-back'
 import { useLanguage } from '@/contexts/language-context'
 import { useRoomLabel } from '@/contexts/branches-context'
 import { useDeleteWithUndo } from '@/hooks/use-delete-with-undo'
@@ -35,6 +36,7 @@ interface Billing {
 
 export function BillingDetailClient({ billing }: { billing: Billing }) {
   const router = useRouter()
+  const goBack = useBack('/billing')
   const { t } = useLanguage()
   const roomLabel = useRoomLabel()
   const [showPay, setShowPay] = useState(false)
@@ -54,7 +56,7 @@ export function BillingDetailClient({ billing }: { billing: Billing }) {
   return (
     <div className="space-y-6 animate-fade-in max-w-3xl">
       <div className="flex items-center gap-3">
-        <Link href="/billing"><Button variant="ghost" size="sm"><ArrowLeft className="w-4 h-4 mr-1" />{t('back')}</Button></Link>
+        <Button variant="ghost" size="sm" onClick={goBack}><ArrowLeft className="w-4 h-4 mr-1" />{t('back')}</Button>
         <div className="flex-1" />
         {billing.paymentStatus !== 'paid' && (
           <Button onClick={() => setShowPay(true)}>

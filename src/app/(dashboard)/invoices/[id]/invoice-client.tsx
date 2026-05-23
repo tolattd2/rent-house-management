@@ -3,10 +3,10 @@
 import { useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { ArrowLeft, Download, MessageSquare, CalendarClock } from 'lucide-react'
-import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { toast } from '@/hooks/use-toast'
 import { useLanguage } from '@/contexts/language-context'
+import { useBack } from '@/hooks/use-back'
 import { InvoiceCard, type InvoiceCardData } from '@/components/invoices/invoice-card'
 import { PromiseDialog } from '@/components/invoices/promise-dialog'
 
@@ -36,6 +36,7 @@ export function InvoiceClient({ billing, invoice, settings }: Props) {
   const { t } = useLanguage()
   const { data: session } = useSession()
   const isAdmin = session?.user?.role === 'admin'
+  const goBack = useBack('/billing')
   const [sending, setSending] = useState<string | null>(null)
   const [showPromise, setShowPromise] = useState(false)
   const xRate = billing.exchangeRate || parseFloat(settings.exchange_rate ?? '4100')
@@ -78,11 +79,9 @@ export function InvoiceClient({ billing, invoice, settings }: Props) {
     <div className="animate-fade-in">
       {/* Toolbar */}
       <div className="flex items-center gap-2 no-print mb-4">
-        <Link href="/billing">
-          <Button variant="ghost" size="sm" className="h-10">
-            <ArrowLeft className="w-4 h-4 sm:mr-1" /><span className="hidden sm:inline">{t('back')}</span>
-          </Button>
-        </Link>
+        <Button variant="ghost" size="sm" className="h-10" onClick={goBack}>
+          <ArrowLeft className="w-4 h-4 sm:mr-1" /><span className="hidden sm:inline">{t('back')}</span>
+        </Button>
         <div className="flex-1" />
         {isAdmin && (
           <Button variant="outline" size="sm" className="h-10" onClick={() => setShowPromise(true)}>
