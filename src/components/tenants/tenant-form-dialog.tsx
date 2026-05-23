@@ -322,6 +322,12 @@ export function TenantFormDialog({ rooms, tenant, onClose, onSave }: Props) {
             tenantId={tenant.id}
             vars={{
               tenantName: watch('fullName') || '',
+              gender: watch('gender') || '',
+              occupation: watch('occupation') || '',
+              nationalId: watch('nationalId') || '',
+              phone: watch('phone') || '',
+              emergencyName: watch('emergencyName') || '',
+              emergencyPhone: watch('emergencyPhone') || '',
               roomLabel: selectedRoom ? roomLabel(selectedRoom) : '',
               branch: selectedBranch,
               monthlyRent: Number(watch('monthlyRent') || 0),

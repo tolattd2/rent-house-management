@@ -5,6 +5,12 @@
 
 export interface AgreementVars {
   tenantName: string
+  gender: string
+  occupation: string
+  nationalId: string
+  phone: string
+  emergencyName: string
+  emergencyPhone: string
   roomLabel: string
   branch: string
   monthlyRent: number
@@ -18,6 +24,12 @@ export interface AgreementVars {
 
 const PLACEHOLDERS = [
   'tenant_name',
+  'gender',
+  'occupation',
+  'national_id',
+  'phone',
+  'emergency_name',
+  'emergency_phone',
   'room',
   'branch',
   'rent',
@@ -54,6 +66,12 @@ export function fillPlaceholders(text: string, vars: AgreementVars): string {
   const duration = vars.durationLabel || computeDurationLabel(vars.contractStart, vars.contractEnd)
   const map: Record<PlaceholderKey, string> = {
     tenant_name: vars.tenantName || '',
+    gender: vars.gender || '',
+    occupation: vars.occupation || '',
+    national_id: vars.nationalId || '',
+    phone: vars.phone || '',
+    emergency_name: vars.emergencyName || '',
+    emergency_phone: vars.emergencyPhone || '',
     room: vars.roomLabel || '',
     branch: vars.branch || '',
     rent: fmtUsd(vars.monthlyRent),
@@ -80,6 +98,13 @@ export const DEFAULT_AGREEMENT_TEMPLATE = `កិច្ចសន្យាជួ�
 
   ម្ចាស់ផ្ទះ (ភាគី «ក»)៖ {{branch}}
   អ្នកជួល (ភាគី «ខ»)៖ {{tenant_name}}
+
+ព័ត៌មានអ្នកជួល៖
+  ភេទ៖ {{gender}}
+  មុខរបរ៖ {{occupation}}
+  អត្តសញ្ញាណប័ណ្ណ៖ {{national_id}}
+  លេខទូរស័ព្ទ៖ {{phone}}
+  អ្នកទំនាក់ទំនងបន្ទាន់៖ {{emergency_name}} ({{emergency_phone}})
 
 មាត្រា ១ — ទីតាំងជួល
 ភាគី «ក» យល់ព្រមឲ្យភាគី «ខ» ជួលបន្ទប់លេខ {{room}} នៅសាខា {{branch}}។
@@ -115,6 +140,13 @@ This Agreement is made between:
 
   Landlord (Party A): {{branch}}
   Tenant   (Party B): {{tenant_name}}
+
+Tenant details:
+  Gender:            {{gender}}
+  Occupation:        {{occupation}}
+  National ID:       {{national_id}}
+  Phone:             {{phone}}
+  Emergency contact: {{emergency_name}} ({{emergency_phone}})
 
 Article 1 — Premises
 Party A agrees to lease to Party B Room {{room}} located at {{branch}}.

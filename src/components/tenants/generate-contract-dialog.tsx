@@ -154,6 +154,11 @@ export function GenerateContractDialog({ tenantId, vars, onClose, initialText }:
           <div className="font-medium mb-1">{t('contract_gen_autofill_summary')}</div>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-0.5">
             <div>👤 {vars.tenantName || '—'}</div>
+            <div>⚧ {vars.gender || '—'}</div>
+            <div>💼 {vars.occupation || '—'}</div>
+            <div>🆔 {vars.nationalId || '—'}</div>
+            <div>📞 {vars.phone || '—'}</div>
+            <div>🚨 {vars.emergencyName || '—'}{vars.emergencyPhone ? ` (${vars.emergencyPhone})` : ''}</div>
             <div>🏠 {vars.roomLabel || '—'}</div>
             <div>💵 ${vars.monthlyRent || 0}/mo</div>
             <div>🔒 {t('tenant_form_deposit')}: ${vars.depositAmount || 0}</div>
