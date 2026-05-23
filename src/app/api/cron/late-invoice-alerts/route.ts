@@ -88,6 +88,7 @@ export async function GET(req: NextRequest) {
       totalRiel: x.b.totalRiel,
       lateDays: x.days,
       penaltyUsd: penaltyPerDay * x.days,
+      branchName: x.b.room?.branch,
     })
 
     const result = await sendTelegramTo(tenant.telegramChatId, msg)

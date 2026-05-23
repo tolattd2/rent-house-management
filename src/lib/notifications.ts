@@ -107,16 +107,18 @@ export function buildReminderMessage(params: {
   totalRiel: number
   payDay?: number
   lang?: ReminderLang
+  branchName?: string | null
 }): string {
   const rielFormatted = Math.round(params.totalRiel).toLocaleString()
   const usd = params.totalUsd.toFixed(2)
+  const branch = params.branchName?.trim() || 'Takmao Rental'
 
   if (params.lang === 'km') {
     const closing = params.payDay
       ? `សូមមេត្តាទូទាត់ប្រាក់ឱ្យបានទាន់ពេលវេលា មុនថ្ងៃទី ${params.payDay}។ សូមអរគុណ!`
       : `សូមមេត្តាទូទាត់ប្រាក់ឱ្យបានទាន់ពេលវេលា។ សូមអរគុណ!`
     return (
-      `🏠 <b>ការរំលឹកការទូទាត់ប្រាក់ — Takmao Rental</b>\n\n` +
+      `🏠 <b>ការរំលឹកការទូទាត់ប្រាក់ — ${branch}</b>\n\n` +
       `អ្នកជួល៖ ${params.tenantName}\n` +
       `បន្ទប់៖ ${params.roomNumber}\n` +
       `ខែ៖ ${params.billingMonth}\n` +
@@ -129,7 +131,7 @@ export function buildReminderMessage(params: {
     ? `Please pay on time, before day ${params.payDay} of the month. Thank you!`
     : `Please pay promptly. Thank you!`
   return (
-    `🏠 <b>Payment Reminder — Takmao Rental</b>\n\n` +
+    `🏠 <b>Payment Reminder — ${branch}</b>\n\n` +
     `Tenant: ${params.tenantName}\n` +
     `Room: ${params.roomNumber}\n` +
     `Month: ${params.billingMonth}\n` +
@@ -151,13 +153,15 @@ export function buildLateReminderMessage(params: {
   totalRiel: number
   lateDays: number
   penaltyUsd: number
+  branchName?: string | null
 }): string {
   const riel = Math.round(params.totalRiel).toLocaleString()
   const usd = params.totalUsd.toFixed(2)
   const penalty = params.penaltyUsd.toFixed(2)
+  const branch = params.branchName?.trim() || 'Takmao Rental'
 
   return (
-    `🏠 <b>ការរំលឹកការទូទាត់ប្រាក់ / Payment Reminder — Takmao Rental</b>\n\n` +
+    `🏠 <b>ការរំលឹកការទូទាត់ប្រាក់ / Payment Reminder — ${branch}</b>\n\n` +
     `អ្នកជួល / Tenant៖ ${params.tenantName}\n` +
     `បន្ទប់ / Room៖ ${params.roomNumber}\n` +
     `ខែ / Month៖ ${params.billingMonth}\n` +

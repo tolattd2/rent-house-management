@@ -42,6 +42,7 @@ export async function POST(req: NextRequest) {
         totalRiel: billing.totalRiel,
         lateDays: billing.lateDays || 0,
         penaltyUsd: billing.latePenaltyUsd || 0,
+        branchName: billing.room?.branch,
       })
       : buildReminderMessage({
         tenantName: tenant.fullName,
@@ -51,6 +52,7 @@ export async function POST(req: NextRequest) {
         totalRiel: billing.totalRiel,
         payDay: tenant.payDay,
         lang: reminderLang,
+        branchName: billing.room?.branch,
       })
 
     const result = await sendTelegramTo(tenant.telegramChatId, msg)

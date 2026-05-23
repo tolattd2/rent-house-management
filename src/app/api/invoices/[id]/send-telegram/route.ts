@@ -22,6 +22,7 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
     billingMonth: billing.billingMonth,
     totalUsd: billing.totalUsd,
     totalRiel: billing.totalRiel,
+    branchName: billing.room?.branch,
   })
 
   const result = await sendTelegramMessage(msg)

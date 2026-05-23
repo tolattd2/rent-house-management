@@ -38,6 +38,7 @@ export async function POST(req: NextRequest) {
       totalRiel: billing.totalRiel,
       payDay: billing.tenant.payDay,
       lang: reminderLang,
+      branchName: billing.room?.branch,
     })
 
     const result = await sendTelegramTo(billing.tenant.telegramChatId, msg)
