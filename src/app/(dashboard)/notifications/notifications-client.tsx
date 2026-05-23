@@ -273,6 +273,9 @@ export function NotificationsClient({ unpaidBillings, allBillings, linkedTenants
                     </td>
                     <td className="px-4 py-3">
                       <p className="font-medium">{b.tenant?.fullName ?? '—'}</p>
+                      {b.tenant?.phone && (
+                        <p className="text-xs text-muted-foreground tabular-nums">{b.tenant.phone}</p>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">{b.room?.branch ?? '—'}</td>
                     <td className="px-4 py-3 text-right">
