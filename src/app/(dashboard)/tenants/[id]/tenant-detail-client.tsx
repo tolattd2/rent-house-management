@@ -264,7 +264,7 @@ export function TenantDetailClient({ tenant, rooms }: Props) {
       )}
 
       {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-4">
         <Card><CardContent className="p-3 sm:p-4 text-center">
           <p className="text-xs text-muted-foreground leading-tight">{t('room')}</p>
           <p className="text-base sm:text-xl font-bold mt-0.5 truncate">{tenant.room ? `${t('room')} ${roomLabel(tenant.room)}` : '—'}</p>
@@ -276,6 +276,10 @@ export function TenantDetailClient({ tenant, rooms }: Props) {
         <Card><CardContent className="p-3 sm:p-4 text-center">
           <p className="text-xs text-muted-foreground leading-tight">{t('tenants_col_deposit')}</p>
           <p className="text-base sm:text-xl font-bold mt-0.5 truncate">{formatCurrency(tenant.depositAmount)}</p>
+        </CardContent></Card>
+        <Card><CardContent className="p-3 sm:p-4 text-center">
+          <p className="text-xs text-muted-foreground leading-tight">{t('tenants_col_payday')}</p>
+          <p className="text-base sm:text-xl font-bold mt-0.5 tabular-nums truncate">{tenant.payDay ?? '—'}</p>
         </CardContent></Card>
         <Card><CardContent className="p-3 sm:p-4 text-center">
           <p className="text-xs text-muted-foreground leading-tight">{t('total_paid')}</p>

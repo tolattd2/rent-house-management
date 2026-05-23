@@ -293,6 +293,10 @@ export function TenantsClient({ tenants: initial, rooms }: Props) {
                   <p className="text-xs text-muted-foreground">{t('branch')}</p>
                   <p className="truncate">{tenant.room?.branch ?? '—'}</p>
                 </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">{t('tenants_col_payday')}</p>
+                  <p className="tabular-nums">{tenant.payDay ?? '—'}</p>
+                </div>
               </div>
               <div className="flex gap-2 pt-2 border-t border-border">
                 <Link href={`/tenants/${tenant.id}`} className="flex-1">
