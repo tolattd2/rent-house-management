@@ -340,9 +340,9 @@ export function DashboardClient({ rooms, tenants, billings, expenses, unpaidBill
                 <table className="w-full min-w-[600px] text-sm">
                   <thead>
                     <tr className="border-b border-border bg-muted/30">
-                      <th className="text-left px-5 py-2.5 text-xs font-medium text-muted-foreground">{t('tenant')}</th>
                       <th className="text-left px-5 py-2.5 text-xs font-medium text-muted-foreground">{t('room')}</th>
                       {branch === 'all' && <th className="text-left px-5 py-2.5 text-xs font-medium text-muted-foreground">{t('branch')}</th>}
+                      <th className="text-left px-5 py-2.5 text-xs font-medium text-muted-foreground">{t('tenant')}</th>
                       <th className="text-left px-5 py-2.5 text-xs font-medium text-muted-foreground">{t('billing_col_month')}</th>
                       <th className="text-right px-5 py-2.5 text-xs font-medium text-muted-foreground">{t('amount')}</th>
                       <th className="text-right px-5 py-2.5 text-xs font-medium text-muted-foreground">{t('status')}</th>
@@ -354,12 +354,6 @@ export function DashboardClient({ rooms, tenants, billings, expenses, unpaidBill
                         key={bill.id}
                         className={`border-b border-border last:border-0 hover:bg-muted/40 transition-colors ${i % 2 === 0 ? '' : 'bg-muted/10'}`}
                       >
-                        <td className="px-5 py-3">
-                          <Link href={`/tenants/${bill.tenant?.id}`} className="font-medium hover:text-primary">
-                            {bill.tenant?.fullName ?? '—'}
-                          </Link>
-                          <p className="text-xs text-muted-foreground">{bill.tenant && formatPhones(bill.tenant.phone, bill.tenant.phonesExtra)}</p>
-                        </td>
                         <td className="px-5 py-3 text-muted-foreground">
                           {bill.room ? `${t('room')} ${roomLabel(bill.room)}` : '—'}
                         </td>
@@ -373,6 +367,12 @@ export function DashboardClient({ rooms, tenants, billings, expenses, unpaidBill
                             </span>
                           </td>
                         )}
+                        <td className="px-5 py-3">
+                          <Link href={`/tenants/${bill.tenant?.id}`} className="font-medium hover:text-primary">
+                            {bill.tenant?.fullName ?? '—'}
+                          </Link>
+                          <p className="text-xs text-muted-foreground">{bill.tenant && formatPhones(bill.tenant.phone, bill.tenant.phonesExtra)}</p>
+                        </td>
                         <td className="px-5 py-3 text-muted-foreground tabular-nums">{bill.billingMonth}</td>
                         <td className="px-5 py-3 text-right">
                           <span className="font-semibold tabular-nums">${bill.totalUsd.toFixed(2)}</span>
@@ -413,9 +413,9 @@ export function DashboardClient({ rooms, tenants, billings, expenses, unpaidBill
                 <table className="w-full min-w-[640px] text-sm">
                   <thead>
                     <tr className="border-b border-border bg-muted/30">
-                      <th className="text-left px-5 py-2.5 text-xs font-medium text-muted-foreground">{t('tenant')}</th>
                       <th className="text-left px-5 py-2.5 text-xs font-medium text-muted-foreground">{t('room')}</th>
                       {branch === 'all' && <th className="text-left px-5 py-2.5 text-xs font-medium text-muted-foreground">{t('branch')}</th>}
+                      <th className="text-left px-5 py-2.5 text-xs font-medium text-muted-foreground">{t('tenant')}</th>
                       <th className="text-left px-5 py-2.5 text-xs font-medium text-muted-foreground">{t('notice_type')}</th>
                       <th className="text-left px-5 py-2.5 text-xs font-medium text-muted-foreground">{t('notice_message')}</th>
                       <th className="text-left px-5 py-2.5 text-xs font-medium text-muted-foreground">{t('notice_expected')}</th>
@@ -427,11 +427,6 @@ export function DashboardClient({ rooms, tenants, billings, expenses, unpaidBill
                         key={n.id}
                         className={`border-b border-border last:border-0 hover:bg-muted/40 transition-colors ${i % 2 === 0 ? '' : 'bg-muted/10'}`}
                       >
-                        <td className="px-5 py-3">
-                          <Link href={`/tenants/${n.tenant?.id}`} className="font-medium hover:text-primary">
-                            {n.tenant?.fullName ?? '—'}
-                          </Link>
-                        </td>
                         <td className="px-5 py-3 text-muted-foreground">
                           {n.tenant?.room ? `${t('room')} ${roomLabel(n.tenant.room)}` : '—'}
                         </td>
@@ -442,6 +437,11 @@ export function DashboardClient({ rooms, tenants, billings, expenses, unpaidBill
                             </span>
                           </td>
                         )}
+                        <td className="px-5 py-3">
+                          <Link href={`/tenants/${n.tenant?.id}`} className="font-medium hover:text-primary">
+                            {n.tenant?.fullName ?? '—'}
+                          </Link>
+                        </td>
                         <td className="px-5 py-3">
                           <Badge variant={n.type === 'move_out' ? 'error' : n.type === 'general' ? 'secondary' : 'warning'}>
                             {t(`notice_type_${n.type}` as Parameters<typeof t>[0])}
