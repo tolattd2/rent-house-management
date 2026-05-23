@@ -91,7 +91,8 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
   useEffect(() => { setExpenses(initialExpenses) }, [initialExpenses])
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('all')
-  const [monthFilter, setMonthFilter] = useState('all')
+  const latestExpenseMonth = [...new Set(initialExpenses.map((e) => e.expenseDate.slice(0, 7)))].sort().reverse()[0] ?? 'all'
+  const [monthFilter, setMonthFilter] = useState(latestExpenseMonth)
   const [monthFrom, setMonthFrom] = useState('')
   const [monthTo, setMonthTo] = useState('')
   const [branchFilter, setBranchFilter] = useState('all')
@@ -324,7 +325,10 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
             {b === 'all' ? t('all_branches') : b}
           </Button>
         ))}
-        <Select value={monthFilter} onValueChange={setMonthFilter}>
+        <Select
+          value={monthFilter}
+          onValueChange={(v) => { setMonthFilter(v); setMonthFrom(''); setMonthTo('') }}
+        >
           <SelectTrigger className="w-36 h-9">
             <SelectValue placeholder={t('billing_all_months')} />
           </SelectTrigger>
@@ -334,7 +338,7 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
           </SelectContent>
         </Select>
         <MonthRangePicker months={months} from={monthFrom} to={monthTo}
-          onChange={(f, to) => { setMonthFrom(f); setMonthTo(to) }} />
+          onChange={(f, to) => { setMonthFrom(f); setMonthTo(to); if (f || to) setMonthFilter('all') }} />
         <Select value={categoryFilter} onValueChange={setCategoryFilter}>
           <SelectTrigger className="w-40 h-9">
             <SelectValue placeholder={t('all')} />

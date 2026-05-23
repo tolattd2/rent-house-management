@@ -204,7 +204,10 @@ export function BillingListClient({ billings: initial }: Props) {
             <SelectItem value="partial">{t('status_partial')}</SelectItem>
           </SelectContent>
         </Select>
-        <Select value={monthFilter} onValueChange={setMonthFilter}>
+        <Select
+          value={monthFilter}
+          onValueChange={(v) => { setMonthFilter(v); setMonthFrom(''); setMonthTo('') }}
+        >
           <SelectTrigger className="w-40 h-9"><SelectValue placeholder="All months" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">{t('billing_all_months')}</SelectItem>
@@ -212,7 +215,7 @@ export function BillingListClient({ billings: initial }: Props) {
           </SelectContent>
         </Select>
         <MonthRangePicker months={months} from={monthFrom} to={monthTo}
-          onChange={(f, to) => { setMonthFrom(f); setMonthTo(to) }} />
+          onChange={(f, to) => { setMonthFrom(f); setMonthTo(to); if (f || to) setMonthFilter('all') }} />
       </div>
 
       {/* Card list — used across all screen sizes */}

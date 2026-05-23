@@ -39,7 +39,8 @@ export function ReportsClient({ billings, expenses }: Props) {
   const { t } = useLanguage()
   const roomLabel = useRoomLabel()
   const branchOptions = ['all', ...useBranches().map((b) => b.name)]
-  const [selectedMonth, setSelectedMonth] = useState<string>('all')
+  const latestReportMonth = [...new Set(billings.map((b) => b.billingMonth))].sort().reverse()[0] ?? 'all'
+  const [selectedMonth, setSelectedMonth] = useState<string>(latestReportMonth)
   const [monthFrom, setMonthFrom] = useState<string>('')
   const [monthTo, setMonthTo] = useState<string>('')
   const [branchFilter, setBranchFilter] = useState<string>('all')
@@ -132,7 +133,10 @@ export function ReportsClient({ billings, expenses }: Props) {
               </Button>
             ))}
           </div>
-          <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+          <Select
+            value={selectedMonth}
+            onValueChange={(v) => { setSelectedMonth(v); setMonthFrom(''); setMonthTo('') }}
+          >
             <SelectTrigger className="flex-1 sm:w-40 h-10">
               <SelectValue placeholder={t('billing_all_months')} />
             </SelectTrigger>
@@ -142,7 +146,7 @@ export function ReportsClient({ billings, expenses }: Props) {
             </SelectContent>
           </Select>
           <MonthRangePicker months={months} from={monthFrom} to={monthTo}
-            onChange={(f, to) => { setMonthFrom(f); setMonthTo(to) }} />
+            onChange={(f, to) => { setMonthFrom(f); setMonthTo(to); if (f || to) setSelectedMonth('all') }} />
           <Button variant="outline" className="h-10" onClick={handleExport}>
             <Download className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">{t('billing_export')}</span>
           </Button>

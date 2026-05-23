@@ -48,7 +48,8 @@ export function InvoicesClient({ invoices: initial }: Props) {
   useEffect(() => { setInvoices(initial) }, [initial])
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
-  const [monthFilter, setMonthFilter] = useState('all')
+  const latestInvoiceMonth = [...new Set(initial.map((inv) => inv.billing?.billingMonth).filter(Boolean) as string[])].sort().reverse()[0] ?? 'all'
+  const [monthFilter, setMonthFilter] = useState(latestInvoiceMonth)
   const [monthFrom, setMonthFrom] = useState('')
   const [monthTo, setMonthTo] = useState('')
   const [branchFilter, setBranchFilter] = useState('all')
@@ -186,7 +187,10 @@ export function InvoicesClient({ invoices: initial }: Props) {
             {s === 'all' ? t('billing_all_status') : s === 'paid' ? t('status_paid') : t('status_unpaid')}
           </Button>
         ))}
-        <Select value={monthFilter} onValueChange={setMonthFilter}>
+        <Select
+          value={monthFilter}
+          onValueChange={(v) => { setMonthFilter(v); setMonthFrom(''); setMonthTo('') }}
+        >
           <SelectTrigger className="w-40 h-9"><SelectValue placeholder="All months" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">{t('billing_all_months')}</SelectItem>
@@ -194,7 +198,7 @@ export function InvoicesClient({ invoices: initial }: Props) {
           </SelectContent>
         </Select>
         <MonthRangePicker months={months} from={monthFrom} to={monthTo}
-          onChange={(f, to) => { setMonthFrom(f); setMonthTo(to) }} />
+          onChange={(f, to) => { setMonthFrom(f); setMonthTo(to); if (f || to) setMonthFilter('all') }} />
       </div>
 
       {/* Table */}

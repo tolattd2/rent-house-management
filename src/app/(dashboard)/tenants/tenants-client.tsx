@@ -42,7 +42,7 @@ export function TenantsClient({ tenants: initial, rooms }: Props) {
   const [tenants, setTenants] = useState(initial)
   useEffect(() => { setTenants(initial) }, [initial])
   const currentMonth = new Date().toISOString().slice(0, 7)
-  const [month, setMonth] = useState('all')
+  const [month, setMonth] = useState(currentMonth)
   const [monthFrom, setMonthFrom] = useState('')
   const [monthTo, setMonthTo] = useState('')
   const [search, setSearch] = useState('')
@@ -228,7 +228,10 @@ export function TenantsClient({ tenants: initial, rooms }: Props) {
             {t(`status_${s}` as Parameters<typeof t>[0])}
           </Button>
         ))}
-        <Select value={month} onValueChange={setMonth}>
+        <Select
+          value={month}
+          onValueChange={(v) => { setMonth(v); setMonthFrom(''); setMonthTo('') }}
+        >
           <SelectTrigger className="w-40 h-9"><SelectValue placeholder="All months" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">{t('billing_all_months')}</SelectItem>
@@ -236,7 +239,7 @@ export function TenantsClient({ tenants: initial, rooms }: Props) {
           </SelectContent>
         </Select>
         <MonthRangePicker months={months} from={monthFrom} to={monthTo}
-          onChange={(f, to) => { setMonthFrom(f); setMonthTo(to) }} />
+          onChange={(f, to) => { setMonthFrom(f); setMonthTo(to); if (f || to) setMonth('all') }} />
       </div>
 
       {/* Card list — used across all screen sizes */}
