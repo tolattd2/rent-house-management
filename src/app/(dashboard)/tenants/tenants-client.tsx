@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Plus, Search, User, Users, UserCheck, UserMinus, Phone, Home, AlertCircle } from 'lucide-react'
+import { Plus, Search, User, Users, UserCheck, UserMinus, Phone, AlertCircle } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
@@ -9,7 +9,6 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
-import { TableScroll } from '@/components/ui/table-scroll'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { TenantFormDialog } from '@/components/tenants/tenant-form-dialog'
 import { formatCurrency, formatDate, formatPhones, sortRoomsByNumber, cn } from '@/lib/utils'
@@ -228,18 +227,18 @@ export function TenantsClient({ tenants: initial, rooms }: Props) {
         </Select>
       </div>
 
-      {/* Mobile card list — visible on small screens */}
-      <div className="md:hidden space-y-3">
-        {filtered.length === 0 && (
-          <div className="text-center py-16 text-muted-foreground">
-            <User className="w-12 h-12 mx-auto mb-3 opacity-30" />
-            <p>{t('tenants_empty')}</p>
-          </div>
-        )}
+      {/* Card list — used across all screen sizes */}
+      {filtered.length === 0 && (
+        <div className="text-center py-16 text-muted-foreground">
+          <User className="w-12 h-12 mx-auto mb-3 opacity-30" />
+          <p>{t('tenants_empty')}</p>
+        </div>
+      )}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
         {filtered.map((tenant) => {
           const outstanding = tenant.billings.reduce((s, b) => s + b.totalUsd, 0)
           return (
-            <Card key={tenant.id} className="p-4">
+            <Card key={tenant.id} className="p-4 hover:shadow-md transition-shadow">
               <div className="flex items-start justify-between gap-2 mb-3">
                 <Link href={`/tenants/${tenant.id}`} className="flex items-center gap-2.5 hover:text-primary min-w-0">
                   <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
@@ -293,104 +292,6 @@ export function TenantsClient({ tenants: initial, rooms }: Props) {
           )
         })}
       </div>
-
-      {/* Desktop table — hidden on small screens */}
-      <Card className="hidden md:block hover:shadow-md transition-shadow duration-200">
-        <TableScroll>
-          <table className="w-full min-w-[1000px] text-sm">
-            <thead>
-              <tr className="border-b border-border">
-                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{t('tenants_col_room')}</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{t('tenants_col_tenant')}</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{t('branch')}</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{t('tenants_col_monthly_rent')}</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{t('tenants_col_payday')}</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{t('tenants_col_movein')}</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{t('tenants_col_moveout')}</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{t('tenants_col_deposit')}</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{t('tenants_col_outstanding')}</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{t('tenants_col_status')}</th>
-                <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground">{t('tenants_col_actions')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((tenant, i) => {
-                const outstanding = tenant.billings.reduce((s, b) => s + b.totalUsd, 0)
-                return (
-                  <tr key={tenant.id}
-                    className={`border-b border-border last:border-0 hover:bg-muted/40 ${i % 2 ? 'bg-muted/10' : ''}`}
-                  >
-                    <td className="px-4 py-3">
-                      {tenant.room ? (
-                        <div className="flex items-center gap-1.5">
-                          <Home className="w-3.5 h-3.5 text-muted-foreground" />
-                          <span>{t('room')} {roomLabel(tenant.room)}</span>
-                        </div>
-                      ) : <span className="text-muted-foreground">—</span>}
-                    </td>
-                    <td className="px-4 py-3">
-                      <Link href={`/tenants/${tenant.id}`} className="flex items-center gap-2.5 hover:text-primary">
-                        <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                          <User className="w-4 h-4 text-primary" />
-                        </div>
-                        <div>
-                          <p className="font-medium">{tenant.fullName}</p>
-                          <p className="text-xs text-muted-foreground flex items-center gap-1">
-                            <Phone className="w-3 h-3" />{formatPhones(tenant.phone, tenant.phonesExtra) || '—'}
-                          </p>
-                        </div>
-                      </Link>
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">{tenant.room?.branch ?? '—'}</td>
-                    <td className="px-4 py-3">
-                      {tenant.room ? formatCurrency(tenant.room.rentPriceUsd) : <span className="text-muted-foreground">—</span>}
-                    </td>
-                    <td className="px-4 py-3 text-center font-medium">{tenant.payDay}<span className="text-xs text-muted-foreground"> {t('tenants_per_month')}</span></td>
-                    <td className="px-4 py-3 text-muted-foreground">{formatDate(tenant.moveInDate)}</td>
-                    <td className="px-4 py-3">
-                      {tenant.moveOutDate ? (
-                        <span className="text-red-500">{formatDate(tenant.moveOutDate)}</span>
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3">{formatCurrency(tenant.depositAmount)}</td>
-                    <td className="px-4 py-3">
-                      {outstanding > 0 ? (
-                        <span className="flex items-center gap-1 text-red-600 font-semibold">
-                          <AlertCircle className="w-3.5 h-3.5" />{formatCurrency(outstanding)}
-                        </span>
-                      ) : <span className="text-green-600 text-xs">{t('tenants_paid_up')}</span>}
-                    </td>
-                    <td className="px-4 py-3">
-                      <Badge variant={tenant.status === 'active' ? 'success' : 'secondary'}>
-                        {t(tenant.status === 'active' ? 'status_active' : 'status_inactive')}
-                      </Badge>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <Link href={`/tenants/${tenant.id}`}>
-                          <Button variant="ghost" size="sm">{t('view')}</Button>
-                        </Link>
-                        {isAdmin && tenant.status === 'active' && (
-                          <Button variant="outline" size="sm" onClick={() => handleMoveOut(tenant.id)}
-                            className="text-xs">{t('tenants_move_out')}</Button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-          {filtered.length === 0 && (
-            <div className="text-center py-16 text-muted-foreground">
-              <User className="w-12 h-12 mx-auto mb-3 opacity-30" />
-              <p>{t('tenants_empty')}</p>
-            </div>
-          )}
-        </TableScroll>
-      </Card>
 
       {showForm && (
         <TenantFormDialog

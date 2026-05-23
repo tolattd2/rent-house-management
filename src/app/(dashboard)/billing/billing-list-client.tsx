@@ -8,7 +8,6 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
-import { TableScroll } from '@/components/ui/table-scroll'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { PaymentDialog } from '@/components/billing/payment-dialog'
 import { BatchDeleteDialog } from '@/components/billing/batch-delete-dialog'
@@ -208,21 +207,21 @@ export function BillingListClient({ billings: initial }: Props) {
         </Select>
       </div>
 
-      {/* Mobile card list — visible on small screens */}
-      <div className="md:hidden space-y-3">
-        {filtered.length === 0 && (
-          <div className="text-center py-16 text-muted-foreground">
-            <FileText className="w-12 h-12 mx-auto mb-3 opacity-30" />
-            <p>{t('billing_empty')}</p>
-          </div>
-        )}
+      {/* Card list — used across all screen sizes */}
+      {filtered.length === 0 && (
+        <div className="text-center py-16 text-muted-foreground">
+          <FileText className="w-12 h-12 mx-auto mb-3 opacity-30" />
+          <p>{t('billing_empty')}</p>
+        </div>
+      )}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
         {filtered.map((b) => {
           const totalPaid = b.payments.reduce((s, p) => s + p.amountUsd, 0)
           const balance = Math.max(0, b.totalUsd - totalPaid)
           const payDay = b.tenant?.payDay ?? 1
           const { daysLate, isPaid } = getDueInfo(b.billingMonth, payDay, b.paymentStatus)
           return (
-            <Card key={b.id} className="p-4">
+            <Card key={b.id} className="p-4 hover:shadow-md transition-shadow">
               <div className="flex items-start justify-between gap-2 mb-3">
                 <div className="min-w-0">
                   <Link href={`/tenants/${b.tenant?.id}`} className="font-semibold hover:text-primary block truncate">
@@ -292,143 +291,6 @@ export function BillingListClient({ billings: initial }: Props) {
           )
         })}
       </div>
-
-      {/* Desktop table — hidden on small screens */}
-      <Card className="hidden md:block hover:shadow-md transition-shadow duration-200">
-        <TableScroll>
-          <table className="w-full min-w-[1600px] text-sm">
-            <thead>
-              <tr className="border-b border-border bg-muted/30">
-                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{t('room')}</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{t('branch')}</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{t('tenant')}</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{t('billing_col_month')}</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{t('billing_col_due_date')}</th>
-                <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground">{t('billing_col_rent')}</th>
-                <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground">{t('billing_col_electric')}</th>
-                <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground">{t('billing_col_water')}</th>
-                <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground">{t('outstanding_debt')}</th>
-                <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground">{t('late_penalty')}</th>
-                <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground">{t('discount')}</th>
-                <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground">{t('billing_col_total')}</th>
-                <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground">{t('billing_col_paid')}</th>
-                <th className="text-center px-4 py-3 text-xs font-medium text-muted-foreground">{t('billing_col_status')}</th>
-                <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground">{t('billing_col_actions')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((b, i) => {
-                const totalPaid = b.payments.reduce((s, p) => s + p.amountUsd, 0)
-                const balance = Math.max(0, b.totalUsd - totalPaid)
-                const payDay = b.tenant?.payDay ?? 1
-                const { dueDate, daysLate, isPaid } = getDueInfo(b.billingMonth, payDay, b.paymentStatus)
-                const dueDateStr = dueDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-                return (
-                  <tr key={b.id}
-                    className={`border-b border-border last:border-0 hover:bg-muted/30 ${i % 2 ? 'bg-muted/10' : ''}`}
-                  >
-                    <td className="px-4 py-3 font-medium">{b.room ? roomLabel(b.room) : '—'}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{b.room?.branch ?? '—'}</td>
-                    <td className="px-4 py-3">
-                      <Link href={`/tenants/${b.tenant?.id}`} className="font-medium hover:text-primary">
-                        {b.tenant?.fullName ?? '—'}
-                      </Link>
-                    </td>
-                    <td className="px-4 py-3 font-mono text-sm">{b.billingMonth}</td>
-                    <td className="px-4 py-3">
-                      <p className="text-sm">{dueDateStr}</p>
-                      {isPaid ? (
-                        <p className="text-xs text-green-600">{t('status_paid')}</p>
-                      ) : daysLate > 0 ? (
-                        <p className="text-xs text-red-500 font-medium">{daysLate}{t('billing_due_days')} {t('billing_late')}</p>
-                      ) : daysLate === 0 ? (
-                        <p className="text-xs text-orange-500 font-medium">{t('billing_due_today')}</p>
-                      ) : (
-                        <p className="text-xs text-muted-foreground">{t('billing_due_in')} {-daysLate}{t('billing_due_days')}</p>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-right">{formatCurrency(b.roomRentUsd)}</td>
-                    <td className="px-4 py-3 text-right">
-                      <p className="font-medium">{Math.round(b.electricCostRiel).toLocaleString()} ៛</p>
-                      <p className="text-xs text-muted-foreground">{b.electricUsage} {t('unit_kw')}</p>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <p className="font-medium">{Math.round(b.waterCostRiel).toLocaleString()} ៛</p>
-                      <p className="text-xs text-muted-foreground">{b.waterUsage} {t('unit_kib')}</p>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      {b.outstandingDebtUsd > 0
-                        ? <span className="font-medium text-red-600">{formatCurrency(b.outstandingDebtUsd)}</span>
-                        : <span className="text-muted-foreground">—</span>}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      {b.latePenaltyUsd > 0 || b.lateDays > 0 ? (
-                        <>
-                          <p className="font-medium text-orange-600">{formatCurrency(b.latePenaltyUsd)}</p>
-                          <p className="text-xs text-muted-foreground">{b.lateDays}{t('billing_due_days')}</p>
-                        </>
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      {b.discountUsd > 0
-                        ? <span className="font-medium text-green-600">-{formatCurrency(b.discountUsd)}</span>
-                        : <span className="text-muted-foreground">—</span>}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <p className="font-semibold">{formatCurrency(b.totalUsd)}</p>
-                      <p className="text-xs text-muted-foreground">{Math.round(b.totalRiel).toLocaleString()} ៛</p>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <p className="text-green-600 font-medium">{formatCurrency(totalPaid)}</p>
-                      {balance > 0 && <p className="text-xs text-red-500">-{formatCurrency(balance)}</p>}
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <Badge variant={b.paymentStatus === 'paid' ? 'success' : b.paymentStatus === 'partial' ? 'warning' : 'error'} className="capitalize">
-                        {b.paymentStatus}
-                      </Badge>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <Link href={`/billing/${b.id}`}>
-                          <Button variant="ghost" size="sm" className="text-xs h-8 px-2">{t('view')}</Button>
-                        </Link>
-                        {isAdmin && (
-                          <Link href={`/billing/${b.id}/edit`}>
-                            <Button variant="ghost" size="sm" className="text-xs h-8 px-2">{t('edit')}</Button>
-                          </Link>
-                        )}
-                        {isAdmin && b.paymentStatus !== 'paid' && (
-                          <Button variant="ghost" size="sm" className="text-xs h-8 px-2 text-green-600"
-                            onClick={() => setPayDialog(b)}>
-                            {t('billing_pay')}
-                          </Button>
-                        )}
-                        <Link href={`/invoices/${b.id}`}>
-                          <Button variant="ghost" size="sm" className="text-xs h-8 px-2">{t('billing_invoice')}</Button>
-                        </Link>
-                        {isAdmin && (
-                          <Button variant="ghost" size="sm" className="text-xs h-8 px-2 text-destructive hover:bg-destructive/10"
-                            onClick={() => handleDelete(b)}>
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </Button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-          {filtered.length === 0 && (
-            <div className="text-center py-16 text-muted-foreground">
-              <FileText className="w-12 h-12 mx-auto mb-3 opacity-30" />
-              <p>{t('billing_empty')}</p>
-            </div>
-          )}
-        </TableScroll>
-      </Card>
 
       {payDialog && (
         <PaymentDialog
