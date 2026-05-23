@@ -9,7 +9,8 @@ import {
   User, Phone, Calendar,
   Edit, ArrowLeft, Home, FileText, CreditCard,
   CheckCircle2, AlertTriangle, LogOut,
-  Bell, Plus, Pencil, Trash2, Wrench, RotateCcw
+  Bell, Plus, Pencil, Trash2, Wrench, RotateCcw,
+  Send, History
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -72,6 +73,35 @@ export function TenantDetailClient({ tenant, rooms }: Props) {
   const [showNotice, setShowNotice] = useState(false)
   const [editingNotice, setEditingNotice] = useState<TenantNotice | null>(null)
   const openNotices = notices.filter((n) => n.status === 'open')
+
+  const [linkAction, setLinkAction] = useState<'restore' | 'invite' | null>(null)
+
+  async function handleRestoreLink() {
+    setLinkAction('restore')
+    const res = await fetch(`/api/tenants/${tenant.id}/restore-telegram`, { method: 'POST' })
+    const data = await res.json()
+    if (data.ok) {
+      toast({
+        title: data.alreadyLinked ? t('tenant_link_already_linked') : t('tenant_link_restored'),
+      })
+      router.refresh()
+    } else {
+      toast({ title: t('tenant_link_restore_failed'), description: data.error, variant: 'destructive' })
+    }
+    setLinkAction(null)
+  }
+
+  async function handleSendInvite() {
+    setLinkAction('invite')
+    const res = await fetch(`/api/tenants/${tenant.id}/telegram-invite`, { method: 'POST' })
+    const data = await res.json()
+    if (data.ok) {
+      toast({ title: t('tenant_link_invite_sent') })
+    } else {
+      toast({ title: t('tenant_link_invite_failed'), description: data.error, variant: 'destructive' })
+    }
+    setLinkAction(null)
+  }
 
   function handleNoticeSaved(record: TenantNotice) {
     setNotices((prev) =>
@@ -198,6 +228,40 @@ export function TenantDetailClient({ tenant, rooms }: Props) {
           </div>
         </CardContent>
       </Card>
+
+      {isAdmin && !tenant.telegramChatId && (
+        <Card className="border-amber-300 dark:border-amber-900/70 bg-amber-50/60 dark:bg-amber-950/20">
+          <CardContent className="p-4 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-start gap-2.5 min-w-0">
+              <div className="w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center flex-shrink-0">
+                <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+              </div>
+              <div className="min-w-0">
+                <p className="font-medium text-sm">{t('tenant_link_banner_title')}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{t('tenant_link_banner_desc')}</p>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                size="sm" variant="outline"
+                onClick={handleRestoreLink}
+                loading={linkAction === 'restore'}
+                disabled={linkAction !== null}
+              >
+                <History className="w-3.5 h-3.5 mr-1.5" />{t('tenant_link_restore_btn')}
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleSendInvite}
+                loading={linkAction === 'invite'}
+                disabled={linkAction !== null || !tenant.phone}
+              >
+                <Send className="w-3.5 h-3.5 mr-1.5" />{t('tenant_link_invite_btn')}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-4">

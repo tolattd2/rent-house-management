@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { telegramApi } from '@/lib/notifications'
 import { invalidate } from '@/lib/revalidate'
+import { recordChatId } from '@/lib/telegram-link-history'
 
 export const dynamic = 'force-dynamic'
 
@@ -66,7 +67,9 @@ export async function POST(req: NextRequest) {
         tenants.find((t) => tenantPhoneMatches(t))
 
       if (match) {
-        await db.tenant.update({ where: { id: match.id }, data: { telegramChatId: String(chatId) } })
+        const newChatId = String(chatId)
+        await db.tenant.update({ where: { id: match.id }, data: { telegramChatId: newChatId } })
+        await recordChatId(match.id, newChatId)
         invalidate('tenants')
         await telegramApi('sendMessage', {
           chat_id: chatId,

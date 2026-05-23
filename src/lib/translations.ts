@@ -458,6 +458,16 @@ export const translations = {
     tenant_form_contract_end: 'Contract End',
     tenant_form_add_btn: 'Add Tenant',
     tenant_form_update_btn: 'Update Tenant',
+    // Telegram link recovery
+    tenant_link_banner_title: 'Telegram not linked',
+    tenant_link_banner_desc: 'Restore the last known link, or text the tenant a one-tap invite to re-link.',
+    tenant_link_restore_btn: 'Restore previous link',
+    tenant_link_invite_btn: 'Send Telegram invite (SMS)',
+    tenant_link_restored: 'Telegram link restored from history.',
+    tenant_link_already_linked: 'Tenant is already linked to that chat.',
+    tenant_link_restore_failed: 'Could not restore link',
+    tenant_link_invite_sent: 'Invite SMS sent.',
+    tenant_link_invite_failed: 'Could not send invite',
     // Room form dialog
     room_form_add: 'Add New Room',
     room_form_edit: 'Edit Room',
@@ -1023,6 +1033,16 @@ export const translations = {
     tenant_form_contract_start: 'ចាប់ផ្តើមកិច្ចសន្យា',
     tenant_form_contract_end: 'បញ្ចប់កិច្ចសន្យា',
     tenant_form_add_btn: 'បន្ថែមអ្នករស់នៅ',
+    // Telegram link recovery
+    tenant_link_banner_title: 'Telegram មិនទាន់ភ្ជាប់',
+    tenant_link_banner_desc: 'អាចស្ដារការភ្ជាប់ចុងក្រោយវិញ ឬផ្ញើ SMS អញ្ជើញឲ្យអ្នកជួលភ្ជាប់សារឡើងវិញដោយចុចតែម្ដង។',
+    tenant_link_restore_btn: 'ស្ដារការភ្ជាប់ចាស់',
+    tenant_link_invite_btn: 'ផ្ញើ SMS អញ្ជើញ Telegram',
+    tenant_link_restored: 'បានស្ដារការភ្ជាប់ Telegram ពីប្រវត្តិ។',
+    tenant_link_already_linked: 'អ្នកជួលនេះបានភ្ជាប់ជាមួយ chat នោះរួចហើយ។',
+    tenant_link_restore_failed: 'មិនអាចស្ដារការភ្ជាប់',
+    tenant_link_invite_sent: 'បានផ្ញើ SMS អញ្ជើញ។',
+    tenant_link_invite_failed: 'មិនអាចផ្ញើការអញ្ជើញ',
     tenant_form_update_btn: 'ធ្វើបច្ចុប្បន្នភាពអ្នករស់នៅ',
     // Room form dialog
     room_form_add: 'បន្ថែមបន្ទប់ថ្មី',
