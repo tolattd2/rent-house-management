@@ -269,8 +269,12 @@ export function DashboardClient({ rooms, tenants, billings, expenses, unpaidBill
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <StatsCard title={t('dashboard_occupied')}    value={stats.occupied}    icon={Home}   color="green"  index={6} compact />
         <StatsCard title={t('dashboard_vacant')}      value={stats.vacant}      icon={Home}   color="indigo" index={7} compact />
-        <StatsCard title={t('status_maintenance')}    value={stats.maintenance} icon={Wrench} color="yellow" index={8} compact />
-        <StatsCard title={t('notices_title')}         value={filteredNotices.length} icon={Bell}   color="amber"  index={9} compact />
+        <Link href="/maintenance" className="block">
+          <StatsCard title={t('status_maintenance')}    value={stats.maintenance} icon={Wrench} color="yellow" index={8} compact />
+        </Link>
+        <Link href="/notices" className="block">
+          <StatsCard title={t('notices_title')}         value={filteredNotices.length} icon={Bell}   color="amber"  index={9} compact />
+        </Link>
       </div>
 
       {/* ── Chart + billing summary ── */}
