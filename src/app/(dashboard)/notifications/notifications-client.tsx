@@ -258,7 +258,10 @@ export function NotificationsClient({ unpaidBillings, allBillings, linkedTenants
                       <p className="font-medium">{b.tenant?.fullName ?? '—'}</p>
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">{b.room?.branch ?? '—'}</td>
-                    <td className="px-4 py-3 text-right font-semibold">{formatCurrency(b.totalUsd)}</td>
+                    <td className="px-4 py-3 text-right">
+                      <p className="font-semibold tabular-nums">{formatCurrency(b.totalUsd)}</p>
+                      <p className="text-xs text-muted-foreground tabular-nums">{Math.round(b.totalRiel).toLocaleString()} ៛</p>
+                    </td>
                     <td className="px-4 py-3 text-center">
                       <Badge variant={STATUS_BADGE_VARIANT[b.paymentStatus] ?? 'secondary'} className="capitalize">
                         {t(
