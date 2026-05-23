@@ -538,7 +538,7 @@ export function TenantDetailClient({ tenant, rooms }: Props) {
             occupation: tenant.occupation,
             moveInDate: tenant.moveInDate,
             depositAmount: tenant.depositAmount,
-            monthlyRent: tenant.monthlyRent,
+            monthlyRent: tenant.monthlyRent > 0 ? tenant.monthlyRent : (tenant.room?.rentPriceUsd ?? 0),
             payDay: tenant.payDay,
             roomId: tenant.roomId ?? undefined,
             notes: tenant.notes,
