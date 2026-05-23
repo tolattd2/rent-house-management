@@ -343,7 +343,7 @@ export function TenantFormDialog({ rooms, tenant, onClose, onSave }: Props) {
                     placeholder="12"
                   />
                   <div className="flex flex-wrap gap-1">
-                    {[6, 12, 24].map((m) => (
+                    {[3, 6, 12, 24].map((m) => (
                       <Button
                         key={m}
                         type="button"
