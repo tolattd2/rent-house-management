@@ -10,7 +10,7 @@ import {
   Edit, ArrowLeft, Home, FileText, CreditCard,
   CheckCircle2, AlertTriangle, LogOut,
   Bell, Plus, Pencil, Trash2, Wrench, RotateCcw,
-  Send, History
+  Send, History, FileSignature, Eye, Printer
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -18,6 +18,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { TableScroll } from '@/components/ui/table-scroll'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { TenantFormDialog } from '@/components/tenants/tenant-form-dialog'
+import { GenerateContractDialog } from '@/components/tenants/generate-contract-dialog'
 import { NoticeDialog, type TenantNotice } from '@/components/tenants/notice-dialog'
 import { formatCurrency, formatDate, formatMonth, formatPhones } from '@/lib/utils'
 import { toast } from '@/hooks/use-toast'
@@ -40,6 +41,7 @@ interface Props {
     contracts: Array<{
       id: string; contractStart: string; contractEnd: string; monthlyRent: number
       depositAmount: number; status: string; createdAt: Date
+      agreementText?: string
     }>
     billings: Array<{
       id: string; billingMonth: string; roomRentUsd: number; waterUsage: number
@@ -77,6 +79,35 @@ export function TenantDetailClient({ tenant, rooms }: Props) {
   const openNotices = notices.filter((n) => n.status === 'open')
 
   const [linkAction, setLinkAction] = useState<'restore' | 'invite' | null>(null)
+
+  // Agreement (contract) dialog: when set, opens the GenerateContractDialog.
+  // initialText is undefined to use the active contract's saved text, or a
+  // specific contract's HTML to open that one for read/edit.
+  const [generateOpen, setGenerateOpen] = useState<{ initialText?: string } | null>(null)
+
+  function printAgreement(html: string) {
+    const win = window.open('', '_blank', 'width=900,height=700')
+    if (!win) {
+      toast({ title: t('contract_gen_popup_blocked'), variant: 'destructive' })
+      return
+    }
+    const title = `Agreement — ${tenant.fullName}`
+    win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${title}</title>
+<style>
+  @page { size: A4; margin: 20mm; }
+  body { font-family: 'Khmer OS Siemreap', 'Noto Sans Khmer', 'Khmer OS', 'Times New Roman', serif; font-size: 12pt; line-height: 1.6; color: #111; }
+  h1 { font-size: 18pt; text-align: center; margin: 0.4em 0; }
+  h2 { font-size: 14pt; margin: 0.6em 0 0.3em; }
+  h3 { font-size: 12pt; margin: 0.5em 0 0.25em; }
+  p  { margin: 0.35em 0; }
+  ul, ol { margin: 0.3em 0 0.3em 1.5em; }
+  blockquote { border-left: 3px solid #888; margin: 0.5em 0; padding-left: 0.6em; color: #444; }
+  pre { background: #f3f3f3; padding: 0.5em; border-radius: 4px; white-space: pre-wrap; }
+</style></head><body>${html}</body></html>`)
+    win.document.close()
+    win.focus()
+    setTimeout(() => win.print(), 300)
+  }
 
   async function handleRestoreLink() {
     setLinkAction('restore')
@@ -399,13 +430,24 @@ export function TenantDetailClient({ tenant, rooms }: Props) {
 
         <TabsContent value="contract" className="mt-4">
           <Card>
+            <div className="flex items-center justify-between p-4 border-b border-border">
+              <div>
+                <h3 className="font-semibold">{t('tenant_contracts_tab')}</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">{t('contract_gen_tab_hint')}</p>
+              </div>
+              {isAdmin && (
+                <Button size="sm" onClick={() => setGenerateOpen({})}>
+                  <FileSignature className="w-3.5 h-3.5 mr-2" />{t('contract_gen_open_btn')}
+                </Button>
+              )}
+            </div>
             <CardContent className="p-6 space-y-4">
               {tenant.contracts.length === 0 && (
                 <p className="text-muted-foreground text-center py-8">{t('tenant_no_contracts')}</p>
               )}
               {tenant.contracts.map((c) => (
-                <div key={c.id} className="p-4 border border-border rounded-xl">
-                  <div className="flex justify-between items-start">
+                <div key={c.id} className="p-4 border border-border rounded-xl space-y-3">
+                  <div className="flex justify-between items-start gap-3">
                     <div>
                       <p className="font-semibold">{c.contractStart} → {c.contractEnd || t('tenant_open_ended')}</p>
                       <p className="text-sm text-muted-foreground">{t('monthly_rent')}: {formatCurrency(c.monthlyRent)}{t('tenants_per_month')} · {t('tenants_col_deposit')}: {formatCurrency(c.depositAmount)}</p>
@@ -414,6 +456,42 @@ export function TenantDetailClient({ tenant, rooms }: Props) {
                       {t(c.status === 'active' ? 'status_active' : 'status_inactive')}
                     </Badge>
                   </div>
+                  {c.agreementText && c.agreementText.trim().length > 0 ? (
+                    <>
+                      <div
+                        className="text-sm border rounded-md p-3 bg-muted/30 max-h-40 overflow-auto prose prose-sm max-w-none [&_p]:my-1"
+                        // Tenant-managed contract text — already sanitized at input via
+                        // contenteditable. Rendered read-only for the preview chip.
+                        dangerouslySetInnerHTML={{ __html: c.agreementText }}
+                      />
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          variant="outline" size="sm"
+                          onClick={() => setGenerateOpen({ initialText: c.agreementText })}
+                        >
+                          <Eye className="w-3.5 h-3.5 mr-1" />{t('view')}
+                        </Button>
+                        {isAdmin && (
+                          <Button
+                            variant="outline" size="sm"
+                            onClick={() => setGenerateOpen({ initialText: c.agreementText })}
+                          >
+                            <Edit className="w-3.5 h-3.5 mr-1" />{t('edit')}
+                          </Button>
+                        )}
+                        <Button
+                          variant="outline" size="sm"
+                          onClick={() => printAgreement(c.agreementText || '')}
+                        >
+                          <Printer className="w-3.5 h-3.5 mr-1" />{t('contract_gen_download_btn')}
+                        </Button>
+                      </div>
+                    </>
+                  ) : (
+                    <p className="text-xs text-muted-foreground italic">
+                      {t('contract_gen_no_agreement_text')}
+                    </p>
+                  )}
                 </div>
               ))}
             </CardContent>
@@ -566,6 +644,34 @@ export function TenantDetailClient({ tenant, rooms }: Props) {
           notice={editingNotice}
           onClose={() => { setShowNotice(false); setEditingNotice(null) }}
           onSave={handleNoticeSaved}
+        />
+      )}
+
+      {generateOpen && (
+        <GenerateContractDialog
+          tenantId={tenant.id}
+          vars={{
+            tenantName: tenant.fullName,
+            gender: tenant.gender,
+            occupation: tenant.occupation,
+            nationalId: tenant.nationalId,
+            phone: tenant.phone,
+            emergencyName: tenant.emergencyName || tenant.emergencyContact,
+            emergencyPhone: tenant.emergencyPhone,
+            roomLabel: tenant.room ? roomLabel(tenant.room) : '',
+            branch: tenant.room?.branch ?? '',
+            monthlyRent: tenant.monthlyRent > 0 ? tenant.monthlyRent : (tenant.room?.rentPriceUsd ?? 0),
+            depositAmount: tenant.depositAmount,
+            payDay: tenant.payDay,
+            contractStart:
+              tenant.contracts.find((c) => c.status === 'active')?.contractStart ??
+              tenant.contracts[0]?.contractStart ?? '',
+            contractEnd:
+              tenant.contracts.find((c) => c.status === 'active')?.contractEnd ??
+              tenant.contracts[0]?.contractEnd ?? '',
+          }}
+          initialText={generateOpen.initialText}
+          onClose={() => { setGenerateOpen(null); router.refresh() }}
         />
       )}
 

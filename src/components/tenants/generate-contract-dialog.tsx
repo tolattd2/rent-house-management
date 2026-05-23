@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Upload, FileText, Download, Save, RefreshCw } from 'lucide-react'
+import { Upload, FileText, Download, Save, RefreshCw, BookTemplate } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { RichTextEditor, plainTextToHtml, looksLikeHtml } from '@/components/ui/rich-text-editor'
@@ -13,6 +13,12 @@ import {
   computeDurationLabel,
   type AgreementVars,
 } from '@/lib/agreement-template'
+
+interface SavedTemplate {
+  id: string
+  name: string
+  html: string
+}
 
 interface Props {
   tenantId: string
@@ -38,6 +44,8 @@ export function GenerateContractDialog({ tenantId, vars, onClose, initialText }:
   )
   const [saving, setSaving] = useState(false)
   const [extracting, setExtracting] = useState(false)
+  const [templates, setTemplates] = useState<SavedTemplate[]>([])
+  const [savingTemplate, setSavingTemplate] = useState(false)
 
   const duration = useMemo(
     () => vars.durationLabel || computeDurationLabel(vars.contractStart, vars.contractEnd),
@@ -72,6 +80,68 @@ export function GenerateContractDialog({ tenantId, vars, onClose, initialText }:
   function resetToDefault() {
     setHtml(plainTextToHtml(fillPlaceholders(DEFAULT_AGREEMENT_TEMPLATE, vars)))
     toast({ title: t('contract_gen_reset_done') })
+  }
+
+  // Fetch saved templates so they appear in the picker.
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch('/api/agreement-templates')
+        const data = await res.json()
+        if (!cancelled && data.ok) setTemplates(data.data ?? [])
+      } catch {
+        // Silent — picker just shows the default.
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  function loadTemplate(id: string) {
+    const tmpl = templates.find((x) => x.id === id)
+    if (!tmpl) return
+    // Run placeholders through the template HTML so {{tenant_name}} etc. get
+    // substituted with this tenant's actual data.
+    setHtml(fillPlaceholders(tmpl.html, vars))
+    toast({ title: t('contract_gen_template_loaded'), description: tmpl.name })
+  }
+
+  async function handleSaveAsTemplate() {
+    const name = window.prompt(t('contract_gen_template_name_prompt'))
+    if (!name || !name.trim()) return
+    setSavingTemplate(true)
+    try {
+      const res = await fetch('/api/agreement-templates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name.trim(), html }),
+      })
+      const data = await res.json()
+      if (!data.ok) {
+        toast({ title: t('contract_gen_template_save_failed'), description: data.error, variant: 'destructive' })
+        return
+      }
+      setTemplates((prev) => [data.data, ...prev])
+      toast({ title: t('contract_gen_template_saved') })
+    } finally {
+      setSavingTemplate(false)
+    }
+  }
+
+  async function handleDeleteTemplate(id: string) {
+    const tmpl = templates.find((x) => x.id === id)
+    if (!tmpl) return
+    if (!window.confirm(t('contract_gen_template_delete_confirm').replace('{name}', tmpl.name))) return
+    const res = await fetch(`/api/agreement-templates/${id}`, { method: 'DELETE' })
+    const data = await res.json()
+    if (data.ok) {
+      setTemplates((prev) => prev.filter((x) => x.id !== id))
+      toast({ title: t('contract_gen_template_deleted') })
+    } else {
+      toast({ title: 'Error', description: data.error, variant: 'destructive' })
+    }
   }
 
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -195,6 +265,54 @@ export function GenerateContractDialog({ tenantId, vars, onClose, initialText }:
           <Button type="button" variant="outline" size="sm" onClick={resetToDefault}>
             <RefreshCw className="w-4 h-4 mr-1" />{t('contract_gen_reset_btn')}
           </Button>
+
+          <div className="inline-flex items-center gap-1">
+            <select
+              className="h-9 rounded-md border bg-background px-2 text-sm"
+              defaultValue=""
+              onChange={(e) => {
+                if (e.target.value) {
+                  loadTemplate(e.target.value)
+                  e.target.value = ''
+                }
+              }}
+              title={t('contract_gen_load_template')}
+            >
+              <option value="">📚 {t('contract_gen_load_template')} ({templates.length})</option>
+              {templates.map((tmpl) => (
+                <option key={tmpl.id} value={tmpl.id}>{tmpl.name}</option>
+              ))}
+            </select>
+            {templates.length > 0 && (
+              <select
+                className="h-9 rounded-md border bg-background px-2 text-sm"
+                defaultValue=""
+                onChange={(e) => {
+                  if (e.target.value) {
+                    handleDeleteTemplate(e.target.value)
+                    e.target.value = ''
+                  }
+                }}
+                title={t('contract_gen_template_delete')}
+              >
+                <option value="">🗑️</option>
+                {templates.map((tmpl) => (
+                  <option key={tmpl.id} value={tmpl.id}>{tmpl.name}</option>
+                ))}
+              </select>
+            )}
+          </div>
+
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleSaveAsTemplate}
+            loading={savingTemplate}
+          >
+            <BookTemplate className="w-4 h-4 mr-1" />{t('contract_gen_save_as_template')}
+          </Button>
+
           <span className="text-xs text-muted-foreground">{t('contract_gen_upload_hint')}</span>
         </div>
 
