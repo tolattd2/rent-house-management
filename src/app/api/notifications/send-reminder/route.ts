@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { sendTelegramTo, buildReminderMessage } from '@/lib/notifications'
+import {
+  sendTelegramTo,
+  buildReminderMessage,
+  buildLateReminderMessage,
+} from '@/lib/notifications'
 import { invalidate } from '@/lib/revalidate'
 
 export async function POST(req: NextRequest) {
@@ -9,8 +13,9 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 })
 
   try {
-    const { tenantId, billingId, lang } = await req.json()
+    const { tenantId, billingId, lang, kind } = await req.json()
     const reminderLang = lang === 'km' ? 'km' : 'en'
+    const reminderKind = kind === 'late' ? 'late' : 'invoice'
 
     const [tenant, billing] = await Promise.all([
       db.tenant.findUnique({ where: { id: tenantId } }),
@@ -28,22 +33,32 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const msg = buildReminderMessage({
-      tenantName: tenant.fullName,
-      roomNumber: billing.room?.roomNumber ?? '—',
-      billingMonth: billing.billingMonth,
-      totalUsd: billing.totalUsd,
-      totalRiel: billing.totalRiel,
-      payDay: tenant.payDay,
-      lang: reminderLang,
-    })
+    const msg = reminderKind === 'late'
+      ? buildLateReminderMessage({
+        tenantName: tenant.fullName,
+        roomNumber: billing.room?.roomNumber ?? '—',
+        billingMonth: billing.billingMonth,
+        totalUsd: billing.totalUsd,
+        totalRiel: billing.totalRiel,
+        lateDays: billing.lateDays || 0,
+        penaltyUsd: billing.latePenaltyUsd || 0,
+      })
+      : buildReminderMessage({
+        tenantName: tenant.fullName,
+        roomNumber: billing.room?.roomNumber ?? '—',
+        billingMonth: billing.billingMonth,
+        totalUsd: billing.totalUsd,
+        totalRiel: billing.totalRiel,
+        payDay: tenant.payDay,
+        lang: reminderLang,
+      })
 
     const result = await sendTelegramTo(tenant.telegramChatId, msg)
 
     await db.notification.create({
       data: {
         tenantId,
-        type: 'reminder',
+        type: reminderKind === 'late' ? 'late_reminder' : 'reminder',
         message: msg,
         status: result.ok ? 'sent' : 'failed',
       },

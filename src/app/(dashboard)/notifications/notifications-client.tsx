@@ -2,37 +2,51 @@
 
 import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { Bell, Send, CheckCircle, XCircle, MessageSquare, Search, ImagePlus } from 'lucide-react'
+import { Bell, Send, MessageSquare, Search, ImagePlus, AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { formatCurrency } from '@/lib/utils'
+import { TableScroll } from '@/components/ui/table-scroll'
+import { formatCurrency, cn, sortRoomsByNumber } from '@/lib/utils'
 import { toast } from '@/hooks/use-toast'
 import { useLanguage } from '@/contexts/language-context'
-import { useBranches } from '@/contexts/branches-context'
+import { useBranches, useRoomLabel } from '@/contexts/branches-context'
 import { CustomReminderDialog } from '@/components/notifications/custom-reminder-dialog'
+
+type Billing = {
+  id: string; billingMonth: string; totalUsd: number; totalRiel: number; paymentStatus: string
+  tenant: { id: string; fullName: string; phone: string; telegramChatId: string } | null
+  room: { id: string; roomNumber: string; branch: string } | null
+}
 
 interface Props {
   notifications: Array<{
     id: string; type: string; message: string; status: string; createdAt: Date
     tenant: { id: string; fullName: string; phone: string; room: { branch: string } | null } | null
   }>
-  unpaidBillings: Array<{
-    id: string; billingMonth: string; totalUsd: number; totalRiel: number; paymentStatus: string
-    tenant: { id: string; fullName: string; phone: string; telegramChatId: string } | null
-    room: { id: string; roomNumber: string; branch: string } | null
-  }>
+  unpaidBillings: Billing[]
+  allBillings: Billing[]
   linkedTenants: Array<{ id: string; room: { branch: string } | null }>
 }
 
-export function NotificationsClient({ notifications, unpaidBillings, linkedTenants }: Props) {
+type Tab = 'pending' | 'history'
+
+const STATUS_BADGE_VARIANT: Record<string, 'success' | 'warning' | 'error'> = {
+  paid: 'success',
+  partial: 'warning',
+  unpaid: 'error',
+}
+
+export function NotificationsClient({ unpaidBillings, allBillings, linkedTenants }: Props) {
   const router = useRouter()
   const { t } = useLanguage()
+  const roomLabel = useRoomLabel()
   const [sending, setSending] = useState<string | null>(null)
   const [sendingBulk, setSendingBulk] = useState<'en' | 'km' | null>(null)
   const [branchFilter, setBranchFilter] = useState('all')
   const [search, setSearch] = useState('')
+  const [tab, setTab] = useState<Tab>('pending')
   const [showCustom, setShowCustom] = useState(false)
   const [composeTenant, setComposeTenant] = useState<{ id: string; name: string } | null>(null)
 
@@ -44,42 +58,46 @@ export function NotificationsClient({ notifications, unpaidBillings, linkedTenan
       : linkedTenants.filter((tn) => tn.room?.branch === branchFilter).length
   ), [linkedTenants, branchFilter])
 
-  const filteredUnpaid = useMemo(() => {
+  const matchesFilters = (b: Billing) => {
     const q = search.trim().toLowerCase()
-    return unpaidBillings.filter((b) => {
-      const matchBranch = branchFilter === 'all' || b.room?.branch === branchFilter
-      const matchSearch =
-        !q ||
-        (b.tenant?.fullName ?? '').toLowerCase().includes(q) ||
-        (b.room?.roomNumber ?? '').toLowerCase().includes(q) ||
-        b.billingMonth.toLowerCase().includes(q)
-      return matchBranch && matchSearch
-    })
-  }, [unpaidBillings, branchFilter, search])
+    const matchBranch = branchFilter === 'all' || b.room?.branch === branchFilter
+    const matchSearch =
+      !q ||
+      (b.tenant?.fullName ?? '').toLowerCase().includes(q) ||
+      (b.room?.roomNumber ?? '').toLowerCase().includes(q) ||
+      b.billingMonth.toLowerCase().includes(q)
+    return matchBranch && matchSearch
+  }
 
-  const filteredNotifications = useMemo(() => {
-    const q = search.trim().toLowerCase()
-    return notifications.filter((n) => {
-      const matchBranch =
-        branchFilter === 'all' || n.tenant?.room?.branch === branchFilter
-      const matchSearch =
-        !q ||
-        (n.tenant?.fullName ?? '').toLowerCase().includes(q) ||
-        n.message.toLowerCase().includes(q)
-      return matchBranch && matchSearch
-    })
-  }, [notifications, branchFilter, search])
+  const filteredUnpaid = useMemo(
+    () => sortRoomsByNumber(
+      unpaidBillings.filter(matchesFilters).map((b) => ({ ...b, roomNumber: b.room?.roomNumber ?? '' })),
+    ),
+    [unpaidBillings, branchFilter, search],
+  )
 
-  const handleSendReminder = async (tenantId: string, billingId: string, lang: 'en' | 'km') => {
-    setSending(`${billingId}:${lang}`)
+  const filteredHistory = useMemo(
+    () => sortRoomsByNumber(
+      allBillings.filter(matchesFilters).map((b) => ({ ...b, roomNumber: b.room?.roomNumber ?? '' })),
+    ),
+    [allBillings, branchFilter, search],
+  )
+
+  const handleSendReminder = async (
+    tenantId: string,
+    billingId: string,
+    kind: 'invoice' | 'late',
+    lang: 'en' | 'km' = 'km',
+  ) => {
+    setSending(`${billingId}:${kind}`)
     const res = await fetch('/api/notifications/send-reminder', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tenantId, billingId, lang }),
+      body: JSON.stringify({ tenantId, billingId, lang, kind }),
     })
     const data = await res.json()
     if (data.ok) {
-      toast({ title: lang === 'km' ? 'Reminder sent in Khmer!' : 'Reminder sent in English!' })
+      toast({ title: kind === 'late' ? t('notifications_late_notified') : t('notifications_invoice_notified') })
       router.refresh()
     } else {
       toast({ title: 'Failed to send', description: data.error, variant: 'destructive' })
@@ -103,6 +121,8 @@ export function NotificationsClient({ notifications, unpaidBillings, linkedTenan
     }
     setSendingBulk(null)
   }
+
+  const rows = tab === 'pending' ? filteredUnpaid : filteredHistory
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -178,107 +198,117 @@ export function NotificationsClient({ notifications, unpaidBillings, linkedTenan
         })}
       </div>
 
-      {/* Unpaid billings needing reminders */}
-      {filteredUnpaid.length > 0 && (
-        <Card>
-          <CardHeader><CardTitle className="text-base flex items-center gap-2">
-            <Bell className="w-4 h-4 text-orange-500" />{t('notifications_pending_reminders')}
-          </CardTitle></CardHeader>
-          <CardContent className="p-0">
-            <div className="divide-y divide-border">
-              {filteredUnpaid.map((bill) => (
-                <div key={bill.id}
-                  className="flex items-center justify-between px-4 py-3 hover:bg-muted/30"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
-                      <Bell className="w-4 h-4 text-orange-600" />
-                    </div>
-                    <div>
-                      <p className="font-medium text-sm">{bill.tenant?.fullName}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {bill.room?.branch} · {t('room')} {bill.room?.roomNumber} · {bill.billingMonth}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="text-right">
-                      <p className="font-semibold text-sm">{formatCurrency(bill.totalUsd)}</p>
-                      <Badge variant={bill.paymentStatus === 'partial' ? 'warning' : 'error'} className="capitalize text-xs">
-                        {t(bill.paymentStatus === 'partial' ? 'status_partial' : 'status_unpaid')}
-                      </Badge>
-                    </div>
-                    {bill.tenant?.telegramChatId ? (
-                      <div className="flex flex-wrap items-center justify-end gap-1.5">
-                        <Button size="sm" variant="outline"
-                          title={`${t('notifications_remind')} — English`}
-                          onClick={() => handleSendReminder(bill.tenant!.id, bill.id, 'en')}
-                          loading={sending === `${bill.id}:en`}
-                          disabled={sending !== null}
-                        >
-                          <MessageSquare className="w-3.5 h-3.5 mr-1" />{t('notifications_invoice_reminder')} EN
-                        </Button>
-                        <Button size="sm" variant="outline"
-                          title={`${t('notifications_remind')} — ខ្មែរ`}
-                          onClick={() => handleSendReminder(bill.tenant!.id, bill.id, 'km')}
-                          loading={sending === `${bill.id}:km`}
-                          disabled={sending !== null}
-                        >
-                          <MessageSquare className="w-3.5 h-3.5 mr-1" />{t('notifications_invoice_reminder')} ខ្មែរ
-                        </Button>
-                        <Button size="sm" variant="outline"
-                          title={t('notifications_custom_reminder')}
-                          onClick={() => setComposeTenant({ id: bill.tenant!.id, name: bill.tenant!.fullName })}
-                        >
-                          <ImagePlus className="w-3.5 h-3.5 mr-1" />{t('notifications_custom_compose')}
-                        </Button>
-                      </div>
-                    ) : (
-                      <span className="text-xs text-muted-foreground whitespace-nowrap">Not linked</span>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Notification history */}
-      <Card>
-        <CardHeader><CardTitle className="text-base">{t('notifications_history')}</CardTitle></CardHeader>
-        <CardContent className="p-0">
-          <div className="divide-y divide-border">
-            {filteredNotifications.map((n) => (
-              <div key={n.id}
-                className="flex items-start gap-3 px-4 py-3"
-              >
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${n.status === 'sent' ? 'bg-green-100 dark:bg-green-900/30' : 'bg-red-100 dark:bg-red-900/30'}`}>
-                  {n.status === 'sent'
-                    ? <CheckCircle className="w-4 h-4 text-green-600" />
-                    : <XCircle className="w-4 h-4 text-red-600" />
-                  }
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-sm font-medium">{n.tenant?.fullName ?? 'Unknown'}</p>
-                    <Badge variant={n.status === 'sent' ? 'success' : 'error'} className="capitalize text-xs">{n.status}</Badge>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-0.5 truncate">{n.message}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {n.tenant?.room?.branch ? `${n.tenant.room.branch} · ` : ''}
-                    {new Date(n.createdAt).toLocaleString()}
-                  </p>
-                </div>
-              </div>
-            ))}
-            {filteredNotifications.length === 0 && (
-              <div className="py-12 text-center text-muted-foreground">
-                <Bell className="w-10 h-10 mx-auto mb-3 opacity-30" />
-                <p>{t('notifications_empty')}</p>
-              </div>
+      {/* Tabs */}
+      <div className="inline-flex items-center bg-muted rounded-lg p-1 gap-0.5">
+        {([
+          { key: 'pending' as const, label: t('notifications_tab_pending'), count: filteredUnpaid.length, icon: Bell },
+          { key: 'history' as const, label: t('notifications_tab_history'), count: filteredHistory.length },
+        ]).map(({ key, label, count, icon: Icon }) => (
+          <button
+            key={key}
+            onClick={() => setTab(key)}
+            className={cn(
+              'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all min-h-[32px]',
+              tab === key ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
             )}
-          </div>
+          >
+            {Icon && <Icon className="w-3.5 h-3.5" />}
+            {label}
+            <span className={cn(
+              'ml-1 text-xs rounded-full px-1.5 py-0.5',
+              tab === key
+                ? 'bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300'
+                : 'bg-background/60 text-muted-foreground',
+            )}>{count}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* Table */}
+      <Card>
+        <CardContent className="p-0">
+          <TableScroll>
+            <table className="w-full min-w-[760px] text-sm">
+              <thead>
+                <tr className="border-b border-border bg-muted/30">
+                  <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">{t('room')}</th>
+                  <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">{t('tenant')}</th>
+                  <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">{t('branch')}</th>
+                  <th className="text-right px-4 py-2.5 text-xs font-medium text-muted-foreground">{t('notifications_col_total')}</th>
+                  <th className="text-center px-4 py-2.5 text-xs font-medium text-muted-foreground">{t('status')}</th>
+                  <th className="text-right px-4 py-2.5 text-xs font-medium text-muted-foreground">{t('actions')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="py-12 text-center text-muted-foreground">
+                      <Bell className="w-10 h-10 mx-auto mb-3 opacity-30" />
+                      <p>{t('notifications_empty')}</p>
+                    </td>
+                  </tr>
+                )}
+                {rows.map((b, i) => (
+                  <tr key={b.id} className={`border-b border-border last:border-0 hover:bg-muted/30 ${i % 2 ? 'bg-muted/10' : ''}`}>
+                    <td className="px-4 py-3 font-medium">
+                      {b.room ? `${t('room')} ${roomLabel(b.room)}` : '—'}
+                      <p className="text-xs text-muted-foreground font-mono">{b.billingMonth}</p>
+                    </td>
+                    <td className="px-4 py-3">
+                      <p className="font-medium">{b.tenant?.fullName ?? '—'}</p>
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">{b.room?.branch ?? '—'}</td>
+                    <td className="px-4 py-3 text-right font-semibold">{formatCurrency(b.totalUsd)}</td>
+                    <td className="px-4 py-3 text-center">
+                      <Badge variant={STATUS_BADGE_VARIANT[b.paymentStatus] ?? 'secondary'} className="capitalize">
+                        {t(
+                          b.paymentStatus === 'paid' ? 'status_paid'
+                            : b.paymentStatus === 'partial' ? 'status_partial'
+                              : 'status_unpaid',
+                        )}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3">
+                      {!b.tenant?.telegramChatId ? (
+                        <span className="block text-right text-xs text-muted-foreground italic">
+                          {t('notifications_not_linked')}
+                        </span>
+                      ) : (
+                        <div className="flex flex-wrap items-center justify-end gap-1.5">
+                          <Button
+                            size="sm" variant="outline"
+                            title={t('notifications_invoice_notified')}
+                            onClick={() => handleSendReminder(b.tenant!.id, b.id, 'invoice')}
+                            loading={sending === `${b.id}:invoice`}
+                            disabled={sending !== null}
+                          >
+                            <MessageSquare className="w-3.5 h-3.5 mr-1" />{t('notifications_invoice_notified')}
+                          </Button>
+                          <Button
+                            size="sm" variant="outline"
+                            title={t('notifications_late_notified')}
+                            onClick={() => handleSendReminder(b.tenant!.id, b.id, 'late')}
+                            loading={sending === `${b.id}:late`}
+                            disabled={sending !== null}
+                            className="text-orange-600 border-orange-200 hover:bg-orange-50 dark:hover:bg-orange-950/30"
+                          >
+                            <AlertTriangle className="w-3.5 h-3.5 mr-1" />{t('notifications_late_notified')}
+                          </Button>
+                          <Button
+                            size="sm" variant="outline"
+                            title={t('notifications_custom_compose')}
+                            onClick={() => setComposeTenant({ id: b.tenant!.id, name: b.tenant!.fullName })}
+                          >
+                            <ImagePlus className="w-3.5 h-3.5 mr-1" />{t('notifications_custom_compose')}
+                          </Button>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </TableScroll>
         </CardContent>
       </Card>
 

@@ -276,7 +276,7 @@ export const getNoticesData = unstable_cache(
 
 export const getNotificationsData = unstable_cache(
   async () => {
-    const [notifications, unpaidBillings, linkedTenants] = await Promise.all([
+    const [notifications, unpaidBillings, allBillings, linkedTenants] = await Promise.all([
       db.notification.findMany({
         include: {
           tenant: {
@@ -296,12 +296,20 @@ export const getNotificationsData = unstable_cache(
           room: { select: { id: true, roomNumber: true, branch: true } },
         },
       }),
+      db.billing.findMany({
+        include: {
+          tenant: { select: { id: true, fullName: true, phone: true, telegramChatId: true } },
+          room: { select: { id: true, roomNumber: true, branch: true } },
+        },
+        orderBy: { billingMonth: 'desc' },
+        take: 200,
+      }),
       db.tenant.findMany({
         where: { status: 'active', telegramChatId: { not: '' } },
         select: { id: true, room: { select: { branch: true } } },
       }),
     ])
-    return { notifications, unpaidBillings, linkedTenants }
+    return { notifications, unpaidBillings, allBillings, linkedTenants }
   },
   ['notifications-data'],
   {
