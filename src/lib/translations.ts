@@ -622,7 +622,7 @@ export const translations = {
     tenant_send_message: 'ផ្ញើសារ',
     tenants_empty: 'រកមិនឃើញអ្នករស់នៅ',
     tenants_per_month: '/ខែ',
-    tenants_alltime_card: 'អ្នករស់នៅទាំងអស់',
+    tenants_alltime_card: 'ភ្ញៀវធ្លាប់ស្នាក់នៅសរុប',
     tenants_moved_out: 'បានចេញ',
     tenants_owing_card: 'មានបំណុលជំពាក់',
     // Rooms page
