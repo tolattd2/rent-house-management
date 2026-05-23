@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Search, FileText, Printer, Trash2 } from 'lucide-react'
+import { Search, FileText, Printer, Trash2, CalendarClock } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
 import { CARD_STYLES } from '@/lib/card-colors'
 import { Badge } from '@/components/ui/badge'
@@ -19,6 +19,7 @@ import { useSession } from 'next-auth/react'
 import { toast } from '@/hooks/use-toast'
 import { InvoiceBatchPrintDialog } from '@/components/invoices/batch-print-dialog'
 import { InvoiceBatchDeleteDialog } from '@/components/invoices/batch-delete-dialog'
+import { PromiseDialog } from '@/components/invoices/promise-dialog'
 import { useDeleteWithUndo, runDeleteWithUndo } from '@/hooks/use-delete-with-undo'
 import { DeleteConfirmDialog } from '@/components/ui/delete-confirm-dialog'
 
@@ -55,6 +56,7 @@ export function InvoicesClient({ invoices: initial }: Props) {
   const [branchFilter, setBranchFilter] = useState('all')
   const [showBatchPrint, setShowBatchPrint] = useState(false)
   const [showBatchDelete, setShowBatchDelete] = useState(false)
+  const [promiseBillingId, setPromiseBillingId] = useState<string | null>(null)
   const { triggerDelete, dialogState, closeDialog } = useDeleteWithUndo()
 
   const branches = useBranches().map((b) => b.name)
@@ -246,6 +248,17 @@ export function InvoicesClient({ invoices: initial }: Props) {
                         <Printer className="w-3.5 h-3.5" />
                       </Button>
                       {isAdmin && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-xs h-8 px-2 text-blue-600 hover:bg-blue-500/10"
+                          title="Promise to Pay"
+                          onClick={() => setPromiseBillingId(inv.billingId)}
+                        >
+                          <CalendarClock className="w-3.5 h-3.5" />
+                        </Button>
+                      )}
+                      {isAdmin && (
                         <Button variant="ghost" size="sm" className="text-xs h-8 px-2 text-destructive hover:bg-destructive/10"
                           onClick={() => handleDelete(inv)}>
                           <Trash2 className="w-3.5 h-3.5" />
@@ -289,6 +302,13 @@ export function InvoicesClient({ invoices: initial }: Props) {
           branches={branches}
           onClose={() => setShowBatchDelete(false)}
           onConfirm={handleBatchDelete}
+        />
+      )}
+
+      {promiseBillingId && (
+        <PromiseDialog
+          billingId={promiseBillingId}
+          onClose={() => setPromiseBillingId(null)}
         />
       )}
     </div>
