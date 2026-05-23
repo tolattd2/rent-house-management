@@ -240,26 +240,23 @@ export function TenantsClient({ tenants: initial, rooms }: Props) {
           return (
             <Card key={tenant.id} className="p-4 hover:shadow-md transition-shadow">
               <div className="flex items-start justify-between gap-2 mb-3">
-                <Link href={`/tenants/${tenant.id}`} className="flex items-center gap-2.5 hover:text-primary min-w-0">
-                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                    <User className="w-5 h-5 text-primary" />
+                <Link href={`/tenants/${tenant.id}`} className="min-w-0 hover:text-primary">
+                  <p className="text-lg font-bold leading-tight truncate">
+                    {tenant.room ? `${t('room')} ${roomLabel(tenant.room)}` : t('tenants_col_room')}
+                  </p>
+                  <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground min-w-0">
+                    <User className="w-3.5 h-3.5 flex-shrink-0" />
+                    <span className="truncate">{tenant.fullName}</span>
                   </div>
-                  <div className="min-w-0">
-                    <p className="font-semibold truncate">{tenant.fullName}</p>
-                    <p className="text-xs text-muted-foreground flex items-center gap-1">
-                      <Phone className="w-3 h-3" />{formatPhones(tenant.phone, tenant.phonesExtra) || '—'}
-                    </p>
-                  </div>
+                  <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                    <Phone className="w-3 h-3" />{formatPhones(tenant.phone, tenant.phonesExtra) || '—'}
+                  </p>
                 </Link>
                 <Badge variant={tenant.status === 'active' ? 'success' : 'secondary'} className="shrink-0">
                   {t(tenant.status === 'active' ? 'status_active' : 'status_inactive')}
                 </Badge>
               </div>
               <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm mb-3">
-                <div>
-                  <p className="text-xs text-muted-foreground">{t('tenants_col_room')}</p>
-                  <p>{tenant.room ? `${t('room')} ${roomLabel(tenant.room)}` : '—'}</p>
-                </div>
                 <div>
                   <p className="text-xs text-muted-foreground">{t('tenants_col_monthly_rent')}</p>
                   <p>{tenant.room ? formatCurrency(tenant.room.rentPriceUsd) : '—'}</p>
@@ -275,6 +272,10 @@ export function TenantsClient({ tenants: initial, rooms }: Props) {
                       <AlertCircle className="w-3.5 h-3.5" />{formatCurrency(outstanding)}
                     </span>
                   ) : <span className="text-green-600 text-xs">{t('tenants_paid_up')}</span>}
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">{t('branch')}</p>
+                  <p className="truncate">{tenant.room?.branch ?? '—'}</p>
                 </div>
               </div>
               <div className="flex gap-2 pt-2 border-t border-border">

@@ -224,10 +224,13 @@ export function BillingListClient({ billings: initial }: Props) {
             <Card key={b.id} className="p-4 hover:shadow-md transition-shadow">
               <div className="flex items-start justify-between gap-2 mb-3">
                 <div className="min-w-0">
-                  <Link href={`/tenants/${b.tenant?.id}`} className="font-semibold hover:text-primary block truncate">
+                  <p className="text-lg font-bold leading-tight truncate">
+                    {b.room ? `${t('room')} ${roomLabel(b.room)}` : '—'}
+                  </p>
+                  <Link href={`/tenants/${b.tenant?.id}`} className="text-sm text-muted-foreground hover:text-primary block truncate mt-1">
                     {b.tenant?.fullName ?? '—'}
                   </Link>
-                  <p className="text-xs text-muted-foreground">{b.room ? `${t('room')} ${roomLabel(b.room)}` : '—'} · {b.billingMonth}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{b.billingMonth}</p>
                 </div>
                 <Badge variant={b.paymentStatus === 'paid' ? 'success' : b.paymentStatus === 'partial' ? 'warning' : 'error'} className="shrink-0">
                   {t(b.paymentStatus === 'paid' ? 'status_paid' : b.paymentStatus === 'partial' ? 'status_partial' : 'status_unpaid')}
