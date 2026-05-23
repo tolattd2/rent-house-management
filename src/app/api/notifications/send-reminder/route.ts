@@ -7,6 +7,8 @@ import {
   buildLateReminderMessage,
 } from '@/lib/notifications'
 import { invalidate } from '@/lib/revalidate'
+import { parseBranches } from '@/lib/branches'
+import { computeLateFee } from '@/lib/late-fees'
 
 export async function POST(req: NextRequest) {
   const session = await auth()
@@ -33,6 +35,27 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    // For late reminders, compute days late + penalty from live data (tenant
+    // pay day, today's date, per-branch penalty rate) so the manual button
+    // always agrees with the auto-overdue cron, regardless of what's stored
+    // on the billing row.
+    let lateDays = 0
+    let penaltyUsd = 0
+    if (reminderKind === 'late') {
+      const settingRows = await db.setting.findMany()
+      const settings = Object.fromEntries(settingRows.map((r) => [r.key, r.value]))
+      const branchList = parseBranches(settings.branches)
+      const fee = computeLateFee(
+        settings,
+        branchList,
+        billing.room?.branch,
+        billing.billingMonth,
+        tenant.payDay,
+      )
+      lateDays = fee.days
+      penaltyUsd = fee.penaltyUsd
+    }
+
     const msg = reminderKind === 'late'
       ? buildLateReminderMessage({
         tenantName: tenant.fullName,
@@ -40,8 +63,9 @@ export async function POST(req: NextRequest) {
         billingMonth: billing.billingMonth,
         totalUsd: billing.totalUsd,
         totalRiel: billing.totalRiel,
-        lateDays: billing.lateDays || 0,
-        penaltyUsd: billing.latePenaltyUsd || 0,
+        lateDays,
+        penaltyUsd,
+        payDay: tenant.payDay,
         branchName: billing.room?.branch,
       })
       : buildReminderMessage({

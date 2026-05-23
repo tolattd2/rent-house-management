@@ -1,21 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { sendTelegramTo, buildLateReminderMessage } from '@/lib/notifications'
-import { parseBranches, resolveBranchRates } from '@/lib/branches'
+import { parseBranches } from '@/lib/branches'
+import { computeLateFee, daysLate } from '@/lib/late-fees'
 
 export const dynamic = 'force-dynamic'
 
 const LATE_THRESHOLD_DAYS = 10
-
-/** Days past the due date (billing month + tenant pay day). */
-function daysLate(billingMonth: string, payDay: number): number {
-  const [year, month] = billingMonth.split('-').map(Number)
-  if (!year || !month) return 0
-  const due = new Date(year, month - 1, payDay || 1)
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  return Math.floor((today.getTime() - due.getTime()) / 86_400_000)
-}
 
 /**
  * Daily job: for every invoice more than LATE_THRESHOLD_DAYS overdue, send the
@@ -77,8 +68,7 @@ export async function GET(req: NextRequest) {
       continue
     }
 
-    // Late-fee penalty rate for this billing's branch, charged per day overdue.
-    const penaltyPerDay = Number(resolveBranchRates(settings, branchList, x.b.room?.branch).late_penalty_usd) || 0
+    const { penaltyUsd } = computeLateFee(settings, branchList, x.b.room?.branch, x.b.billingMonth, tenant.payDay)
 
     const msg = buildLateReminderMessage({
       tenantName: tenant.fullName,
@@ -87,7 +77,8 @@ export async function GET(req: NextRequest) {
       totalUsd: x.b.totalUsd,
       totalRiel: x.b.totalRiel,
       lateDays: x.days,
-      penaltyUsd: penaltyPerDay * x.days,
+      penaltyUsd,
+      payDay: tenant.payDay,
       branchName: x.b.room?.branch,
     })
 

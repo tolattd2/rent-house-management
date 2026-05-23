@@ -153,18 +153,23 @@ export function buildLateReminderMessage(params: {
   totalRiel: number
   lateDays: number
   penaltyUsd: number
+  payDay?: number
   branchName?: string | null
 }): string {
   const riel = Math.round(params.totalRiel).toLocaleString()
   const usd = params.totalUsd.toFixed(2)
   const penalty = params.penaltyUsd.toFixed(2)
   const branch = params.branchName?.trim() || 'Takmao Rental'
+  const payDayLine = params.payDay
+    ? `ថ្ងៃត្រូវបង់ / Pay Day៖ ${params.payDay}\n`
+    : ''
 
   return (
     `🏠 <b>ការរំលឹកការទូទាត់ប្រាក់ / Payment Reminder — ${branch}</b>\n\n` +
     `អ្នកជួល / Tenant៖ ${params.tenantName}\n` +
     `បន្ទប់ / Room៖ ${params.roomNumber}\n` +
     `ខែ / Month៖ ${params.billingMonth}\n` +
+    payDayLine +
     `ត្រូវបង់ / Amount Due៖ $${usd} / ${riel} ៛\n\n` +
     `⚠️ <b>ខ្មែរ</b>\n` +
     `អ្នកបានទូទាត់ថ្លៃខែនេះយឺត រហូតមកដល់ពេលនេះ ចំនួន ${params.lateDays} ថ្ងៃ។ ` +

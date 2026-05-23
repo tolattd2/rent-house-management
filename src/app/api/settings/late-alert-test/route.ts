@@ -26,6 +26,7 @@ export async function POST() {
     totalRiel: 410000,
     lateDays: sampleDays,
     penaltyUsd: penaltyPerDay * sampleDays,
+    payDay: 1,
   })
 
   const msg =
