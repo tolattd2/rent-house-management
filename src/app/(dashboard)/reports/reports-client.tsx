@@ -66,12 +66,15 @@ export function ReportsClient({ billings, expenses }: Props) {
     })
   }, [branchBillings, branchExpenses])
 
+  // "All months" totals up to the current month — future-dated records are excluded
+  // so a stray date in next month can't inflate lifetime totals.
+  const currentMonth = new Date().toISOString().slice(0, 7)
   const monthBillings = selectedMonth === 'all'
-    ? branchBillings
+    ? branchBillings.filter((b) => b.billingMonth <= currentMonth)
     : branchBillings.filter((b) => b.billingMonth === selectedMonth)
 
   const monthExpenses = selectedMonth === 'all'
-    ? branchExpenses
+    ? branchExpenses.filter((e) => e.expenseDate.slice(0, 7) <= currentMonth)
     : branchExpenses.filter((e) => e.expenseDate.startsWith(selectedMonth))
 
   const totalRevenue = monthBillings.filter((b) => b.paymentStatus === 'paid').reduce((s, b) => s + b.totalUsd, 0)
