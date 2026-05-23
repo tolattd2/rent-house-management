@@ -120,6 +120,8 @@ model Tenant {
   emergencyName     String       @default("")
   emergencyPhone    String       @default("")
   occupation        String       @default("")
+  age               Int          @default(0)
+  nationality       String       @default("")
   moveInDate        String       @default("")
   moveOutDate       String       @default("")
   depositAmount     Float        @default(0)

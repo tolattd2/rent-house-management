@@ -14,6 +14,8 @@ const tenantSchema = z.object({
   emergencyName: z.string().default(''),
   emergencyPhone: z.string().default(''),
   occupation: z.string().default(''),
+  age: z.coerce.number().int().min(0).max(150).default(0),
+  nationality: z.string().default(''),
   moveInDate: z.string().default(''),
   depositAmount: z.coerce.number().min(0).default(0),
   payDay: z.coerce.number().int().min(1).max(31).default(1),

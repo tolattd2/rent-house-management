@@ -1,11 +1,20 @@
 /**
  * Bilingual (Khmer + English) rental agreement template and placeholder filler.
  * Two separate sections: full Khmer document first, then full English after.
+ *
+ * Each substitution has two flavours:
+ *   {{name}}     — original / English-friendly value (e.g. "$100.00", "5", "Male")
+ *   {{name_km}}  — Khmer-localised value (e.g. "១០០.០០ ដុល្លារ", "៥", "ប្រុស")
+ *
+ * The default template uses the _km variants inside the Khmer section so the
+ * rendered contract reads naturally in Khmer.
  */
 
 export interface AgreementVars {
   tenantName: string
   gender: string
+  age: number
+  nationality: string
   occupation: string
   nationalId: string
   phone: string
@@ -18,13 +27,16 @@ export interface AgreementVars {
   payDay: number
   contractStart: string
   contractEnd: string
-  /** Pre-computed duration label (e.g. "12 months / 12 ខែ"). Optional. */
+  /** Pre-computed bilingual duration label. Optional. */
   durationLabel?: string
 }
 
 const PLACEHOLDERS = [
+  // Originals (English-friendly)
   'tenant_name',
   'gender',
+  'age',
+  'nationality',
   'occupation',
   'national_id',
   'phone',
@@ -38,35 +50,129 @@ const PLACEHOLDERS = [
   'contract_start',
   'contract_end',
   'contract_duration',
+  // Khmer-localised variants
+  'tenant_name_km',
+  'gender_km',
+  'age_km',
+  'nationality_km',
+  'occupation_km',
+  'national_id_km',
+  'phone_km',
+  'emergency_name_km',
+  'emergency_phone_km',
+  'room_km',
+  'branch_km',
+  'rent_km',
+  'deposit_km',
+  'pay_day_km',
+  'contract_start_km',
+  'contract_end_km',
+  'contract_duration_km',
 ] as const
 
 export type PlaceholderKey = (typeof PLACEHOLDERS)[number]
 
+/** Map ASCII digits 0-9 to Khmer digits ០-៩, leave other characters alone. */
+export function toKhmerDigits(s: string): string {
+  const map: Record<string, string> = {
+    '0': '០', '1': '១', '2': '២', '3': '៣', '4': '៤',
+    '5': '៥', '6': '៦', '7': '៧', '8': '៨', '9': '៩',
+  }
+  return s.replace(/[0-9]/g, (d) => map[d] || d)
+}
+
+/** Translate gender ("Male"/"Female"/"Other") to Khmer; pass through unknown. */
+function genderToKhmer(g: string): string {
+  const v = (g || '').trim().toLowerCase()
+  if (v === 'male')   return 'ប្រុស'
+  if (v === 'female') return 'ស្រី'
+  if (v === 'other')  return 'ផ្សេងៗ'
+  return g || ''
+}
+
+/** Translate common nationalities to Khmer; pass through unknown. */
+function nationalityToKhmer(n: string): string {
+  const v = (n || '').trim().toLowerCase()
+  const map: Record<string, string> = {
+    cambodia:  'កម្ពុជា',
+    cambodian: 'ខ្មែរ',
+    khmer:     'ខ្មែរ',
+    chinese:   'ចិន',
+    vietnamese:'វៀតណាម',
+    thai:      'ថៃ',
+    laotian:   'ឡាវ',
+    lao:       'ឡាវ',
+    american:  'អាមេរិកាំង',
+    british:   'អង់គ្លេស',
+    french:    'បារាំង',
+    korean:    'កូរ៉េ',
+    japanese:  'ជប៉ុន',
+    indian:    'ឥណ្ឌា',
+    filipino:  'ហ្វីលីពីន',
+    malaysian: 'ម៉ាឡេស៊ី',
+    indonesian:'ឥណ្ឌូនេស៊ី',
+  }
+  return map[v] || n || ''
+}
+
 /** Compute month-difference label from two ISO date strings. Returns "" if either is empty/invalid. */
 export function computeDurationLabel(start: string, end: string): string {
-  if (!start || !end) return ''
+  const m = monthsBetween(start, end)
+  if (m === null) return ''
+  if (m.kind === 'days') return `${m.days} days / ${toKhmerDigits(String(m.days))} ថ្ងៃ`
+  return `${m.months} months / ${toKhmerDigits(String(m.months))} ខែ`
+}
+
+function monthsBetween(start: string, end: string):
+  | { kind: 'months'; months: number }
+  | { kind: 'days'; days: number }
+  | null {
+  if (!start || !end) return null
   const s = new Date(start)
   const e = new Date(end)
-  if (Number.isNaN(s.getTime()) || Number.isNaN(e.getTime())) return ''
+  if (Number.isNaN(s.getTime()) || Number.isNaN(e.getTime())) return null
   let months = (e.getFullYear() - s.getFullYear()) * 12 + (e.getMonth() - s.getMonth())
   if (e.getDate() < s.getDate()) months -= 1
   if (months < 1) {
     const days = Math.round((e.getTime() - s.getTime()) / (1000 * 60 * 60 * 24))
-    return `${days} days / ${days} ថ្ងៃ`
+    return { kind: 'days', days }
   }
-  return `${months} months / ${months} ខែ`
+  return { kind: 'months', months }
+}
+
+function durationEnglish(start: string, end: string): string {
+  const m = monthsBetween(start, end)
+  if (!m) return ''
+  return m.kind === 'days' ? `${m.days} days` : `${m.months} months`
+}
+
+function durationKhmer(start: string, end: string): string {
+  const m = monthsBetween(start, end)
+  if (!m) return ''
+  return m.kind === 'days'
+    ? `${toKhmerDigits(String(m.days))} ថ្ងៃ`
+    : `${toKhmerDigits(String(m.months))} ខែ`
 }
 
 function fmtUsd(n: number): string {
   return `$${(n || 0).toFixed(2)}`
 }
 
+function fmtUsdKhmer(n: number): string {
+  return `${toKhmerDigits((n || 0).toFixed(2))} ដុល្លារ`
+}
+
 /** Replace {{key}} markers in `text` with values from vars. Keeps unknown markers intact. */
 export function fillPlaceholders(text: string, vars: AgreementVars): string {
-  const duration = vars.durationLabel || computeDurationLabel(vars.contractStart, vars.contractEnd)
+  const durationEn = vars.durationLabel || durationEnglish(vars.contractStart, vars.contractEnd)
+  const durationKm = durationKhmer(vars.contractStart, vars.contractEnd)
+
   const map: Record<PlaceholderKey, string> = {
+    // English-friendly
     tenant_name: vars.tenantName || '',
     gender: vars.gender || '',
+    age: vars.age > 0 ? String(vars.age) : '',
+    nationality: vars.nationality || '',
     occupation: vars.occupation || '',
     national_id: vars.nationalId || '',
     phone: vars.phone || '',
@@ -79,15 +185,35 @@ export function fillPlaceholders(text: string, vars: AgreementVars): string {
     pay_day: String(vars.payDay || ''),
     contract_start: vars.contractStart || '',
     contract_end: vars.contractEnd || '',
-    contract_duration: duration,
+    contract_duration: durationEn,
+
+    // Khmer-localised
+    tenant_name_km:     vars.tenantName || '',                              // proper noun
+    gender_km:          genderToKhmer(vars.gender),
+    age_km:             vars.age > 0 ? toKhmerDigits(String(vars.age)) : '',
+    nationality_km:     nationalityToKhmer(vars.nationality),
+    occupation_km:      vars.occupation || '',                              // free-text — keep as typed
+    national_id_km:     toKhmerDigits(vars.nationalId || ''),
+    phone_km:           toKhmerDigits(vars.phone || ''),
+    emergency_name_km:  vars.emergencyName || '',                           // proper noun
+    emergency_phone_km: toKhmerDigits(vars.emergencyPhone || ''),
+    room_km:            toKhmerDigits(vars.roomLabel || ''),
+    branch_km:          vars.branch || '',                                  // branch names left as configured
+    rent_km:            fmtUsdKhmer(vars.monthlyRent),
+    deposit_km:         fmtUsdKhmer(vars.depositAmount),
+    pay_day_km:         toKhmerDigits(String(vars.payDay || '')),
+    contract_start_km:  toKhmerDigits(vars.contractStart || ''),
+    contract_end_km:    toKhmerDigits(vars.contractEnd || ''),
+    contract_duration_km: durationKm,
   }
+
   return text.replace(/\{\{\s*([a-z_]+)\s*\}\}/gi, (m, key: string) => {
     const k = key.toLowerCase() as PlaceholderKey
     return k in map ? map[k] : m
   })
 }
 
-/** Default bilingual rental agreement — Khmer section first, then English. */
+/** Default bilingual rental agreement — Khmer section first (uses _km variants), then English. */
 export const DEFAULT_AGREEMENT_TEMPLATE = `កិច្ចសន្យាជួលបន្ទប់ស្នាក់នៅ
 ================================
 
@@ -96,28 +222,30 @@ export const DEFAULT_AGREEMENT_TEMPLATE = `កិច្ចសន្យាជួ�
 
 កិច្ចសន្យានេះត្រូវបានធ្វើឡើងរវាង៖
 
-  ម្ចាស់ផ្ទះ (ភាគី «ក»)៖ {{branch}}
-  អ្នកជួល (ភាគី «ខ»)៖ {{tenant_name}}
+  ម្ចាស់ផ្ទះ (ភាគី «ក»)៖ {{branch_km}}
+  អ្នកជួល (ភាគី «ខ»)៖ {{tenant_name_km}}
 
 ព័ត៌មានអ្នកជួល៖
-  ភេទ៖ {{gender}}
-  មុខរបរ៖ {{occupation}}
-  អត្តសញ្ញាណប័ណ្ណ៖ {{national_id}}
-  លេខទូរស័ព្ទ៖ {{phone}}
-  អ្នកទំនាក់ទំនងបន្ទាន់៖ {{emergency_name}} ({{emergency_phone}})
+  ភេទ៖ {{gender_km}}
+  អាយុ៖ {{age_km}} ឆ្នាំ
+  សញ្ជាតិ៖ {{nationality_km}}
+  មុខរបរ៖ {{occupation_km}}
+  អត្តសញ្ញាណប័ណ្ណ៖ {{national_id_km}}
+  លេខទូរស័ព្ទ៖ {{phone_km}}
+  អ្នកទំនាក់ទំនងបន្ទាន់៖ {{emergency_name_km}} ({{emergency_phone_km}})
 
 មាត្រា ១ — ទីតាំងជួល
-ភាគី «ក» យល់ព្រមឲ្យភាគី «ខ» ជួលបន្ទប់លេខ {{room}} នៅសាខា {{branch}}។
+ភាគី «ក» យល់ព្រមឲ្យភាគី «ខ» ជួលបន្ទប់លេខ {{room_km}} នៅសាខា {{branch_km}}។
 
 មាត្រា ២ — ថ្លៃជួល
-ភាគី «ខ» ត្រូវបង់ថ្លៃជួលបន្ទប់ចំនួន {{rent}} ក្នុងមួយខែ។ ការទូទាត់ត្រូវធ្វើនៅថ្ងៃទី {{pay_day}} នៃខែនីមួយៗ។
+ភាគី «ខ» ត្រូវបង់ថ្លៃជួលបន្ទប់ចំនួន {{rent_km}} ក្នុងមួយខែ។ ការទូទាត់ត្រូវធ្វើនៅថ្ងៃទី {{pay_day_km}} នៃខែនីមួយៗ។
 
 មាត្រា ៣ — ប្រាក់កក់
-ភាគី «ខ» បានដាក់ប្រាក់កក់ចំនួន {{deposit}} ដែលនឹងត្រូវសងវិញនៅពេលបញ្ចប់កិច្ចសន្យា ប្រសិនបើគ្មានការខូចខាត ឬបំណុលនៅសល់។
+ភាគី «ខ» បានដាក់ប្រាក់កក់ចំនួន {{deposit_km}} ដែលនឹងត្រូវសងវិញនៅពេលបញ្ចប់កិច្ចសន្យា ប្រសិនបើគ្មានការខូចខាត ឬបំណុលនៅសល់។
 
 មាត្រា ៤ — រយៈពេលនៃកិច្ចសន្យា
-កិច្ចសន្យានេះមានសុពលភាពចាប់ពីថ្ងៃទី {{contract_start}} ដល់ថ្ងៃទី {{contract_end}}។
-រយៈពេលសរុប៖ {{contract_duration}}។
+កិច្ចសន្យានេះមានសុពលភាពចាប់ពីថ្ងៃទី {{contract_start_km}} ដល់ថ្ងៃទី {{contract_end_km}}។
+រយៈពេលសរុប៖ {{contract_duration_km}}។
 
 មាត្រា ៥ — កាតព្វកិច្ចរបស់អ្នកជួល
 - រក្សាបន្ទប់ឲ្យស្អាត និងមិនធ្វើឲ្យខូចខាតទ្រព្យសម្បត្តិ។
@@ -143,6 +271,8 @@ This Agreement is made between:
 
 Tenant details:
   Gender:            {{gender}}
+  Age:               {{age}}
+  Nationality:       {{nationality}}
   Occupation:        {{occupation}}
   National ID:       {{national_id}}
   Phone:             {{phone}}

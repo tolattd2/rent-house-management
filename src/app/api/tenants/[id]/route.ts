@@ -50,6 +50,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       emergencyName: body.emergencyName ?? '',
       emergencyPhone: body.emergencyPhone ?? '',
       occupation: body.occupation ?? '',
+      age: Number(body.age ?? 0),
+      nationality: body.nationality ?? '',
       moveInDate: body.moveInDate ?? '',
       moveOutDate: body.moveOutDate ?? '',
       depositAmount: Number(body.depositAmount ?? 0),

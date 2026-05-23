@@ -233,6 +233,8 @@ export function GenerateContractDialog({ tenantId, vars, onClose, initialText }:
           <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-0.5">
             <div>👤 {vars.tenantName || '—'}</div>
             <div>⚧ {vars.gender || '—'}</div>
+            <div>🎂 {vars.age > 0 ? vars.age : '—'}</div>
+            <div>🌐 {vars.nationality || '—'}</div>
             <div>💼 {vars.occupation || '—'}</div>
             <div>🆔 {vars.nationalId || '—'}</div>
             <div>📞 {vars.phone || '—'}</div>

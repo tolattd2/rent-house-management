@@ -27,6 +27,8 @@ const schema = z.object({
   emergencyName: z.string().default(''),
   emergencyPhone: z.string().default(''),
   occupation: z.string().default(''),
+  age: z.coerce.number().int().min(0).max(150).default(0),
+  nationality: z.string().default(''),
   moveInDate: z.string().default(''),
   depositAmount: z.coerce.number().min(0).default(0),
   payDay: z.coerce.number().int().min(1).max(31).default(1),
@@ -55,8 +57,9 @@ interface Props {
 }
 
 export function TenantFormDialog({ rooms, tenant, onClose, onSave }: Props) {
-  const { t } = useLanguage()
+  const { t, language } = useLanguage()
   const roomLabel = useRoomLabel()
+  const defaultNationality = language === 'kh' ? 'កម្ពុជា' : 'Cambodian'
   const [loading, setLoading] = useState(false)
   const isEdit = !!tenant?.id
   const [phonesExtra, setPhonesExtra] = useState<string[]>(tenant?.phonesExtra ?? [])
@@ -78,6 +81,8 @@ export function TenantFormDialog({ rooms, tenant, onClose, onSave }: Props) {
       emergencyName: tenant?.emergencyName || tenant?.emergencyContact || '',
       emergencyPhone: tenant?.emergencyPhone ?? '',
       occupation: tenant?.occupation ?? '',
+      age: tenant?.age ?? 0,
+      nationality: tenant?.nationality || defaultNationality,
       moveInDate: tenant?.moveInDate ?? '',
       depositAmount: tenant?.depositAmount ?? 0,
       payDay: tenant?.payDay ?? 1,
@@ -154,6 +159,14 @@ export function TenantFormDialog({ rooms, tenant, onClose, onSave }: Props) {
                 <div className="space-y-1.5">
                   <Label>{t('tenant_national_id')}</Label>
                   <Input {...register('nationalId')} placeholder={t('tenant_form_national_id_ph')} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>{t('tenant_age')}</Label>
+                  <Input type="number" min="0" max="150" {...register('age')} placeholder="25" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>{t('tenant_nationality')}</Label>
+                  <Input {...register('nationality')} placeholder={t('tenant_form_nationality_ph')} />
                 </div>
                 <div className="col-span-2 space-y-1.5">
                   <Label>{t('tenant_occupation')}</Label>
@@ -323,6 +336,8 @@ export function TenantFormDialog({ rooms, tenant, onClose, onSave }: Props) {
             vars={{
               tenantName: watch('fullName') || '',
               gender: watch('gender') || '',
+              age: Number(watch('age') || 0),
+              nationality: watch('nationality') || '',
               occupation: watch('occupation') || '',
               nationalId: watch('nationalId') || '',
               phone: watch('phone') || '',

@@ -31,7 +31,8 @@ interface Props {
     id: string; fullName: string; gender: string; phone: string; phonesExtra: string[]; nationalId: string
     telegramChatId: string
     emergencyContact: string; emergencyName: string; emergencyPhone: string
-    occupation: string; moveInDate: string; moveOutDate: string
+    occupation: string; age: number; nationality: string
+    moveInDate: string; moveOutDate: string
     depositAmount: number; monthlyRent: number; payDay: number; status: string; notes: string; createdAt: Date
     roomId: string | null
     room: {
@@ -409,6 +410,8 @@ export function TenantDetailClient({ tenant, rooms }: Props) {
               {([
                 [t('tenant_full_name'), tenant.fullName],
                 [t('tenant_gender'), tenant.gender || '—'],
+                [t('tenant_age'), tenant.age > 0 ? String(tenant.age) : '—'],
+                [t('tenant_nationality'), tenant.nationality || '—'],
                 [t('settings_phone'), formatPhones(tenant.phone, tenant.phonesExtra) || '—'],
                 [t('tenant_national_id'), tenant.nationalId || '—'],
                 [t('tenant_emergency_name'), tenant.emergencyName || tenant.emergencyContact || '—'],
@@ -623,6 +626,8 @@ export function TenantDetailClient({ tenant, rooms }: Props) {
               emergencyName: tenant.emergencyName,
               emergencyPhone: tenant.emergencyPhone,
               occupation: tenant.occupation,
+              age: tenant.age,
+              nationality: tenant.nationality,
               moveInDate: tenant.moveInDate,
               depositAmount: tenant.depositAmount,
               monthlyRent: tenant.monthlyRent > 0 ? tenant.monthlyRent : (tenant.room?.rentPriceUsd ?? 0),
@@ -653,6 +658,8 @@ export function TenantDetailClient({ tenant, rooms }: Props) {
           vars={{
             tenantName: tenant.fullName,
             gender: tenant.gender,
+            age: tenant.age,
+            nationality: tenant.nationality,
             occupation: tenant.occupation,
             nationalId: tenant.nationalId,
             phone: tenant.phone,
