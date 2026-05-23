@@ -416,6 +416,50 @@ export const getPropertySummaryData = unstable_cache(
   },
 )
 
+/**
+ * Data backing the "Create Billing" page. Combines the active-tenants list
+ * (with last billing + open notices, slim selects only) and the existing
+ * (tenantId, billingMonth) keys used to block duplicate bills. Cached and
+ * tagged so the page loads as fast as the others.
+ */
+export const getCreateBillingData = unstable_cache(
+  async () => {
+    const [tenants, billedKeyRows] = await Promise.all([
+      db.tenant.findMany({
+        where: { status: 'active', roomId: { not: null } },
+        select: {
+          id: true, fullName: true, phone: true, monthlyRent: true,
+          room: {
+            select: {
+              id: true, roomNumber: true, branch: true, rentPriceUsd: true,
+              waterRateRiel: true, electricRateRiel: true,
+            },
+          },
+          billings: {
+            orderBy: { billingMonth: 'desc' },
+            take: 1,
+            select: {
+              billingMonth: true, currWaterReading: true, currElectricReading: true,
+              totalUsd: true, paymentStatus: true,
+            },
+          },
+          notices: {
+            where: { status: 'open' },
+            orderBy: { createdAt: 'desc' },
+            select: { id: true, type: true, message: true, expectedDate: true, createdAt: true },
+          },
+        },
+        orderBy: { room: { roomNumber: 'asc' } },
+      }),
+      db.billing.findMany({ select: { tenantId: true, billingMonth: true } }),
+    ])
+    const billedKeys = billedKeyRows.map((r) => `${r.tenantId}|${r.billingMonth}`)
+    return { tenants, billedKeys }
+  },
+  ['create-billing-data'],
+  { tags: [TAGS.tenants, TAGS.rooms, TAGS.billings], revalidate: REVALIDATE_SECONDS },
+)
+
 export const getNotificationsData = unstable_cache(
   async () => {
     const [notifications, unpaidBillings, allBillings, linkedTenants] = await Promise.all([
