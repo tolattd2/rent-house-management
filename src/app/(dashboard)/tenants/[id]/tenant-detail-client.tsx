@@ -521,32 +521,44 @@ export function TenantDetailClient({ tenant, rooms }: Props) {
         </TabsContent>
       </Tabs>
 
-      {showEdit && (
-        <TenantFormDialog
-          rooms={rooms}
-          tenant={{
-            id: tenant.id,
-            fullName: tenant.fullName,
-            gender: tenant.gender,
-            phone: tenant.phone,
-            phonesExtra: tenant.phonesExtra,
-            telegramChatId: tenant.telegramChatId,
-            nationalId: tenant.nationalId,
-            emergencyContact: tenant.emergencyContact,
-            emergencyName: tenant.emergencyName,
-            emergencyPhone: tenant.emergencyPhone,
-            occupation: tenant.occupation,
-            moveInDate: tenant.moveInDate,
-            depositAmount: tenant.depositAmount,
-            monthlyRent: tenant.monthlyRent > 0 ? tenant.monthlyRent : (tenant.room?.rentPriceUsd ?? 0),
-            payDay: tenant.payDay,
-            roomId: tenant.roomId ?? undefined,
-            notes: tenant.notes,
-          }}
-          onClose={() => setShowEdit(false)}
-          onSave={() => { setShowEdit(false); router.refresh() }}
-        />
-      )}
+      {showEdit && (() => {
+        // Pre-fill Contract Start / End from the most recent active contract
+        // (fallback to the latest contract overall) so the Edit dialog shows
+        // existing values before any new input.
+        const latestContract =
+          tenant.contracts
+            .filter((c) => c.status === 'active')
+            .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))[0] ??
+          [...tenant.contracts].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))[0]
+        return (
+          <TenantFormDialog
+            rooms={rooms}
+            tenant={{
+              id: tenant.id,
+              fullName: tenant.fullName,
+              gender: tenant.gender,
+              phone: tenant.phone,
+              phonesExtra: tenant.phonesExtra,
+              telegramChatId: tenant.telegramChatId,
+              nationalId: tenant.nationalId,
+              emergencyContact: tenant.emergencyContact,
+              emergencyName: tenant.emergencyName,
+              emergencyPhone: tenant.emergencyPhone,
+              occupation: tenant.occupation,
+              moveInDate: tenant.moveInDate,
+              depositAmount: tenant.depositAmount,
+              monthlyRent: tenant.monthlyRent > 0 ? tenant.monthlyRent : (tenant.room?.rentPriceUsd ?? 0),
+              payDay: tenant.payDay,
+              roomId: tenant.roomId ?? undefined,
+              notes: tenant.notes,
+              contractStart: latestContract?.contractStart ?? '',
+              contractEnd: latestContract?.contractEnd ?? '',
+            }}
+            onClose={() => setShowEdit(false)}
+            onSave={() => { setShowEdit(false); router.refresh() }}
+          />
+        )
+      })()}
 
       {showNotice && (
         <NoticeDialog
