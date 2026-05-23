@@ -198,7 +198,9 @@ export function SettingsClient({ settings: initial }: Props) {
 
   const [testingTelegram, setTestingTelegram] = useState(false)
   const [testingLateAlert, setTestingLateAlert] = useState(false)
+  const [testingLandlordAlert, setTestingLandlordAlert] = useState(false)
   const [lateAlertEnabled, setLateAlertEnabled] = useState(initial.late_alert_enabled !== 'false')
+  const [landlordAlertEnabled, setLandlordAlertEnabled] = useState(initial.landlord_alert_enabled === 'true')
   const [settingUpWebhook, setSettingUpWebhook] = useState(false)
   const [linkingEnabled, setLinkingEnabled] = useState(initial.telegram_linking_enabled === 'true')
 
@@ -248,6 +250,18 @@ export function SettingsClient({ settings: initial }: Props) {
     setTestingLateAlert(false)
   }
 
+  async function handleLandlordAlertTest() {
+    setTestingLandlordAlert(true)
+    const res = await fetch('/api/settings/landlord-overdue-test', { method: 'POST' })
+    const data = await res.json()
+    if (data.ok) {
+      toast({ title: 'Test sent — check your Telegram' })
+    } else {
+      toast({ title: 'Failed to send', description: data.error, variant: 'destructive' })
+    }
+    setTestingLandlordAlert(false)
+  }
+
   async function handleToggleLinking(next: boolean) {
     setSettingUpWebhook(true)
     const res = await fetch('/api/telegram/setup-webhook', {
@@ -284,6 +298,7 @@ export function SettingsClient({ settings: initial }: Props) {
         ...ratePayload,
         branches: JSON.stringify(branches),
         late_alert_enabled: lateAlertEnabled ? 'true' : 'false',
+        landlord_alert_enabled: landlordAlertEnabled ? 'true' : 'false',
       }),
     })
     const result = await res.json()
@@ -495,7 +510,7 @@ export function SettingsClient({ settings: initial }: Props) {
                 <div className="pt-3 border-t space-y-3">
                   <div className="flex items-center justify-between gap-4">
                     <div>
-                      <Label>Auto overdue alerts</Label>
+                      <Label>Auto Overdue Alert For Tenant</Label>
                       <p className="text-xs text-muted-foreground">
                         Message the tenant directly (Khmer + English) when their invoice is more than
                         10 days overdue — checked daily. Penalty uses the Late Penalty rate.
@@ -509,6 +524,28 @@ export function SettingsClient({ settings: initial }: Props) {
                     size="sm"
                     loading={testingLateAlert}
                     onClick={handleLateAlertTest}
+                  >
+                    <Send className="w-4 h-4 mr-2" />Send test message
+                  </Button>
+                </div>
+                <div className="pt-3 border-t space-y-3">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <Label>Overdue Alert For Landlord</Label>
+                      <p className="text-xs text-muted-foreground">
+                        Notify the landlord (this Telegram chat) when a tenant&apos;s recorded
+                        &quot;Promise to pay&quot; date passes without payment — checked daily.
+                        Set the promise date on each invoice from its page.
+                      </p>
+                    </div>
+                    <Switch checked={landlordAlertEnabled} onCheckedChange={setLandlordAlertEnabled} />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    loading={testingLandlordAlert}
+                    onClick={handleLandlordAlertTest}
                   >
                     <Send className="w-4 h-4 mr-2" />Send test message
                   </Button>

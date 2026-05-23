@@ -141,6 +141,42 @@ export function buildReminderMessage(params: {
 }
 
 /**
+ * Notification sent to the landlord (not the tenant) when a tenant's
+ * "promise to pay" date has passed without payment. Uses the shared admin
+ * Telegram chat, so the landlord can chase up directly.
+ */
+export function buildLandlordPromiseOverdueMessage(params: {
+  tenantName: string
+  tenantPhone?: string
+  roomNumber: string
+  branchName?: string | null
+  billingMonth: string
+  totalUsd: number
+  totalRiel: number
+  balanceUsd: number
+  promiseDate: string
+  daysSincePromise: number
+}): string {
+  const riel = Math.round(params.totalRiel).toLocaleString()
+  const usd = params.totalUsd.toFixed(2)
+  const balance = params.balanceUsd.toFixed(2)
+  const branch = params.branchName?.trim() || 'Takmao Rental'
+  const phoneLine = params.tenantPhone?.trim() ? `📞 ${params.tenantPhone.trim()}\n` : ''
+
+  return (
+    `⚠️ <b>Tenant missed promised payment date — ${branch}</b>\n\n` +
+    `Tenant: <b>${params.tenantName}</b>\n` +
+    phoneLine +
+    `Room: ${params.roomNumber}\n` +
+    `Billing month: ${params.billingMonth}\n` +
+    `Total invoice: $${usd} / ${riel} ៛\n` +
+    `Outstanding balance: <b>$${balance}</b>\n\n` +
+    `Promised pay date: <b>${params.promiseDate}</b>\n` +
+    `Days past promise: <b>${params.daysSincePromise}</b>\n`
+  )
+}
+
+/**
  * Bilingual (Khmer + English) overdue warning sent to a late tenant by the
  * daily auto-alert cron. Warns how many days late they are and the late-fee
  * penalty they will be charged next month.

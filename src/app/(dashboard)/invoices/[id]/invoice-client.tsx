@@ -2,12 +2,13 @@
 
 import { useState } from 'react'
 import { useSession } from 'next-auth/react'
-import { ArrowLeft, Download, MessageSquare } from 'lucide-react'
+import { ArrowLeft, Download, MessageSquare, CalendarClock } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { toast } from '@/hooks/use-toast'
 import { useLanguage } from '@/contexts/language-context'
 import { InvoiceCard, type InvoiceCardData } from '@/components/invoices/invoice-card'
+import { PromiseDialog } from '@/components/invoices/promise-dialog'
 
 interface Props {
   billing: {
@@ -36,6 +37,7 @@ export function InvoiceClient({ billing, invoice, settings }: Props) {
   const { data: session } = useSession()
   const isAdmin = session?.user?.role === 'admin'
   const [sending, setSending] = useState<string | null>(null)
+  const [showPromise, setShowPromise] = useState(false)
   const xRate = billing.exchangeRate || parseFloat(settings.exchange_rate ?? '4100')
 
   const cardData: InvoiceCardData = {
@@ -83,6 +85,12 @@ export function InvoiceClient({ billing, invoice, settings }: Props) {
         </Link>
         <div className="flex-1" />
         {isAdmin && (
+          <Button variant="outline" size="sm" className="h-10" onClick={() => setShowPromise(true)}>
+            <CalendarClock className="w-4 h-4 sm:mr-2" />
+            <span className="hidden sm:inline">Promise to Pay</span>
+          </Button>
+        )}
+        {isAdmin && (
           <Button variant="outline" size="sm" className="h-10" onClick={handleSendTelegram} disabled={sending === 'telegram'}>
             <MessageSquare className="w-4 h-4 sm:mr-2" />
             <span className="hidden sm:inline">{invoice.sentTelegram ? t('invoice_resend_telegram') : t('invoice_send_telegram')}</span>
@@ -92,6 +100,10 @@ export function InvoiceClient({ billing, invoice, settings }: Props) {
           <Download className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">{t('invoice_print')}</span>
         </Button>
       </div>
+
+      {showPromise && (
+        <PromiseDialog billingId={billing.id} onClose={() => setShowPromise(false)} />
+      )}
 
       {/* Single landscape A4 page — same invoice design as batch print, scaled up */}
       <style>{`

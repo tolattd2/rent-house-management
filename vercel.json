@@ -2,6 +2,7 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "regions": ["bom1"],
   "crons": [
-    { "path": "/api/cron/late-invoice-alerts", "schedule": "0 2 * * *" }
+    { "path": "/api/cron/late-invoice-alerts", "schedule": "0 2 * * *" },
+    { "path": "/api/cron/landlord-promise-alerts", "schedule": "30 2 * * *" }
   ]
 }

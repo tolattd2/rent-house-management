@@ -23,6 +23,8 @@ const SETTING_LABELS: Record<string, string> = {
   twilio_token: 'Twilio Auth Token',
   twilio_phone: 'Twilio Phone Number',
   branches: 'Branches',
+  late_alert_enabled: 'Auto Overdue Alert (Tenant) Enabled',
+  landlord_alert_enabled: 'Overdue Alert (Landlord) Enabled',
 }
 
 export async function GET() {
