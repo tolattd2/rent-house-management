@@ -462,6 +462,7 @@ export function TenantDetailClient({ tenant, rooms }: Props) {
             gender: tenant.gender,
             phone: tenant.phone,
             phonesExtra: tenant.phonesExtra,
+            telegramChatId: tenant.telegramChatId,
             nationalId: tenant.nationalId,
             emergencyContact: tenant.emergencyContact,
             emergencyName: tenant.emergencyName,

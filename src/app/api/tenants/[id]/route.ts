@@ -45,7 +45,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       gender: body.gender ?? '',
       phone: body.phone ?? '',
       phonesExtra: Array.isArray(body.phonesExtra) ? body.phonesExtra : [],
-      telegramChatId: body.telegramChatId ?? '',
       nationalId: body.nationalId ?? '',
       emergencyName: body.emergencyName ?? '',
       emergencyPhone: body.emergencyPhone ?? '',
@@ -56,6 +55,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       monthlyRent: Number(body.monthlyRent ?? 0),
       payDay: Number(body.payDay ?? 1),
       notes: body.notes ?? '',
+    }
+    // Only overwrite the Telegram link when the request explicitly carries a
+    // non-empty value. This protects already-linked tenants from being silently
+    // unlinked by an edit form that forgot to include the chat ID.
+    if (typeof body.telegramChatId === 'string' && body.telegramChatId.trim() !== '') {
+      updateData.telegramChatId = body.telegramChatId.trim()
     }
     if (roomId !== undefined) {
       updateData.room = roomId
