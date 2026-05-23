@@ -196,14 +196,12 @@ export function MaintenanceClient({ records: initial, rooms, tenants }: Props) {
     if (record.status === status) return
     const prev = records
     const today = new Date().toISOString().slice(0, 10)
-    const optimisticCompleted = status === 'completed' && !record.completedDate ? today : record.completedDate
-    setRecords((rs) => rs.map((r) => r.id === record.id ? { ...r, status, completedDate: optimisticCompleted } : r))
-    const body: Record<string, unknown> = { status }
-    if (status === 'completed' && !record.completedDate) body.completedDate = today
+    const nextCompleted = status === 'completed' ? today : ''
+    setRecords((rs) => rs.map((r) => r.id === record.id ? { ...r, status, completedDate: nextCompleted } : r))
     const res = await fetch(`/api/maintenance/${record.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
+      body: JSON.stringify({ status, completedDate: nextCompleted }),
     })
     const data = await res.json()
     if (data.ok) {
