@@ -16,6 +16,7 @@ import Link from 'next/link'
 import { useLanguage } from '@/contexts/language-context'
 import { useBranches, useRoomLabel } from '@/contexts/branches-context'
 import { useDeleteWithUndo } from '@/hooks/use-delete-with-undo'
+import { usePersistentState } from '@/hooks/use-persistent-state'
 import { DeleteConfirmDialog } from '@/components/ui/delete-confirm-dialog'
 
 type Room = {
@@ -56,9 +57,9 @@ export function RoomsClient({ rooms: initialRooms, settings }: Props) {
   const roomLabel = useRoomLabel()
   const [rooms, setRooms] = useState(initialRooms)
   useEffect(() => { setRooms(initialRooms) }, [initialRooms])
-  const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState<string>('all')
-  const [branchFilter, setBranchFilter] = useState<string>('all')
+  const [search, setSearch] = usePersistentState('rooms/search', '')
+  const [statusFilter, setStatusFilter] = usePersistentState<string>('rooms/status', 'all')
+  const [branchFilter, setBranchFilter] = usePersistentState<string>('rooms/branch', 'all')
   const [showForm, setShowForm] = useState(false)
   const [editRoom, setEditRoom] = useState<Room | null>(null)
   const { triggerDelete, dialogState, closeDialog } = useDeleteWithUndo()

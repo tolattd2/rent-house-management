@@ -14,6 +14,7 @@ import { useLanguage } from '@/contexts/language-context'
 import { useBranches } from '@/contexts/branches-context'
 import { resolveBranchRates, type RateKey } from '@/lib/branches'
 import { CARD_STYLES, type CardColor } from '@/lib/card-colors'
+import { usePersistentState } from '@/hooks/use-persistent-state'
 
 interface Props {
   rooms: { id: string; branch: string; status: string }[]
@@ -61,11 +62,11 @@ export function PropertySummaryClient({ rooms, tenants, billings, expenses, main
   const { t } = useLanguage()
   const branches = useBranches()
   const currentMonth = new Date().toISOString().slice(0, 7)
-  const [month, setMonth] = useState(currentMonth)
-  const [monthFrom, setMonthFrom] = useState('')
-  const [monthTo, setMonthTo] = useState('')
-  const [sortKey, setSortKey] = useState<SortKey>('revenue')
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
+  const [month, setMonth] = usePersistentState('property/month', currentMonth)
+  const [monthFrom, setMonthFrom] = usePersistentState('property/monthFrom', '')
+  const [monthTo, setMonthTo] = usePersistentState('property/monthTo', '')
+  const [sortKey, setSortKey] = usePersistentState<SortKey>('property/sortKey', 'revenue')
+  const [sortDir, setSortDir] = usePersistentState<'asc' | 'desc'>('property/sortDir', 'desc')
 
   // Distinct billing/expense months (plus the current month), newest first —
   // mirrors the month dropdown on the Billing, Invoices & Tenants pages.

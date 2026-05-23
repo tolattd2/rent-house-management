@@ -22,6 +22,7 @@ import { toast } from '@/hooks/use-toast'
 import { useLanguage } from '@/contexts/language-context'
 import { useBranches, useRoomLabel } from '@/contexts/branches-context'
 import { useDeleteWithUndo } from '@/hooks/use-delete-with-undo'
+import { usePersistentState } from '@/hooks/use-persistent-state'
 
 type NoticeType = 'move_out' | 'repair' | 'complaint' | 'general'
 
@@ -72,10 +73,10 @@ export function NoticesClient({ notices: initial, tenants }: Props) {
   const [notices, setNotices] = useState(initial)
   useEffect(() => { setNotices(initial) }, [initial])
 
-  const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState<'all' | 'open' | 'resolved'>('all')
-  const [typeFilter, setTypeFilter] = useState<'all' | NoticeType>('all')
-  const [branchFilter, setBranchFilter] = useState('all')
+  const [search, setSearch] = usePersistentState('notices/search', '')
+  const [statusFilter, setStatusFilter] = usePersistentState<'all' | 'open' | 'resolved'>('notices/status', 'all')
+  const [typeFilter, setTypeFilter] = usePersistentState<'all' | NoticeType>('notices/type', 'all')
+  const [branchFilter, setBranchFilter] = usePersistentState('notices/branch', 'all')
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<NoticeRecord | null>(null)
   const { triggerDelete, dialogState, closeDialog } = useDeleteWithUndo()

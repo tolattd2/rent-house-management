@@ -21,6 +21,7 @@ import { useSession } from 'next-auth/react'
 import { useLanguage } from '@/contexts/language-context'
 import { useBranches, useRoomLabel } from '@/contexts/branches-context'
 import { useDeleteWithUndo, runDeleteWithUndo } from '@/hooks/use-delete-with-undo'
+import { usePersistentState } from '@/hooks/use-persistent-state'
 import { DeleteConfirmDialog } from '@/components/ui/delete-confirm-dialog'
 
 type Billing = {
@@ -54,13 +55,13 @@ export function BillingListClient({ billings: initial }: Props) {
   const roomLabel = useRoomLabel()
   const [billings, setBillings] = useState(initial)
   useEffect(() => { setBillings(initial) }, [initial])
-  const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState('all')
+  const [search, setSearch] = usePersistentState('billing/search', '')
+  const [statusFilter, setStatusFilter] = usePersistentState('billing/status', 'all')
   const latestMonth = [...new Set(initial.map((b) => b.billingMonth))].sort().reverse()[0] ?? 'all'
-  const [monthFilter, setMonthFilter] = useState(latestMonth)
-  const [monthFrom, setMonthFrom] = useState('')
-  const [monthTo, setMonthTo] = useState('')
-  const [branchFilter, setBranchFilter] = useState('all')
+  const [monthFilter, setMonthFilter] = usePersistentState('billing/month', latestMonth)
+  const [monthFrom, setMonthFrom] = usePersistentState('billing/monthFrom', '')
+  const [monthTo, setMonthTo] = usePersistentState('billing/monthTo', '')
+  const [branchFilter, setBranchFilter] = usePersistentState('billing/branch', 'all')
   const [payDialog, setPayDialog] = useState<Billing | null>(null)
   const [showBatchDelete, setShowBatchDelete] = useState(false)
   const [showGenerate, setShowGenerate] = useState(false)

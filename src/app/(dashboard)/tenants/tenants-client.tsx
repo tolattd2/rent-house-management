@@ -17,6 +17,7 @@ import { CARD_STYLES, type CardColor } from '@/lib/card-colors'
 import { toast } from '@/hooks/use-toast'
 import { useLanguage } from '@/contexts/language-context'
 import { useBranches, useRoomLabel } from '@/contexts/branches-context'
+import { usePersistentState } from '@/hooks/use-persistent-state'
 
 type Room = {
   id: string; roomNumber: string; branch?: string; status: string; rentPriceUsd: number
@@ -42,12 +43,12 @@ export function TenantsClient({ tenants: initial, rooms }: Props) {
   const [tenants, setTenants] = useState(initial)
   useEffect(() => { setTenants(initial) }, [initial])
   const currentMonth = new Date().toISOString().slice(0, 7)
-  const [month, setMonth] = useState(currentMonth)
-  const [monthFrom, setMonthFrom] = useState('')
-  const [monthTo, setMonthTo] = useState('')
-  const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive' | 'movedout' | 'owing'>('active')
-  const [branchFilter, setBranchFilter] = useState<string>('all')
+  const [month, setMonth] = usePersistentState('tenants/month', currentMonth)
+  const [monthFrom, setMonthFrom] = usePersistentState('tenants/monthFrom', '')
+  const [monthTo, setMonthTo] = usePersistentState('tenants/monthTo', '')
+  const [search, setSearch] = usePersistentState('tenants/search', '')
+  const [statusFilter, setStatusFilter] = usePersistentState<'all' | 'active' | 'inactive' | 'movedout' | 'owing'>('tenants/status', 'active')
+  const [branchFilter, setBranchFilter] = usePersistentState<string>('tenants/branch', 'all')
   const [showForm, setShowForm] = useState(false)
 
   // ── Monthly snapshot helpers ────────────────────────────────────────

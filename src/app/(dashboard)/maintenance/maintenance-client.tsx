@@ -19,6 +19,7 @@ import { toast } from '@/hooks/use-toast'
 import { useLanguage } from '@/contexts/language-context'
 import { useBranches, useRoomLabel } from '@/contexts/branches-context'
 import { useDeleteWithUndo } from '@/hooks/use-delete-with-undo'
+import { usePersistentState } from '@/hooks/use-persistent-state'
 import { DeleteConfirmDialog } from '@/components/ui/delete-confirm-dialog'
 
 /** Gradient-wash colour for each maintenance status summary card. */
@@ -80,9 +81,9 @@ export function MaintenanceClient({ records: initial, rooms, tenants }: Props) {
   const roomLabel = useRoomLabel()
   const [records, setRecords] = useState(initial)
   useEffect(() => { setRecords(initial) }, [initial])
-  const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState('all')
-  const [branchFilter, setBranchFilter] = useState('all')
+  const [search, setSearch] = usePersistentState('maintenance/search', '')
+  const [statusFilter, setStatusFilter] = usePersistentState('maintenance/status', 'all')
+  const [branchFilter, setBranchFilter] = usePersistentState('maintenance/branch', 'all')
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<MaintenanceRecord | null>(null)
   const [form, setForm] = useState(emptyForm)

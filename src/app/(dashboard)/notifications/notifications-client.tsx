@@ -12,6 +12,7 @@ import { formatCurrency, cn, sortRoomsByNumber } from '@/lib/utils'
 import { toast } from '@/hooks/use-toast'
 import { useLanguage } from '@/contexts/language-context'
 import { useBranches, useRoomLabel } from '@/contexts/branches-context'
+import { usePersistentState } from '@/hooks/use-persistent-state'
 import { CustomReminderDialog } from '@/components/notifications/custom-reminder-dialog'
 
 type Billing = {
@@ -44,10 +45,10 @@ export function NotificationsClient({ unpaidBillings, allBillings, linkedTenants
   const roomLabel = useRoomLabel()
   const [sending, setSending] = useState<string | null>(null)
   const [sendingBulk, setSendingBulk] = useState<'en' | 'km' | null>(null)
-  const [branchFilter, setBranchFilter] = useState('all')
-  const [statusFilter, setStatusFilter] = useState<'all' | 'paid' | 'unpaid' | 'partial'>('all')
-  const [search, setSearch] = useState('')
-  const [tab, setTab] = useState<Tab>('pending')
+  const [branchFilter, setBranchFilter] = usePersistentState('notifications/branch', 'all')
+  const [statusFilter, setStatusFilter] = usePersistentState<'all' | 'paid' | 'unpaid' | 'partial'>('notifications/status', 'all')
+  const [search, setSearch] = usePersistentState('notifications/search', '')
+  const [tab, setTab] = usePersistentState<Tab>('notifications/tab', 'pending')
   const [showCustom, setShowCustom] = useState(false)
   const [composeTenant, setComposeTenant] = useState<{ id: string; name: string } | null>(null)
 

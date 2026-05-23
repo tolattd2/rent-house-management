@@ -16,6 +16,7 @@ import { CARD_STYLES } from '@/lib/card-colors'
 import { Download, TrendingDown } from 'lucide-react'
 import { useLanguage } from '@/contexts/language-context'
 import { useBranches, useRoomLabel } from '@/contexts/branches-context'
+import { usePersistentState } from '@/hooks/use-persistent-state'
 
 type Billing = {
   id: string; billingMonth: string; roomRentUsd: number; waterCostRiel: number
@@ -40,10 +41,10 @@ export function ReportsClient({ billings, expenses }: Props) {
   const roomLabel = useRoomLabel()
   const branchOptions = ['all', ...useBranches().map((b) => b.name)]
   const latestReportMonth = [...new Set(billings.map((b) => b.billingMonth))].sort().reverse()[0] ?? 'all'
-  const [selectedMonth, setSelectedMonth] = useState<string>(latestReportMonth)
-  const [monthFrom, setMonthFrom] = useState<string>('')
-  const [monthTo, setMonthTo] = useState<string>('')
-  const [branchFilter, setBranchFilter] = useState<string>('all')
+  const [selectedMonth, setSelectedMonth] = usePersistentState<string>('reports/month', latestReportMonth)
+  const [monthFrom, setMonthFrom] = usePersistentState<string>('reports/monthFrom', '')
+  const [monthTo, setMonthTo] = usePersistentState<string>('reports/monthTo', '')
+  const [branchFilter, setBranchFilter] = usePersistentState<string>('reports/branch', 'all')
 
   const months = useMemo(() =>
     [...new Set(billings.map((b) => b.billingMonth))].sort().reverse(),

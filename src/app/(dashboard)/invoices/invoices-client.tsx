@@ -21,6 +21,7 @@ import { InvoiceBatchPrintDialog } from '@/components/invoices/batch-print-dialo
 import { InvoiceBatchDeleteDialog } from '@/components/invoices/batch-delete-dialog'
 import { PromiseDialog } from '@/components/invoices/promise-dialog'
 import { useDeleteWithUndo, runDeleteWithUndo } from '@/hooks/use-delete-with-undo'
+import { usePersistentState } from '@/hooks/use-persistent-state'
 import { DeleteConfirmDialog } from '@/components/ui/delete-confirm-dialog'
 
 interface Invoice {
@@ -47,13 +48,13 @@ export function InvoicesClient({ invoices: initial }: Props) {
   const isAdmin = session?.user?.role === 'admin'
   const [invoices, setInvoices] = useState(initial)
   useEffect(() => { setInvoices(initial) }, [initial])
-  const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState('all')
+  const [search, setSearch] = usePersistentState('invoices/search', '')
+  const [statusFilter, setStatusFilter] = usePersistentState('invoices/status', 'all')
   const latestInvoiceMonth = [...new Set(initial.map((inv) => inv.billing?.billingMonth).filter(Boolean) as string[])].sort().reverse()[0] ?? 'all'
-  const [monthFilter, setMonthFilter] = useState(latestInvoiceMonth)
-  const [monthFrom, setMonthFrom] = useState('')
-  const [monthTo, setMonthTo] = useState('')
-  const [branchFilter, setBranchFilter] = useState('all')
+  const [monthFilter, setMonthFilter] = usePersistentState('invoices/month', latestInvoiceMonth)
+  const [monthFrom, setMonthFrom] = usePersistentState('invoices/monthFrom', '')
+  const [monthTo, setMonthTo] = usePersistentState('invoices/monthTo', '')
+  const [branchFilter, setBranchFilter] = usePersistentState('invoices/branch', 'all')
   const [showBatchPrint, setShowBatchPrint] = useState(false)
   const [showBatchDelete, setShowBatchDelete] = useState(false)
   const [promiseBillingId, setPromiseBillingId] = useState<string | null>(null)

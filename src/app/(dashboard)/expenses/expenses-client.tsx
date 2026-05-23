@@ -23,6 +23,7 @@ import { useSession } from 'next-auth/react'
 import { useLanguage } from '@/contexts/language-context'
 import { useBranches } from '@/contexts/branches-context'
 import { useDeleteWithUndo } from '@/hooks/use-delete-with-undo'
+import { usePersistentState } from '@/hooks/use-persistent-state'
 import { DeleteConfirmDialog } from '@/components/ui/delete-confirm-dialog'
 
 type Expense = {
@@ -89,13 +90,13 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
   const branchOptions = ['all', ...useBranches().map((b) => b.name)]
   const [expenses, setExpenses] = useState(initialExpenses)
   useEffect(() => { setExpenses(initialExpenses) }, [initialExpenses])
-  const [search, setSearch] = useState('')
-  const [categoryFilter, setCategoryFilter] = useState('all')
+  const [search, setSearch] = usePersistentState('expenses/search', '')
+  const [categoryFilter, setCategoryFilter] = usePersistentState('expenses/category', 'all')
   const latestExpenseMonth = [...new Set(initialExpenses.map((e) => e.expenseDate.slice(0, 7)))].sort().reverse()[0] ?? 'all'
-  const [monthFilter, setMonthFilter] = useState(latestExpenseMonth)
-  const [monthFrom, setMonthFrom] = useState('')
-  const [monthTo, setMonthTo] = useState('')
-  const [branchFilter, setBranchFilter] = useState('all')
+  const [monthFilter, setMonthFilter] = usePersistentState('expenses/month', latestExpenseMonth)
+  const [monthFrom, setMonthFrom] = usePersistentState('expenses/monthFrom', '')
+  const [monthTo, setMonthTo] = usePersistentState('expenses/monthTo', '')
+  const [branchFilter, setBranchFilter] = usePersistentState('expenses/branch', 'all')
   const [showForm, setShowForm] = useState(false)
   const [editExpense, setEditExpense] = useState<Expense | null>(null)
   const [loading, setLoading] = useState(false)
