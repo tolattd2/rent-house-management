@@ -68,8 +68,13 @@ const SelectContent = React.forwardRef<
   <SelectPrimitive.Portal>
     <SelectPrimitive.Content
       ref={ref}
+      // Cap height to the actual room between the trigger and the viewport
+      // edge (Radix exposes --radix-select-content-available-height for
+      // exactly this). Without this the dropdown can extend off-screen on
+      // mobile, where the browser address/nav bars eat real screen space the
+      // browser doesn't expose to CSS via 100vh.
       className={cn(
-        'relative z-50 max-h-96 min-w-[8rem] overflow-hidden rounded-lg border border-border bg-popover text-popover-foreground shadow-md',
+        'relative z-50 max-h-[min(24rem,var(--radix-select-content-available-height))] min-w-[8rem] overflow-hidden rounded-lg border border-border bg-popover text-popover-foreground shadow-md',
         'data-[state=open]:animate-in data-[state=closed]:animate-out',
         'data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
         'data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
@@ -80,6 +85,8 @@ const SelectContent = React.forwardRef<
         className
       )}
       position={position}
+      sideOffset={4}
+      collisionPadding={12}
       {...props}
     >
       <SelectScrollUpButton />
