@@ -151,6 +151,7 @@ model Contract {
   monthlyRent   Float          @default(0)
   depositAmount Float          @default(0)
   contractPdf   String         @default("")
+  agreementText String         @default("")
   status        ContractStatus @default(active)
   notes         String         @default("")
   createdAt     DateTime       @default(now())

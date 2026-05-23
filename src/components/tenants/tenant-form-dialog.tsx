@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Plus, X } from 'lucide-react'
+import { Plus, X, FileSignature } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -16,6 +16,7 @@ import { toast } from '@/hooks/use-toast'
 import { sortRoomsByNumber } from '@/lib/utils'
 import { useLanguage } from '@/contexts/language-context'
 import { useBranches, useRoomLabel } from '@/contexts/branches-context'
+import { GenerateContractDialog } from './generate-contract-dialog'
 
 const schema = z.object({
   fullName: z.string().min(1, 'Full name required'),
@@ -59,6 +60,7 @@ export function TenantFormDialog({ rooms, tenant, onClose, onSave }: Props) {
   const [loading, setLoading] = useState(false)
   const isEdit = !!tenant?.id
   const [phonesExtra, setPhonesExtra] = useState<string[]>(tenant?.phonesExtra ?? [])
+  const [showGenerate, setShowGenerate] = useState(false)
 
   const initialBranch = tenant?.roomId
     ? (rooms.find((r) => r.id === tenant.roomId)?.branch ?? '')
@@ -284,6 +286,28 @@ export function TenantFormDialog({ rooms, tenant, onClose, onSave }: Props) {
                   <Input type="date" {...register('contractEnd')} />
                 </div>
               </div>
+              <div className="rounded-md border border-dashed p-4 flex items-start gap-3">
+                <FileSignature className="w-5 h-5 mt-0.5 text-primary flex-shrink-0" />
+                <div className="flex-1 space-y-1">
+                  <div className="font-medium text-sm">{t('contract_gen_title')}</div>
+                  <p className="text-xs text-muted-foreground">{t('contract_gen_desc')}</p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={!isEdit}
+                  onClick={() => setShowGenerate(true)}
+                  title={isEdit ? undefined : t('contract_gen_save_tenant_first')}
+                >
+                  {t('contract_gen_open_btn')}
+                </Button>
+              </div>
+              {!isEdit && (
+                <p className="text-xs text-muted-foreground">
+                  {t('contract_gen_save_tenant_first')}
+                </p>
+              )}
             </TabsContent>
           </Tabs>
 
@@ -292,6 +316,23 @@ export function TenantFormDialog({ rooms, tenant, onClose, onSave }: Props) {
             <Button type="submit" loading={loading}>{isEdit ? t('tenant_form_update_btn') : t('tenant_form_add_btn')}</Button>
           </div>
         </form>
+
+        {showGenerate && isEdit && tenant?.id && (
+          <GenerateContractDialog
+            tenantId={tenant.id}
+            vars={{
+              tenantName: watch('fullName') || '',
+              roomLabel: selectedRoom ? roomLabel(selectedRoom) : '',
+              branch: selectedBranch,
+              monthlyRent: Number(watch('monthlyRent') || 0),
+              depositAmount: Number(watch('depositAmount') || 0),
+              payDay: Number(watch('payDay') || 1),
+              contractStart: watch('contractStart') || '',
+              contractEnd: watch('contractEnd') || '',
+            }}
+            onClose={() => setShowGenerate(false)}
+          />
+        )}
       </DialogContent>
     </Dialog>
   )
