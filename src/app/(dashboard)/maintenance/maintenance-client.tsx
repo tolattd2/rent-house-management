@@ -192,6 +192,70 @@ export function MaintenanceClient({ records: initial, rooms, tenants }: Props) {
     })
   }
 
+  async function handleStatusChange(record: MaintenanceRecord, status: MaintenanceRecord['status']) {
+    if (record.status === status) return
+    const prev = records
+    const today = new Date().toISOString().slice(0, 10)
+    const optimisticCompleted = status === 'completed' && !record.completedDate ? today : record.completedDate
+    setRecords((rs) => rs.map((r) => r.id === record.id ? { ...r, status, completedDate: optimisticCompleted } : r))
+    const body: Record<string, unknown> = { status }
+    if (status === 'completed' && !record.completedDate) body.completedDate = today
+    const res = await fetch(`/api/maintenance/${record.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    const data = await res.json()
+    if (data.ok) {
+      setRecords((rs) => rs.map((r) => r.id === record.id ? data.record : r))
+      toast({ title: t('maintenance_updated') })
+      router.refresh()
+    } else {
+      setRecords(prev)
+      toast({ title: 'Error', description: data.error, variant: 'destructive' })
+    }
+  }
+
+  const STATUS_PILL: Record<MaintenanceRecord['status'], string> = {
+    pending: 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400 dark:hover:bg-yellow-900/50',
+    in_progress: 'bg-blue-100 text-blue-800 hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50',
+    completed: 'bg-green-100 text-green-800 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400 dark:hover:bg-green-900/50',
+  }
+
+  function StatusControl({ record }: { record: MaintenanceRecord }) {
+    const sc = statusConfig[record.status]
+    if (!isAdmin) {
+      return (
+        <Badge variant={sc.color} className="flex items-center gap-1 w-fit">
+          <sc.icon className="w-3 h-3" />
+          {t(`status_${record.status}` as Parameters<typeof t>[0])}
+        </Badge>
+      )
+    }
+    return (
+      <Select value={record.status} onValueChange={(v) => handleStatusChange(record, v as MaintenanceRecord['status'])}>
+        <SelectTrigger
+          className={cn(
+            'h-7 w-fit rounded-full border-0 px-2.5 py-0.5 text-xs font-semibold gap-1.5 transition-colors',
+            'focus:ring-2 focus:ring-ring focus:ring-offset-1',
+            '[&>span]:flex [&>span]:items-center [&>span]:gap-1',
+            STATUS_PILL[record.status],
+          )}
+        >
+          <SelectValue>
+            <sc.icon className="w-3 h-3" />
+            {t(`status_${record.status}` as Parameters<typeof t>[0])}
+          </SelectValue>
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="pending">{t('status_pending')}</SelectItem>
+          <SelectItem value="in_progress">{t('status_in_progress')}</SelectItem>
+          <SelectItem value="completed">{t('status_completed')}</SelectItem>
+        </SelectContent>
+      </Select>
+    )
+  }
+
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
@@ -252,7 +316,6 @@ export function MaintenanceClient({ records: initial, rooms, tenants }: Props) {
           </div>
         )}
         {filtered.map((r) => {
-          const sc = statusConfig[r.status]
           return (
             <Card key={r.id} className="p-4">
               <div className="flex items-start justify-between gap-2 mb-2">
@@ -260,10 +323,9 @@ export function MaintenanceClient({ records: initial, rooms, tenants }: Props) {
                   <p className="font-semibold truncate">{r.title}</p>
                   <p className="text-xs text-muted-foreground capitalize">{r.category}</p>
                 </div>
-                <Badge variant={sc.color} className="flex items-center gap-1 shrink-0">
-                  <sc.icon className="w-3 h-3" />
-                  {t(`status_${r.status}` as Parameters<typeof t>[0])}
-                </Badge>
+                <div className="shrink-0">
+                  <StatusControl record={r} />
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm mb-3">
                 <div>
@@ -320,7 +382,6 @@ export function MaintenanceClient({ records: initial, rooms, tenants }: Props) {
             </thead>
             <tbody>
               {filtered.map((r, i) => {
-                const sc = statusConfig[r.status]
                 return (
                   <tr key={r.id}
                     className={`border-b border-border last:border-0 hover:bg-muted/40 ${i % 2 ? 'bg-muted/10' : ''}`}
@@ -351,10 +412,7 @@ export function MaintenanceClient({ records: initial, rooms, tenants }: Props) {
                       {r.repairFeeUsd > 0 ? formatCurrency(r.repairFeeUsd) : <span className="text-muted-foreground">—</span>}
                     </td>
                     <td className="px-4 py-3">
-                      <Badge variant={sc.color} className="flex items-center gap-1 w-fit">
-                        <sc.icon className="w-3 h-3" />
-                        {t(`status_${r.status}` as Parameters<typeof t>[0])}
-                      </Badge>
+                      <StatusControl record={r} />
                     </td>
                     <td className="px-4 py-3 text-right">
                       {isAdmin && (
