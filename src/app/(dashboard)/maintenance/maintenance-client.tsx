@@ -308,8 +308,8 @@ export function MaintenanceClient({ records: initial, rooms, tenants }: Props) {
             <thead>
               <tr className="border-b border-border">
                 <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{t('maintenance_col_title')}</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{t('maintenance_col_branch')}</th>
                 <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{t('maintenance_col_room')}</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{t('maintenance_col_branch')}</th>
                 <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{t('maintenance_col_tenant')}</th>
                 <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{t('maintenance_col_reported')}</th>
                 <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{t('maintenance_col_completed')}</th>
@@ -329,9 +329,6 @@ export function MaintenanceClient({ records: initial, rooms, tenants }: Props) {
                       <p className="font-medium">{r.title}</p>
                       <p className="text-xs text-muted-foreground capitalize">{r.category}</p>
                     </td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {r.room?.branch ?? '—'}
-                    </td>
                     <td className="px-4 py-3">
                       {r.room ? (
                         <div className="flex items-center gap-1.5">
@@ -339,6 +336,9 @@ export function MaintenanceClient({ records: initial, rooms, tenants }: Props) {
                           <span>{t('room')} {roomLabel(r.room)}</span>
                         </div>
                       ) : <span className="text-muted-foreground">—</span>}
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {r.room?.branch ?? '—'}
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">
                       {r.tenant?.fullName ?? '—'}
