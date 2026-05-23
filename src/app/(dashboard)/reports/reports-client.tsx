@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { TableScroll } from '@/components/ui/table-scroll'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { MonthRangePicker, monthRange } from '@/components/ui/month-range-picker'
 import { Badge } from '@/components/ui/badge'
 import { formatCurrency, exportToCSV, sortRoomsByNumber, cn } from '@/lib/utils'
 import { CARD_STYLES } from '@/lib/card-colors'
@@ -39,6 +40,8 @@ export function ReportsClient({ billings, expenses }: Props) {
   const roomLabel = useRoomLabel()
   const branchOptions = ['all', ...useBranches().map((b) => b.name)]
   const [selectedMonth, setSelectedMonth] = useState<string>('all')
+  const [monthFrom, setMonthFrom] = useState<string>('')
+  const [monthTo, setMonthTo] = useState<string>('')
   const [branchFilter, setBranchFilter] = useState<string>('all')
 
   const months = useMemo(() =>
@@ -69,13 +72,21 @@ export function ReportsClient({ billings, expenses }: Props) {
   // "All months" totals up to the current month — future-dated records are excluded
   // so a stray date in next month can't inflate lifetime totals.
   const currentMonth = new Date().toISOString().slice(0, 7)
-  const monthBillings = selectedMonth === 'all'
-    ? branchBillings.filter((b) => b.billingMonth <= currentMonth)
-    : branchBillings.filter((b) => b.billingMonth === selectedMonth)
+  const range = monthRange(monthFrom, monthTo)
+  const monthBillings = range
+    ? branchBillings.filter((b) => b.billingMonth >= range[0] && b.billingMonth <= range[1])
+    : selectedMonth === 'all'
+      ? branchBillings.filter((b) => b.billingMonth <= currentMonth)
+      : branchBillings.filter((b) => b.billingMonth === selectedMonth)
 
-  const monthExpenses = selectedMonth === 'all'
-    ? branchExpenses.filter((e) => e.expenseDate.slice(0, 7) <= currentMonth)
-    : branchExpenses.filter((e) => e.expenseDate.startsWith(selectedMonth))
+  const monthExpenses = range
+    ? branchExpenses.filter((e) => {
+      const m = e.expenseDate.slice(0, 7)
+      return m >= range[0] && m <= range[1]
+    })
+    : selectedMonth === 'all'
+      ? branchExpenses.filter((e) => e.expenseDate.slice(0, 7) <= currentMonth)
+      : branchExpenses.filter((e) => e.expenseDate.startsWith(selectedMonth))
 
   const totalRevenue = monthBillings.filter((b) => b.paymentStatus === 'paid').reduce((s, b) => s + b.totalUsd, 0)
   const totalOutstanding = monthBillings
@@ -130,6 +141,8 @@ export function ReportsClient({ billings, expenses }: Props) {
               {months.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
             </SelectContent>
           </Select>
+          <MonthRangePicker months={months} from={monthFrom} to={monthTo}
+            onChange={(f, to) => { setMonthFrom(f); setMonthTo(to) }} />
           <Button variant="outline" className="h-10" onClick={handleExport}>
             <Download className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">{t('billing_export')}</span>
           </Button>

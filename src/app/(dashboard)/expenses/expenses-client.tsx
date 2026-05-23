@@ -13,6 +13,7 @@ import { TableScroll } from '@/components/ui/table-scroll'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { MonthRangePicker, monthRange } from '@/components/ui/month-range-picker'
 import { Textarea } from '@/components/ui/textarea'
 import { toast } from '@/hooks/use-toast'
 import { formatCurrency, formatCompact, exportToCSV, cn } from '@/lib/utils'
@@ -91,6 +92,8 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('all')
   const [monthFilter, setMonthFilter] = useState('all')
+  const [monthFrom, setMonthFrom] = useState('')
+  const [monthTo, setMonthTo] = useState('')
   const [branchFilter, setBranchFilter] = useState('all')
   const [showForm, setShowForm] = useState(false)
   const [editExpense, setEditExpense] = useState<Expense | null>(null)
@@ -107,6 +110,7 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
     [expenses]
   )
 
+  const range = monthRange(monthFrom, monthTo)
   const filtered = useMemo(() => {
     return expenses.filter((e) => {
       const q = search.toLowerCase()
@@ -116,11 +120,14 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
         e.paidTo.toLowerCase().includes(q) ||
         (e.room?.roomNumber ?? '').toLowerCase().includes(q)
       const matchCat = categoryFilter === 'all' || e.category === categoryFilter
-      const matchMonth = monthFilter === 'all' || e.expenseDate.startsWith(monthFilter)
+      const em = e.expenseDate.slice(0, 7)
+      const matchMonth = range
+        ? em >= range[0] && em <= range[1]
+        : monthFilter === 'all' || e.expenseDate.startsWith(monthFilter)
       const matchBranch = branchFilter === 'all' || e.room?.branch === branchFilter
       return matchSearch && matchCat && matchMonth && matchBranch
     })
-  }, [expenses, search, categoryFilter, monthFilter, branchFilter])
+  }, [expenses, search, categoryFilter, monthFilter, monthFrom, monthTo, range, branchFilter])
 
   const thisMonthTotal = expenses
     .filter((e) => e.expenseDate.startsWith(currentMonth))
@@ -326,6 +333,8 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
             {months.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
           </SelectContent>
         </Select>
+        <MonthRangePicker months={months} from={monthFrom} to={monthTo}
+          onChange={(f, to) => { setMonthFrom(f); setMonthTo(to) }} />
         <Select value={categoryFilter} onValueChange={setCategoryFilter}>
           <SelectTrigger className="w-40 h-9">
             <SelectValue placeholder={t('all')} />

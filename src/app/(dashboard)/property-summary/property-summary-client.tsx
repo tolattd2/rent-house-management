@@ -7,6 +7,7 @@ import {
 import { Building2, MapPin, Phone, ArrowUpDown } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { MonthRangePicker, monthRange } from '@/components/ui/month-range-picker'
 import { TableScroll } from '@/components/ui/table-scroll'
 import { formatCurrency, formatCompact, formatMonth, mapHref, cn } from '@/lib/utils'
 import { useLanguage } from '@/contexts/language-context'
@@ -61,6 +62,8 @@ export function PropertySummaryClient({ rooms, tenants, billings, expenses, main
   const branches = useBranches()
   const currentMonth = new Date().toISOString().slice(0, 7)
   const [month, setMonth] = useState(currentMonth)
+  const [monthFrom, setMonthFrom] = useState('')
+  const [monthTo, setMonthTo] = useState('')
   const [sortKey, setSortKey] = useState<SortKey>('revenue')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
 
@@ -73,8 +76,11 @@ export function PropertySummaryClient({ rooms, tenants, billings, expenses, main
     return [...set].sort().reverse()
   }, [billings, expenses, currentMonth])
 
+  const range = monthRange(monthFrom, monthTo)
   const rows: PropertyRow[] = useMemo(() => {
     const roomBranch = new Map(rooms.map((r) => [r.id, r.branch]))
+    const inMonthFilter = (m: string) =>
+      range ? m >= range[0] && m <= range[1] : month === 'all' || m === month
     return branches.map((br) => {
       const brRooms = rooms.filter((r) => r.branch === br.name)
       const total = brRooms.length
@@ -83,7 +89,7 @@ export function PropertySummaryClient({ rooms, tenants, billings, expenses, main
       const maint = brRooms.filter((r) => r.status === 'maintenance').length
 
       const monthBillings = billings.filter(
-        (b) => b.room?.branch === br.name && (month === 'all' || b.billingMonth === month),
+        (b) => b.room?.branch === br.name && inMonthFilter(b.billingMonth),
       )
       const paidBillings = monthBillings.filter((b) => b.paymentStatus === 'paid')
       const revenue = paidBillings.reduce((s, b) => s + b.totalUsd, 0)
@@ -93,7 +99,7 @@ export function PropertySummaryClient({ rooms, tenants, billings, expenses, main
         .reduce((s, b) => s + Math.max(0, b.totalUsd - b.payments.reduce((p, x) => p + x.amountUsd, 0)), 0)
 
       const expenseTotal = expenses
-        .filter((e) => e.room?.branch === br.name && (month === 'all' || e.expenseDate.startsWith(month)))
+        .filter((e) => e.room?.branch === br.name && inMonthFilter(e.expenseDate.slice(0, 7)))
         .reduce((s, e) => s + e.amountUsd, 0)
 
       return {
@@ -123,7 +129,7 @@ export function PropertySummaryClient({ rooms, tenants, billings, expenses, main
         rates: resolveBranchRates(settings, branches, br.name),
       }
     })
-  }, [branches, rooms, tenants, billings, expenses, maintenance, settings, month])
+  }, [branches, rooms, tenants, billings, expenses, maintenance, settings, month, monthFrom, monthTo])
 
   const sortedRows = useMemo(() => {
     const arr = [...rows]
@@ -184,16 +190,22 @@ export function PropertySummaryClient({ rooms, tenants, billings, expenses, main
         <div>
           <h1 className="text-2xl font-bold tracking-tight">{t('property_summary_title')}</h1>
           <p className="text-muted-foreground text-sm mt-0.5">
-            {t('property_summary_subtitle')} · {month === 'all' ? t('billing_all_months') : formatMonth(month)}
+            {t('property_summary_subtitle')} · {range
+              ? `${formatMonth(range[0])} – ${formatMonth(range[1])}`
+              : month === 'all' ? t('billing_all_months') : formatMonth(month)}
           </p>
         </div>
-        <Select value={month} onValueChange={setMonth}>
-          <SelectTrigger className="w-40 h-9"><SelectValue placeholder="All months" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{t('billing_all_months')}</SelectItem>
-            {months.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
-          </SelectContent>
-        </Select>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Select value={month} onValueChange={setMonth}>
+            <SelectTrigger className="w-40 h-9"><SelectValue placeholder="All months" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t('billing_all_months')}</SelectItem>
+              {months.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <MonthRangePicker months={months} from={monthFrom} to={monthTo}
+            onChange={(f, to) => { setMonthFrom(f); setMonthTo(to) }} />
+        </div>
       </div>
 
       {/* ── Section 1: Per-property snapshot cards ── */}

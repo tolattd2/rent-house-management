@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { MonthRangePicker, monthRange } from '@/components/ui/month-range-picker'
 import { PaymentDialog } from '@/components/billing/payment-dialog'
 import { BatchDeleteDialog } from '@/components/billing/batch-delete-dialog'
 import { GenerateMonthlyDialog } from '@/components/billing/generate-monthly-dialog'
@@ -57,6 +58,8 @@ export function BillingListClient({ billings: initial }: Props) {
   const [statusFilter, setStatusFilter] = useState('all')
   const latestMonth = [...new Set(initial.map((b) => b.billingMonth))].sort().reverse()[0] ?? 'all'
   const [monthFilter, setMonthFilter] = useState(latestMonth)
+  const [monthFrom, setMonthFrom] = useState('')
+  const [monthTo, setMonthTo] = useState('')
   const [branchFilter, setBranchFilter] = useState('all')
   const [payDialog, setPayDialog] = useState<Billing | null>(null)
   const [showBatchDelete, setShowBatchDelete] = useState(false)
@@ -66,6 +69,7 @@ export function BillingListClient({ billings: initial }: Props) {
 
   const branches = useBranches().map((b) => b.name)
 
+  const range = monthRange(monthFrom, monthTo)
   const filtered = sortRoomsByNumber(
     billings.filter((b) => {
       const matchSearch =
@@ -73,7 +77,9 @@ export function BillingListClient({ billings: initial }: Props) {
         (b.room?.roomNumber ?? '').includes(search) ||
         b.billingMonth.includes(search)
       const matchStatus = statusFilter === 'all' || b.paymentStatus === statusFilter
-      const matchMonth = monthFilter === 'all' || b.billingMonth === monthFilter
+      const matchMonth = range
+        ? b.billingMonth >= range[0] && b.billingMonth <= range[1]
+        : monthFilter === 'all' || b.billingMonth === monthFilter
       const matchBranch = branchFilter === 'all' || b.room?.branch === branchFilter
       return matchSearch && matchStatus && matchMonth && matchBranch
     }).map((b) => ({ ...b, roomNumber: b.room?.roomNumber ?? '' }))
@@ -205,6 +211,8 @@ export function BillingListClient({ billings: initial }: Props) {
             {months.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
           </SelectContent>
         </Select>
+        <MonthRangePicker months={months} from={monthFrom} to={monthTo}
+          onChange={(f, to) => { setMonthFrom(f); setMonthTo(to) }} />
       </div>
 
       {/* Card list — used across all screen sizes */}

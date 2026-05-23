@@ -12,6 +12,7 @@ import { TableScroll } from '@/components/ui/table-scroll'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { MonthRangePicker, monthRange } from '@/components/ui/month-range-picker'
 import { useLanguage } from '@/contexts/language-context'
 import { useBranches, useRoomLabel } from '@/contexts/branches-context'
 import { useSession } from 'next-auth/react'
@@ -48,6 +49,8 @@ export function InvoicesClient({ invoices: initial }: Props) {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [monthFilter, setMonthFilter] = useState('all')
+  const [monthFrom, setMonthFrom] = useState('')
+  const [monthTo, setMonthTo] = useState('')
   const [branchFilter, setBranchFilter] = useState('all')
   const [showBatchPrint, setShowBatchPrint] = useState(false)
   const [showBatchDelete, setShowBatchDelete] = useState(false)
@@ -57,6 +60,7 @@ export function InvoicesClient({ invoices: initial }: Props) {
   const roomLabel = useRoomLabel()
   const months = [...new Set(invoices.map((inv) => inv.billing?.billingMonth).filter(Boolean) as string[])].sort().reverse()
 
+  const range = monthRange(monthFrom, monthTo)
   const filtered = invoices.filter((inv) => {
     const matchSearch =
       (inv.tenant?.fullName ?? '').toLowerCase().includes(search.toLowerCase()) ||
@@ -64,7 +68,10 @@ export function InvoicesClient({ invoices: initial }: Props) {
       (inv.billing?.billingMonth ?? '').includes(search) ||
       (inv.billing?.room?.roomNumber ?? '').includes(search)
     const matchStatus = statusFilter === 'all' || inv.billing?.paymentStatus === statusFilter
-    const matchMonth = monthFilter === 'all' || inv.billing?.billingMonth === monthFilter
+    const bm = inv.billing?.billingMonth ?? ''
+    const matchMonth = range
+      ? bm >= range[0] && bm <= range[1]
+      : monthFilter === 'all' || bm === monthFilter
     const matchBranch = branchFilter === 'all' || inv.billing?.room?.branch === branchFilter
     return matchSearch && matchStatus && matchMonth && matchBranch
   })
@@ -186,6 +193,8 @@ export function InvoicesClient({ invoices: initial }: Props) {
             {months.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
           </SelectContent>
         </Select>
+        <MonthRangePicker months={months} from={monthFrom} to={monthTo}
+          onChange={(f, to) => { setMonthFrom(f); setMonthTo(to) }} />
       </div>
 
       {/* Table */}

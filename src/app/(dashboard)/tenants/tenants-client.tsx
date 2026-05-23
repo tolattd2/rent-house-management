@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { MonthRangePicker, monthRange } from '@/components/ui/month-range-picker'
 import { TenantFormDialog } from '@/components/tenants/tenant-form-dialog'
 import { formatCurrency, formatDate, formatPhones, sortRoomsByNumber, cn } from '@/lib/utils'
 import { CARD_STYLES, type CardColor } from '@/lib/card-colors'
@@ -42,6 +43,8 @@ export function TenantsClient({ tenants: initial, rooms }: Props) {
   useEffect(() => { setTenants(initial) }, [initial])
   const currentMonth = new Date().toISOString().slice(0, 7)
   const [month, setMonth] = useState('all')
+  const [monthFrom, setMonthFrom] = useState('')
+  const [monthTo, setMonthTo] = useState('')
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive' | 'movedout' | 'owing'>('active')
   const [branchFilter, setBranchFilter] = useState<string>('all')
@@ -66,13 +69,20 @@ export function TenantsClient({ tenants: initial, rooms }: Props) {
     }
     return s.slice(0, 7)
   }
-  const effMonth = month === 'all' ? currentMonth : month
+  // When the From/To range is set it overrides the single-month dropdown.
+  // Cumulative metrics (existed by, owing by) use the upper bound; the
+  // "Moved Out" metric counts moves that fall inside the range.
+  const range = monthRange(monthFrom, monthTo)
+  const effMonth = range ? range[1] : (month === 'all' ? currentMonth : month)
   const existedBy = (tn: Tenant) => !!tn.moveInDate && monthOf(tn.moveInDate) <= effMonth
   // Moved out on or before the selected month — no longer active by then.
   const movedOutBy = (tn: Tenant) => !!tn.moveOutDate && monthOf(tn.moveOutDate) <= effMonth
-  // Moved out exactly within the selected month.
-  const movedOutInMonth = (tn: Tenant) =>
-    !!tn.moveOutDate && monthOf(tn.moveOutDate) === effMonth
+  // Moved out exactly within the selected month / within the active range.
+  const movedOutInMonth = (tn: Tenant) => {
+    if (!tn.moveOutDate) return false
+    const mo = monthOf(tn.moveOutDate)
+    return range ? mo >= range[0] && mo <= range[1] : mo === effMonth
+  }
   const owingBy = (tn: Tenant) =>
     tn.billings.some((b) => b.totalUsd > 0 && monthOf(b.billingMonth) <= effMonth)
 
@@ -225,6 +235,8 @@ export function TenantsClient({ tenants: initial, rooms }: Props) {
             {months.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
           </SelectContent>
         </Select>
+        <MonthRangePicker months={months} from={monthFrom} to={monthTo}
+          onChange={(f, to) => { setMonthFrom(f); setMonthTo(to) }} />
       </div>
 
       {/* Card list — used across all screen sizes */}
