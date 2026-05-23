@@ -31,7 +31,7 @@ interface Props {
     telegramChatId: string
     emergencyContact: string; emergencyName: string; emergencyPhone: string
     occupation: string; moveInDate: string; moveOutDate: string
-    depositAmount: number; monthlyRent: number; status: string; notes: string; createdAt: Date
+    depositAmount: number; monthlyRent: number; payDay: number; status: string; notes: string; createdAt: Date
     roomId: string | null
     room: {
       id: string; roomNumber: string; branch?: string; roomType: string; rentPriceUsd: number
@@ -535,6 +535,7 @@ export function TenantDetailClient({ tenant, rooms }: Props) {
             moveInDate: tenant.moveInDate,
             depositAmount: tenant.depositAmount,
             monthlyRent: tenant.monthlyRent,
+            payDay: tenant.payDay,
             roomId: tenant.roomId ?? undefined,
             notes: tenant.notes,
           }}
