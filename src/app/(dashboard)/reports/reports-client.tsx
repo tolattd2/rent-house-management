@@ -14,7 +14,7 @@ import { formatCurrency, exportToCSV, cn } from '@/lib/utils'
 import { CARD_STYLES } from '@/lib/card-colors'
 import { Download, TrendingDown } from 'lucide-react'
 import { useLanguage } from '@/contexts/language-context'
-import { useBranches } from '@/contexts/branches-context'
+import { useBranches, useRoomLabel } from '@/contexts/branches-context'
 
 type Billing = {
   id: string; billingMonth: string; roomRentUsd: number; waterCostRiel: number
@@ -36,6 +36,7 @@ interface Props { billings: Billing[]; expenses: Expense[] }
 
 export function ReportsClient({ billings, expenses }: Props) {
   const { t } = useLanguage()
+  const roomLabel = useRoomLabel()
   const branchOptions = ['all', ...useBranches().map((b) => b.name)]
   const [selectedMonth, setSelectedMonth] = useState<string>('all')
   const [branchFilter, setBranchFilter] = useState<string>('all')
@@ -209,11 +210,12 @@ export function ReportsClient({ billings, expenses }: Props) {
       <Card>
         <CardHeader><CardTitle className="text-base">{t('reports_billing_detail')} ({monthBillings.length} {t('billing_records')})</CardTitle></CardHeader>
         <TableScroll>
-          <table className="w-full min-w-[680px] text-sm">
+          <table className="w-full min-w-[780px] text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/30">
-                <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">{t('tenant')}</th>
                 <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">{t('room')}</th>
+                <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">{t('branch')}</th>
+                <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">{t('tenant')}</th>
                 <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">{t('billing_col_month')}</th>
                 <th className="text-right px-4 py-2.5 text-xs font-medium text-muted-foreground">{t('reports_total_usd')}</th>
                 <th className="text-right px-4 py-2.5 text-xs font-medium text-muted-foreground">{t('reports_total_khr')}</th>
@@ -223,8 +225,9 @@ export function ReportsClient({ billings, expenses }: Props) {
             <tbody>
               {monthBillings.slice(0, 50).map((b, i) => (
                 <tr key={b.id} className={`border-b border-border last:border-0 hover:bg-muted/30 ${i % 2 ? 'bg-muted/10' : ''}`}>
+                  <td className="px-4 py-2.5">{b.room ? `${t('room')} ${roomLabel(b.room)}` : '—'}</td>
+                  <td className="px-4 py-2.5 text-muted-foreground">{b.room?.branch ?? '—'}</td>
                   <td className="px-4 py-2.5">{b.tenant?.fullName ?? '—'}</td>
-                  <td className="px-4 py-2.5">{t('room')} {b.room?.roomNumber ?? '—'}</td>
                   <td className="px-4 py-2.5 font-mono text-xs">{b.billingMonth}</td>
                   <td className="px-4 py-2.5 text-right font-semibold">{formatCurrency(b.totalUsd)}</td>
                   <td className="px-4 py-2.5 text-right text-muted-foreground text-xs">{Math.round(b.totalRiel).toLocaleString()} ៛</td>
