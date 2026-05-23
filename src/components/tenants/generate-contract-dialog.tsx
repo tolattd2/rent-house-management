@@ -237,8 +237,10 @@ export function GenerateContractDialog({ tenantId, vars, onClose, initialText }:
             <div>🌐 {vars.nationality || '—'}</div>
             <div>💼 {vars.occupation || '—'}</div>
             <div>🆔 {vars.nationalId || '—'}</div>
-            <div>📞 {vars.phone || '—'}</div>
+            <div>📞 {vars.phone || '—'}{vars.phonesExtra.length > 0 ? ` (+${vars.phonesExtra.length})` : ''}</div>
+            <div>💬 {vars.telegramChatId || '—'}</div>
             <div>🚨 {vars.emergencyName || '—'}{vars.emergencyPhone ? ` (${vars.emergencyPhone})` : ''}</div>
+            <div>📅 {vars.moveInDate || '—'}</div>
             <div>🏠 {vars.roomLabel || '—'}</div>
             <div>💵 ${vars.monthlyRent || 0}/mo</div>
             <div>🔒 {t('tenant_form_deposit')}: ${vars.depositAmount || 0}</div>
@@ -246,6 +248,9 @@ export function GenerateContractDialog({ tenantId, vars, onClose, initialText }:
             <div>⏱ {duration || '—'}</div>
           </div>
         </div>
+
+        <PlaceholderHelp />
+
 
         <div className="flex flex-wrap gap-2 items-center">
           <input
@@ -343,5 +348,83 @@ export function GenerateContractDialog({ tenantId, vars, onClose, initialText }:
         </p>
       </DialogContent>
     </Dialog>
+  )
+}
+
+/**
+ * Collapsible "Available placeholders" panel listing every placeholder grouped
+ * by category. Each chip is click-to-copy so users can paste `{{key}}` markers
+ * straight into the editor.
+ */
+function PlaceholderHelp() {
+  const { t } = useLanguage()
+
+  const groups: Array<{ title: string; keys: string[] }> = [
+    {
+      title: t('contract_gen_ph_group_personal'),
+      keys: [
+        'tenant_name', 'gender', 'age', 'nationality', 'occupation',
+        'national_id', 'phone', 'phones_extra', 'all_phones',
+        'telegram_chat_id', 'emergency_name', 'emergency_phone',
+        'notes', 'move_in_date',
+      ],
+    },
+    {
+      title: t('contract_gen_ph_group_rental'),
+      keys: ['room', 'branch', 'rent', 'deposit', 'pay_day'],
+    },
+    {
+      title: t('contract_gen_ph_group_contract'),
+      keys: ['contract_start', 'contract_end', 'contract_duration'],
+    },
+  ]
+
+  function copy(key: string) {
+    const token = `{{${key}}}`
+    navigator.clipboard.writeText(token).then(
+      () => toast({ title: t('contract_gen_ph_copied').replace('{token}', token) }),
+      () => toast({ title: 'Copy failed', variant: 'destructive' }),
+    )
+  }
+
+  return (
+    <details className="text-xs border rounded-md bg-muted/20">
+      <summary className="cursor-pointer select-none px-3 py-2 font-medium flex items-center gap-1.5">
+        <FileText className="w-3.5 h-3.5" />
+        {t('contract_gen_ph_show')}
+      </summary>
+      <div className="px-3 pb-3 pt-1 space-y-3">
+        <p className="text-muted-foreground text-[11px] leading-relaxed">
+          {t('contract_gen_ph_intro')}
+        </p>
+        {groups.map((g) => (
+          <div key={g.title} className="space-y-1.5">
+            <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">{g.title}</div>
+            <div className="flex flex-wrap gap-1.5">
+              {g.keys.map((k) => (
+                <span key={k} className="inline-flex rounded-md border bg-background overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => copy(k)}
+                    className="px-2 py-0.5 font-mono text-[10.5px] hover:bg-muted"
+                    title={t('contract_gen_ph_copy_en')}
+                  >
+                    {`{{${k}}}`}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => copy(`${k}_km`)}
+                    className="px-1.5 py-0.5 font-mono text-[10.5px] bg-muted/60 hover:bg-muted border-l"
+                    title={t('contract_gen_ph_copy_km')}
+                  >
+                    km
+                  </button>
+                </span>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </details>
   )
 }

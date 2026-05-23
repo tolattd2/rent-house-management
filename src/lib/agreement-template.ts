@@ -18,8 +18,13 @@ export interface AgreementVars {
   occupation: string
   nationalId: string
   phone: string
+  phonesExtra: string[]
+  telegramChatId: string
   emergencyName: string
   emergencyPhone: string
+  notes: string
+  moveInDate: string
+  moveOutDate: string
   roomLabel: string
   branch: string
   monthlyRent: number
@@ -40,8 +45,14 @@ const PLACEHOLDERS = [
   'occupation',
   'national_id',
   'phone',
+  'phones_extra',
+  'all_phones',
+  'telegram_chat_id',
   'emergency_name',
   'emergency_phone',
+  'notes',
+  'move_in_date',
+  'move_out_date',
   'room',
   'branch',
   'rent',
@@ -58,8 +69,14 @@ const PLACEHOLDERS = [
   'occupation_km',
   'national_id_km',
   'phone_km',
+  'phones_extra_km',
+  'all_phones_km',
+  'telegram_chat_id_km',
   'emergency_name_km',
   'emergency_phone_km',
+  'notes_km',
+  'move_in_date_km',
+  'move_out_date_km',
   'room_km',
   'branch_km',
   'rent_km',
@@ -94,25 +111,82 @@ function genderToKhmer(g: string): string {
 function nationalityToKhmer(n: string): string {
   const v = (n || '').trim().toLowerCase()
   const map: Record<string, string> = {
-    cambodia:  'កម្ពុជា',
-    cambodian: 'ខ្មែរ',
-    khmer:     'ខ្មែរ',
-    chinese:   'ចិន',
-    vietnamese:'វៀតណាម',
-    thai:      'ថៃ',
-    laotian:   'ឡាវ',
-    lao:       'ឡាវ',
-    american:  'អាមេរិកាំង',
-    british:   'អង់គ្លេស',
-    french:    'បារាំង',
-    korean:    'កូរ៉េ',
-    japanese:  'ជប៉ុន',
-    indian:    'ឥណ្ឌា',
-    filipino:  'ហ្វីលីពីន',
-    malaysian: 'ម៉ាឡេស៊ី',
-    indonesian:'ឥណ្ឌូនេស៊ី',
+    cambodia:    'កម្ពុជា',
+    cambodian:   'ខ្មែរ',
+    khmer:       'ខ្មែរ',
+    chinese:     'ចិន',
+    vietnamese:  'វៀតណាម',
+    thai:        'ថៃ',
+    laotian:     'ឡាវ',
+    lao:         'ឡាវ',
+    american:    'អាមេរិកាំង',
+    british:     'អង់គ្លេស',
+    english:     'អង់គ្លេស',
+    french:      'បារាំង',
+    korean:      'កូរ៉េ',
+    japanese:    'ជប៉ុន',
+    indian:      'ឥណ្ឌា',
+    filipino:    'ហ្វីលីពីន',
+    malaysian:   'ម៉ាឡេស៊ី',
+    indonesian:  'ឥណ្ឌូនេស៊ី',
+    australian:  'អូស្ត្រាលី',
+    canadian:    'កាណាដា',
+    german:      'អាល្លឺម៉ង់',
+    russian:     'រុស្ស៊ី',
+    singaporean: 'សិង្ហបុរី',
   }
   return map[v] || n || ''
+}
+
+/** Translate common occupations to Khmer; pass through unknown. */
+function occupationToKhmer(o: string): string {
+  const v = (o || '').trim().toLowerCase()
+  const map: Record<string, string> = {
+    teacher:        'គ្រូបង្រៀន',
+    student:        'សិស្ស',
+    'university student': 'និស្សិត',
+    engineer:       'វិស្វករ',
+    doctor:         'វេជ្ជបណ្ឌិត',
+    nurse:          'គិលានុបដ្ឋាយិកា',
+    driver:         'អ្នកបើកបរ',
+    cook:           'ចុងភៅ',
+    chef:           'ចុងភៅ',
+    worker:         'កម្មករ',
+    'office worker':'បុគ្គលិកការិយាល័យ',
+    employee:       'បុគ្គលិក',
+    'civil servant':'មន្ត្រីរាជការ',
+    businessman:    'អ្នកជំនួញ',
+    businesswoman:  'អ្នកជំនួញ',
+    seller:         'អ្នកលក់',
+    vendor:         'អ្នកលក់',
+    farmer:         'កសិករ',
+    police:         'ប៉ូលីស',
+    soldier:        'ទាហាន',
+    lawyer:         'មេធាវី',
+    accountant:     'គណនេយ្យករ',
+    manager:        'អ្នកគ្រប់គ្រង',
+    cashier:        'អ្នកគិតលុយ',
+    programmer:     'អ្នកសរសេរកម្មវិធី',
+    developer:      'អ្នកសរសេរកម្មវិធី',
+    designer:       'អ្នករចនា',
+    'graphic designer':'អ្នករចនាក្រាហ្វិក',
+    architect:      'ស្ថាបត្យករ',
+    journalist:     'អ្នកសារព័ត៌មាន',
+    photographer:   'អ្នកថតរូប',
+    musician:       'អ្នកតន្ត្រី',
+    artist:         'សិល្បករ',
+    waiter:         'អ្នកបម្រើ',
+    waitress:       'អ្នកបម្រើ',
+    barista:        'អ្នកលាយកាហ្វេ',
+    tailor:         'អ្នកដេរ',
+    mechanic:       'អ្នកជួសជុលម៉ាស៊ីន',
+    electrician:    'ជាងអគ្គិសនី',
+    carpenter:      'ជាងឈើ',
+    unemployed:     'គ្មានការងារ',
+    retired:        'ចូលនិវត្តន៍',
+    freelancer:     'អ្នកធ្វើការឯករាជ្យ',
+  }
+  return map[v] || o || ''
 }
 
 /** Compute month-difference label from two ISO date strings. Returns "" if either is empty/invalid. */
@@ -167,6 +241,9 @@ export function fillPlaceholders(text: string, vars: AgreementVars): string {
   const durationEn = vars.durationLabel || durationEnglish(vars.contractStart, vars.contractEnd)
   const durationKm = durationKhmer(vars.contractStart, vars.contractEnd)
 
+  const phonesExtraJoined = (vars.phonesExtra || []).filter(Boolean).join(', ')
+  const allPhonesJoined = [vars.phone, ...(vars.phonesExtra || [])].filter(Boolean).join(', ')
+
   const map: Record<PlaceholderKey, string> = {
     // English-friendly
     tenant_name: vars.tenantName || '',
@@ -176,8 +253,14 @@ export function fillPlaceholders(text: string, vars: AgreementVars): string {
     occupation: vars.occupation || '',
     national_id: vars.nationalId || '',
     phone: vars.phone || '',
+    phones_extra: phonesExtraJoined,
+    all_phones: allPhonesJoined,
+    telegram_chat_id: vars.telegramChatId || '',
     emergency_name: vars.emergencyName || '',
     emergency_phone: vars.emergencyPhone || '',
+    notes: vars.notes || '',
+    move_in_date: vars.moveInDate || '',
+    move_out_date: vars.moveOutDate || '',
     room: vars.roomLabel || '',
     branch: vars.branch || '',
     rent: fmtUsd(vars.monthlyRent),
@@ -187,23 +270,30 @@ export function fillPlaceholders(text: string, vars: AgreementVars): string {
     contract_end: vars.contractEnd || '',
     contract_duration: durationEn,
 
-    // Khmer-localised
-    tenant_name_km:     vars.tenantName || '',                              // proper noun
-    gender_km:          genderToKhmer(vars.gender),
-    age_km:             vars.age > 0 ? toKhmerDigits(String(vars.age)) : '',
-    nationality_km:     nationalityToKhmer(vars.nationality),
-    occupation_km:      vars.occupation || '',                              // free-text — keep as typed
-    national_id_km:     toKhmerDigits(vars.nationalId || ''),
-    phone_km:           toKhmerDigits(vars.phone || ''),
-    emergency_name_km:  vars.emergencyName || '',                           // proper noun
-    emergency_phone_km: toKhmerDigits(vars.emergencyPhone || ''),
-    room_km:            toKhmerDigits(vars.roomLabel || ''),
-    branch_km:          vars.branch || '',                                  // branch names left as configured
-    rent_km:            fmtUsdKhmer(vars.monthlyRent),
-    deposit_km:         fmtUsdKhmer(vars.depositAmount),
-    pay_day_km:         toKhmerDigits(String(vars.payDay || '')),
-    contract_start_km:  toKhmerDigits(vars.contractStart || ''),
-    contract_end_km:    toKhmerDigits(vars.contractEnd || ''),
+    // Khmer-localised — translate where there's a known mapping; otherwise
+    // convert ASCII digits to Khmer numerals; proper nouns pass through.
+    tenant_name_km:      vars.tenantName || '',                             // proper noun
+    gender_km:           genderToKhmer(vars.gender),
+    age_km:              vars.age > 0 ? toKhmerDigits(String(vars.age)) : '',
+    nationality_km:      nationalityToKhmer(vars.nationality),
+    occupation_km:       occupationToKhmer(vars.occupation),
+    national_id_km:      toKhmerDigits(vars.nationalId || ''),
+    phone_km:            toKhmerDigits(vars.phone || ''),
+    phones_extra_km:     toKhmerDigits(phonesExtraJoined),
+    all_phones_km:       toKhmerDigits(allPhonesJoined),
+    telegram_chat_id_km: toKhmerDigits(vars.telegramChatId || ''),
+    emergency_name_km:   vars.emergencyName || '',                          // proper noun
+    emergency_phone_km:  toKhmerDigits(vars.emergencyPhone || ''),
+    notes_km:            vars.notes || '',                                  // free text
+    move_in_date_km:     toKhmerDigits(vars.moveInDate || ''),
+    move_out_date_km:    toKhmerDigits(vars.moveOutDate || ''),
+    room_km:             toKhmerDigits(vars.roomLabel || ''),
+    branch_km:           vars.branch || '',                                 // branch names left as configured
+    rent_km:             fmtUsdKhmer(vars.monthlyRent),
+    deposit_km:          fmtUsdKhmer(vars.depositAmount),
+    pay_day_km:          toKhmerDigits(String(vars.payDay || '')),
+    contract_start_km:   toKhmerDigits(vars.contractStart || ''),
+    contract_end_km:     toKhmerDigits(vars.contractEnd || ''),
     contract_duration_km: durationKm,
   }
 
