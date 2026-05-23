@@ -10,7 +10,7 @@ import { TableScroll } from '@/components/ui/table-scroll'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
-import { formatCurrency, exportToCSV, cn } from '@/lib/utils'
+import { formatCurrency, exportToCSV, sortRoomsByNumber, cn } from '@/lib/utils'
 import { CARD_STYLES } from '@/lib/card-colors'
 import { Download, TrendingDown } from 'lucide-react'
 import { useLanguage } from '@/contexts/language-context'
@@ -223,7 +223,7 @@ export function ReportsClient({ billings, expenses }: Props) {
               </tr>
             </thead>
             <tbody>
-              {monthBillings.slice(0, 50).map((b, i) => (
+              {sortRoomsByNumber(monthBillings.map((b) => ({ ...b, roomNumber: b.room?.roomNumber ?? '' }))).slice(0, 50).map((b, i) => (
                 <tr key={b.id} className={`border-b border-border last:border-0 hover:bg-muted/30 ${i % 2 ? 'bg-muted/10' : ''}`}>
                   <td className="px-4 py-2.5">{b.room ? `${t('room')} ${roomLabel(b.room)}` : '—'}</td>
                   <td className="px-4 py-2.5 text-muted-foreground">{b.room?.branch ?? '—'}</td>
