@@ -53,11 +53,17 @@ export async function POST(req: NextRequest) {
 
       const phone = normalizePhone(contact.phone_number)
       const tenants = await db.tenant.findMany({
-        select: { id: true, fullName: true, phone: true, status: true },
+        select: { id: true, fullName: true, phone: true, phonesExtra: true, status: true },
       })
+      // Match the shared phone against the tenant's primary phone OR any of
+      // their alternate "phonesExtra" entries — tenants commonly link with a
+      // secondary number and the bot used to fail silently in that case.
+      const tenantPhoneMatches = (t: { phone: string; phonesExtra: string[] }) =>
+        normalizePhone(t.phone) === phone ||
+        (t.phonesExtra ?? []).some((p) => normalizePhone(p) === phone)
       const match =
-        tenants.find((t) => t.status === 'active' && normalizePhone(t.phone) === phone) ||
-        tenants.find((t) => normalizePhone(t.phone) === phone)
+        tenants.find((t) => t.status === 'active' && tenantPhoneMatches(t)) ||
+        tenants.find((t) => tenantPhoneMatches(t))
 
       if (match) {
         await db.tenant.update({ where: { id: match.id }, data: { telegramChatId: String(chatId) } })
