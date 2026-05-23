@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Upload, FileText, Download, Save, RefreshCw, BookTemplate } from 'lucide-react'
+import { Upload, FileText, Download, Save, RefreshCw, BookTemplate, Wand2 } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { RichTextEditor, plainTextToHtml, looksLikeHtml } from '@/components/ui/rich-text-editor'
@@ -37,10 +37,13 @@ function toEditorHtml(s: string): string {
 export function GenerateContractDialog({ tenantId, vars, onClose, initialText }: Props) {
   const { t } = useLanguage()
   const fileRef = useRef<HTMLInputElement>(null)
+  // Template loads with {{placeholders}} intact — user clicks "Generate"
+  // to substitute them with the tenant's actual values. Saved agreements
+  // (initialText / API result) load exactly as they were stored.
   const [html, setHtml] = useState(() =>
     initialText && initialText.trim().length > 0
       ? toEditorHtml(initialText)
-      : plainTextToHtml(fillPlaceholders(DEFAULT_AGREEMENT_TEMPLATE, vars)),
+      : plainTextToHtml(DEFAULT_AGREEMENT_TEMPLATE),
   )
   const [saving, setSaving] = useState(false)
   const [extracting, setExtracting] = useState(false)
@@ -78,8 +81,16 @@ export function GenerateContractDialog({ tenantId, vars, onClose, initialText }:
   }, [tenantId, initialText])
 
   function resetToDefault() {
-    setHtml(plainTextToHtml(fillPlaceholders(DEFAULT_AGREEMENT_TEMPLATE, vars)))
+    setHtml(plainTextToHtml(DEFAULT_AGREEMENT_TEMPLATE))
     toast({ title: t('contract_gen_reset_done') })
+  }
+
+  /** Substitute every {{placeholder}} in the current editor HTML with this
+   *  tenant's actual values. Triggered by the explicit "Generate" button so
+   *  Save Template / Save to Tenant can still persist raw templates. */
+  function handleGenerate() {
+    setHtml((prev) => fillPlaceholders(prev, vars))
+    toast({ title: t('contract_gen_generated') })
   }
 
   // Fetch saved templates so they appear in the picker.
@@ -102,9 +113,9 @@ export function GenerateContractDialog({ tenantId, vars, onClose, initialText }:
   function loadTemplate(id: string) {
     const tmpl = templates.find((x) => x.id === id)
     if (!tmpl) return
-    // Run placeholders through the template HTML so {{tenant_name}} etc. get
-    // substituted with this tenant's actual data.
-    setHtml(fillPlaceholders(tmpl.html, vars))
+    // Load template as-is (placeholders preserved). Click "Generate" to
+    // substitute them with this tenant's actual data.
+    setHtml(tmpl.html)
     toast({ title: t('contract_gen_template_loaded'), description: tmpl.name })
   }
 
@@ -157,8 +168,7 @@ export function GenerateContractDialog({ tenantId, vars, onClose, initialText }:
         toast({ title: t('contract_gen_upload_failed'), description: data.error, variant: 'destructive' })
         return
       }
-      const filled = fillPlaceholders(data.text || '', vars)
-      setHtml(plainTextToHtml(filled))
+      setHtml(plainTextToHtml(data.text || ''))
       toast({ title: t('contract_gen_upload_loaded') })
     } catch (err) {
       toast({
@@ -318,6 +328,14 @@ export function GenerateContractDialog({ tenantId, vars, onClose, initialText }:
             loading={savingTemplate}
           >
             <BookTemplate className="w-4 h-4 mr-1" />{t('contract_gen_save_as_template')}
+          </Button>
+
+          <Button
+            type="button"
+            size="sm"
+            onClick={handleGenerate}
+          >
+            <Wand2 className="w-4 h-4 mr-1" />{t('contract_gen_generate_btn')}
           </Button>
 
           <span className="text-xs text-muted-foreground">{t('contract_gen_upload_hint')}</span>
