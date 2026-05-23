@@ -1,12 +1,11 @@
-import { getDashboardData, getMaintenanceData, getSettingsMap } from '@/lib/cached-queries'
+import { getPropertySummaryData, getSettingsMap } from '@/lib/cached-queries'
 import { PropertySummaryClient } from './property-summary-client'
 
 export const dynamic = 'force-dynamic'
 
 export default async function PropertySummaryPage() {
-  const [data, maintenance, settings] = await Promise.all([
-    getDashboardData(),
-    getMaintenanceData(),
+  const [data, settings] = await Promise.all([
+    getPropertySummaryData(),
     getSettingsMap(),
   ])
 
@@ -16,7 +15,7 @@ export default async function PropertySummaryPage() {
       tenants={data.tenants}
       billings={data.billings}
       expenses={data.expenses}
-      maintenance={maintenance.records.map((r) => ({ branch: r.room?.branch ?? null, status: r.status }))}
+      maintenance={data.maintenance}
       settings={settings}
     />
   )

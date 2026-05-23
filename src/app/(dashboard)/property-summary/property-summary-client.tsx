@@ -16,16 +16,24 @@ import { resolveBranchRates, type RateKey } from '@/lib/branches'
 import { CARD_STYLES, type CardColor } from '@/lib/card-colors'
 import { usePersistentState } from '@/hooks/use-persistent-state'
 
+/**
+ * Aggregated shapes from `getPropertySummaryData()` — already grouped at
+ * the SQL level so this page does only cheap per-branch reductions.
+ */
 interface Props {
-  rooms: { id: string; branch: string; status: string }[]
-  tenants: { id: string; status: string; roomId: string | null }[]
+  rooms: { branch: string; status: string; count: number }[]
+  tenants: { branch: string | null; active: number; allTime: number }[]
   billings: {
-    id: string; billingMonth: string; totalUsd: number; paymentStatus: string
-    room: { branch: string } | null
-    payments: { amountUsd: number }[]
+    branch: string | null
+    billingMonth: string
+    paid: number
+    unpaid: number
+    paidOnBilling: number
+    billings: number
+    paidBillings: number
   }[]
-  expenses: { id: string; amountUsd: number; expenseDate: string; room: { branch: string } | null }[]
-  maintenance: { branch: string | null; status: string }[]
+  expenses: { branch: string | null; billingMonth: string; total: number }[]
+  maintenance: { branch: string | null; open: number; total: number }[]
   settings: Record<string, string>
 }
 
@@ -68,40 +76,40 @@ export function PropertySummaryClient({ rooms, tenants, billings, expenses, main
   const [sortKey, setSortKey] = usePersistentState<SortKey>('property/sortKey', 'revenue')
   const [sortDir, setSortDir] = usePersistentState<'asc' | 'desc'>('property/sortDir', 'desc')
 
-  // Distinct billing/expense months (plus the current month), newest first —
-  // mirrors the month dropdown on the Billing, Invoices & Tenants pages.
+  // Distinct billing/expense months (plus the current month), newest first.
   const months = useMemo(() => {
     const set = new Set<string>([currentMonth])
     billings.forEach((b) => { if (b.billingMonth) set.add(b.billingMonth) })
-    expenses.forEach((e) => { if (e.expenseDate) set.add(e.expenseDate.slice(0, 7)) })
+    expenses.forEach((e) => { if (e.billingMonth) set.add(e.billingMonth) })
     return [...set].sort().reverse()
   }, [billings, expenses, currentMonth])
 
   const range = monthRange(monthFrom, monthTo)
   const rows: PropertyRow[] = useMemo(() => {
-    const roomBranch = new Map(rooms.map((r) => [r.id, r.branch]))
     const inMonthFilter = (m: string) =>
       range ? m >= range[0] && m <= range[1] : month === 'all' || m === month
     return branches.map((br) => {
       const brRooms = rooms.filter((r) => r.branch === br.name)
-      const total = brRooms.length
-      const occupied = brRooms.filter((r) => r.status === 'occupied').length
-      const vacant = brRooms.filter((r) => r.status === 'vacant').length
-      const maint = brRooms.filter((r) => r.status === 'maintenance').length
+      const total = brRooms.reduce((s, r) => s + r.count, 0)
+      const occupied = brRooms.filter((r) => r.status === 'occupied').reduce((s, r) => s + r.count, 0)
+      const vacant = brRooms.filter((r) => r.status === 'vacant').reduce((s, r) => s + r.count, 0)
+      const maint = brRooms.filter((r) => r.status === 'maintenance').reduce((s, r) => s + r.count, 0)
 
-      const monthBillings = billings.filter(
-        (b) => b.room?.branch === br.name && inMonthFilter(b.billingMonth),
+      const brBillings = billings.filter((b) => b.branch === br.name && inMonthFilter(b.billingMonth))
+      const revenue = brBillings.reduce((s, b) => s + b.paid, 0)
+      const outstanding = brBillings.reduce(
+        (s, b) => s + Math.max(0, b.unpaid - b.paidOnBilling),
+        0,
       )
-      const paidBillings = monthBillings.filter((b) => b.paymentStatus === 'paid')
-      const revenue = paidBillings.reduce((s, b) => s + b.totalUsd, 0)
-
-      const outstanding = monthBillings
-        .filter((b) => b.paymentStatus === 'unpaid' || b.paymentStatus === 'partial')
-        .reduce((s, b) => s + Math.max(0, b.totalUsd - b.payments.reduce((p, x) => p + x.amountUsd, 0)), 0)
+      const totalBillings = brBillings.reduce((s, b) => s + b.billings, 0)
+      const paidBillings = brBillings.reduce((s, b) => s + b.paidBillings, 0)
 
       const expenseTotal = expenses
-        .filter((e) => e.room?.branch === br.name && inMonthFilter(e.expenseDate.slice(0, 7)))
-        .reduce((s, e) => s + e.amountUsd, 0)
+        .filter((e) => e.branch === br.name && inMonthFilter(e.billingMonth))
+        .reduce((s, e) => s + e.total, 0)
+
+      const brTenants = tenants.find((tn) => tn.branch === br.name)
+      const brMaint = maintenance.find((m) => m.branch === br.name)
 
       return {
         slug: br.slug,
@@ -115,22 +123,18 @@ export function PropertySummaryClient({ rooms, tenants, billings, expenses, main
         vacant,
         maint,
         occupancy: total ? Math.round((occupied / total) * 100) : 0,
-        activeTenants: tenants.filter(
-          (tn) => tn.status === 'active' && tn.roomId && roomBranch.get(tn.roomId) === br.name,
-        ).length,
-        allTimeTenants: tenants.filter(
-          (tn) => tn.roomId && roomBranch.get(tn.roomId) === br.name,
-        ).length,
+        activeTenants: brTenants?.active ?? 0,
+        allTimeTenants: brTenants?.allTime ?? 0,
         revenue,
         expenseTotal,
         net: revenue - expenseTotal,
         outstanding,
-        collection: monthBillings.length ? Math.round((paidBillings.length / monthBillings.length) * 100) : 0,
-        openMaintenance: maintenance.filter((m) => m.branch === br.name && m.status !== 'completed').length,
+        collection: totalBillings ? Math.round((paidBillings / totalBillings) * 100) : 0,
+        openMaintenance: brMaint?.open ?? 0,
         rates: resolveBranchRates(settings, branches, br.name),
       }
     })
-  }, [branches, rooms, tenants, billings, expenses, maintenance, settings, month, monthFrom, monthTo])
+  }, [branches, rooms, tenants, billings, expenses, maintenance, settings, month, monthFrom, monthTo, range])
 
   const sortedRows = useMemo(() => {
     const arr = [...rows]

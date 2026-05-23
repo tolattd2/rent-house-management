@@ -274,6 +274,148 @@ export const getNoticesData = unstable_cache(
   { tags: [TAGS.tenants], revalidate: REVALIDATE_SECONDS },
 )
 
+/**
+ * Property Summary needs per-branch totals across rooms, tenants, billings,
+ * expenses, and maintenance — but only as aggregates. We push the grouping
+ * into Postgres so the page payload is a handful of small rows instead of
+ * every billing/expense/maintenance record in the database.
+ */
+export interface PropertyBillingAgg {
+  branch: string | null
+  billingMonth: string
+  paid: number      // sum(totalUsd) where paymentStatus = 'paid'
+  unpaid: number    // sum(totalUsd) where paymentStatus in ('unpaid','partial')
+  paidOnBilling: number // sum(payments.amountUsd) on unpaid/partial billings (for outstanding)
+  billings: number  // total billing count for this branch+month
+  paidBillings: number // billing count where paymentStatus = 'paid'
+}
+
+export interface PropertyExpenseAgg {
+  branch: string | null
+  billingMonth: string  // YYYY-MM derived from expenseDate
+  total: number
+}
+
+export interface PropertySummaryData {
+  rooms: { branch: string; status: string; count: number }[]
+  tenants: { branch: string | null; active: number; allTime: number }[]
+  billings: PropertyBillingAgg[]
+  expenses: PropertyExpenseAgg[]
+  maintenance: { branch: string | null; open: number; total: number }[]
+}
+
+export const getPropertySummaryData = unstable_cache(
+  async (): Promise<PropertySummaryData> => {
+    type RoomRow = { branch: string; status: string; count: bigint }
+    type TenantRow = { branch: string | null; active: bigint; allTime: bigint }
+    type BillingRow = {
+      branch: string | null
+      billingMonth: string
+      paid: number | null
+      unpaid: number | null
+      paidOnBilling: number | null
+      billings: bigint
+      paidBillings: bigint
+    }
+    type ExpenseRow = {
+      branch: string | null
+      billingMonth: string
+      total: number | null
+    }
+    type MaintRow = { branch: string | null; open: bigint; total: bigint }
+
+    const [roomRows, tenantRows, billingRows, expenseRows, maintRows] = await Promise.all([
+      db.$queryRaw<RoomRow[]>`
+        SELECT branch, status::text AS status, COUNT(*)::bigint AS count
+        FROM rooms
+        GROUP BY branch, status
+      `,
+      db.$queryRaw<TenantRow[]>`
+        SELECT
+          r.branch AS branch,
+          COUNT(*) FILTER (WHERE t.status = 'active')::bigint AS active,
+          COUNT(*)::bigint AS "allTime"
+        FROM tenants t
+        LEFT JOIN rooms r ON r.id = t."roomId"
+        WHERE t."roomId" IS NOT NULL
+        GROUP BY r.branch
+      `,
+      db.$queryRaw<BillingRow[]>`
+        SELECT
+          r.branch AS branch,
+          b."billingMonth" AS "billingMonth",
+          COALESCE(SUM(b."totalUsd") FILTER (WHERE b."paymentStatus" = 'paid'), 0)::float AS paid,
+          COALESCE(SUM(b."totalUsd") FILTER (WHERE b."paymentStatus" IN ('unpaid','partial')), 0)::float AS unpaid,
+          COALESCE((
+            SELECT SUM(p."amountUsd")::float
+            FROM payments p
+            JOIN billings b2 ON b2.id = p."billingId"
+            WHERE b2."roomId" = r.id
+              AND b2."billingMonth" = b."billingMonth"
+              AND b2."paymentStatus" IN ('unpaid','partial')
+          ), 0) AS "paidOnBilling",
+          COUNT(*)::bigint AS billings,
+          COUNT(*) FILTER (WHERE b."paymentStatus" = 'paid')::bigint AS "paidBillings"
+        FROM billings b
+        LEFT JOIN rooms r ON r.id = b."roomId"
+        GROUP BY r.id, r.branch, b."billingMonth"
+      `,
+      db.$queryRaw<ExpenseRow[]>`
+        SELECT
+          r.branch AS branch,
+          SUBSTRING(e."expenseDate", 1, 7) AS "billingMonth",
+          COALESCE(SUM(e."amountUsd"), 0)::float AS total
+        FROM expenses e
+        LEFT JOIN rooms r ON r.id = e."roomId"
+        WHERE e."expenseDate" IS NOT NULL AND e."expenseDate" <> ''
+        GROUP BY r.branch, SUBSTRING(e."expenseDate", 1, 7)
+      `,
+      db.$queryRaw<MaintRow[]>`
+        SELECT
+          r.branch AS branch,
+          COUNT(*) FILTER (WHERE m.status <> 'completed')::bigint AS open,
+          COUNT(*)::bigint AS total
+        FROM maintenance m
+        LEFT JOIN rooms r ON r.id = m."roomId"
+        GROUP BY r.branch
+      `,
+    ])
+
+    return {
+      rooms: roomRows.map((r) => ({ branch: r.branch, status: r.status, count: Number(r.count) })),
+      tenants: tenantRows.map((r) => ({
+        branch: r.branch,
+        active: Number(r.active),
+        allTime: Number(r.allTime),
+      })),
+      billings: billingRows.map((r) => ({
+        branch: r.branch,
+        billingMonth: r.billingMonth,
+        paid: Number(r.paid ?? 0),
+        unpaid: Number(r.unpaid ?? 0),
+        paidOnBilling: Number(r.paidOnBilling ?? 0),
+        billings: Number(r.billings),
+        paidBillings: Number(r.paidBillings),
+      })),
+      expenses: expenseRows.map((r) => ({
+        branch: r.branch,
+        billingMonth: r.billingMonth,
+        total: Number(r.total ?? 0),
+      })),
+      maintenance: maintRows.map((r) => ({
+        branch: r.branch,
+        open: Number(r.open),
+        total: Number(r.total),
+      })),
+    }
+  },
+  ['property-summary-data'],
+  {
+    tags: [TAGS.rooms, TAGS.tenants, TAGS.billings, TAGS.expenses, TAGS.payments, TAGS.maintenance],
+    revalidate: REVALIDATE_SECONDS,
+  },
+)
+
 export const getNotificationsData = unstable_cache(
   async () => {
     const [notifications, unpaidBillings, allBillings, linkedTenants] = await Promise.all([
