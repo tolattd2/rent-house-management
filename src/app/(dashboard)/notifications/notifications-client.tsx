@@ -45,6 +45,7 @@ export function NotificationsClient({ unpaidBillings, allBillings, linkedTenants
   const [sending, setSending] = useState<string | null>(null)
   const [sendingBulk, setSendingBulk] = useState<'en' | 'km' | null>(null)
   const [branchFilter, setBranchFilter] = useState('all')
+  const [statusFilter, setStatusFilter] = useState<'all' | 'paid' | 'unpaid' | 'partial'>('all')
   const [search, setSearch] = useState('')
   const [tab, setTab] = useState<Tab>('pending')
   const [showCustom, setShowCustom] = useState(false)
@@ -61,26 +62,27 @@ export function NotificationsClient({ unpaidBillings, allBillings, linkedTenants
   const matchesFilters = (b: Billing) => {
     const q = search.trim().toLowerCase()
     const matchBranch = branchFilter === 'all' || b.room?.branch === branchFilter
+    const matchStatus = statusFilter === 'all' || b.paymentStatus === statusFilter
     const matchSearch =
       !q ||
       (b.tenant?.fullName ?? '').toLowerCase().includes(q) ||
       (b.room?.roomNumber ?? '').toLowerCase().includes(q) ||
       b.billingMonth.toLowerCase().includes(q)
-    return matchBranch && matchSearch
+    return matchBranch && matchStatus && matchSearch
   }
 
   const filteredUnpaid = useMemo(
     () => sortRoomsByNumber(
       unpaidBillings.filter(matchesFilters).map((b) => ({ ...b, roomNumber: b.room?.roomNumber ?? '' })),
     ),
-    [unpaidBillings, branchFilter, search],
+    [unpaidBillings, branchFilter, statusFilter, search],
   )
 
   const filteredHistory = useMemo(
     () => sortRoomsByNumber(
       allBillings.filter(matchesFilters).map((b) => ({ ...b, roomNumber: b.room?.roomNumber ?? '' })),
     ),
-    [allBillings, branchFilter, search],
+    [allBillings, branchFilter, statusFilter, search],
   )
 
   const handleSendReminder = async (
@@ -196,6 +198,21 @@ export function NotificationsClient({ unpaidBillings, allBillings, linkedTenants
             </Button>
           )
         })}
+        <div className="flex items-center gap-1 ml-1">
+          {(['all', 'paid', 'unpaid', 'partial'] as const).map((s) => (
+            <Button
+              key={s}
+              variant={statusFilter === s ? 'default' : 'outline'}
+              size="sm"
+              className="h-9 px-3 text-sm"
+              onClick={() => setStatusFilter(s)}
+            >
+              {s === 'all'
+                ? t('billing_all_status')
+                : t(s === 'paid' ? 'status_paid' : s === 'partial' ? 'status_partial' : 'status_unpaid')}
+            </Button>
+          ))}
+        </div>
       </div>
 
       {/* Tabs */}
