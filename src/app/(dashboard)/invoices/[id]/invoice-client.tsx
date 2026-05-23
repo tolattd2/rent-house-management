@@ -21,7 +21,7 @@ interface Props {
     paymentStatus: string; paymentDate: string
     payments: Array<{ id: string; amountUsd: number; paymentMethod: string; createdAt: Date }>
     tenant: {
-      id: string; fullName: string; phone: string; phonesExtra: string[]; nationalId: string; occupation: string; room: {
+      id: string; fullName: string; phone: string; phonesExtra: string[]; nationalId: string; occupation: string; payDay: number; room: {
         id: string; roomNumber: string; branch?: string; roomType: string
       } | null
     } | null
@@ -57,6 +57,7 @@ export function InvoiceClient({ billing, invoice, settings }: Props) {
     totalUsd: billing.totalUsd,
     totalRiel: billing.totalRiel,
     paymentStatus: billing.paymentStatus,
+    payDay: billing.tenant?.payDay,
     tenant: billing.tenant ? { fullName: billing.tenant.fullName, phone: billing.tenant.phone, phonesExtra: billing.tenant.phonesExtra } : null,
     room: billing.room ? { roomNumber: billing.room.roomNumber, branch: billing.room.branch ?? null } : null,
   }

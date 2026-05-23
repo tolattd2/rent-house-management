@@ -41,6 +41,7 @@ export type InvoiceCardData = {
   totalUsd: number
   totalRiel: number
   paymentStatus: string
+  payDay?: number
   tenant: { fullName: string; phone: string; phonesExtra: string[] } | null
   room: { roomNumber: string; branch: string | null } | null
 }
@@ -180,6 +181,12 @@ export function InvoiceCard({ data, settings, xRate }: InvoiceCardProps) {
               <td style={{ padding: '0.5mm 0' }}>ការបញ្ចុះតម្លៃ</td>
               <td style={{ padding: '0.5mm 0', textAlign: 'right' }}>{data.discountUsd > 0 ? '-' : ''}{formatCurrency(data.discountUsd)}</td>
             </tr>
+            {data.payDay ? (
+              <tr style={{ color: '#475569' }}>
+                <td style={{ padding: '0.5mm 0' }}>ថ្ងៃត្រូវបង់</td>
+                <td style={{ padding: '0.5mm 0', textAlign: 'right', fontWeight: 500 }}>ថ្ងៃទី {data.payDay}</td>
+              </tr>
+            ) : null}
           </tbody>
           <tfoot>
             <tr style={{ borderTop: '0.5pt solid #cbd5e1' }}>
