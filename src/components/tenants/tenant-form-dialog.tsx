@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -17,6 +17,31 @@ import { sortRoomsByNumber } from '@/lib/utils'
 import { useLanguage } from '@/contexts/language-context'
 import { useBranches, useRoomLabel } from '@/contexts/branches-context'
 import { GenerateContractDialog } from './generate-contract-dialog'
+
+/** Months between two ISO dates (rounded down, partial months drop). Returns 0 if invalid. */
+function monthsBetween(start?: string, end?: string): number {
+  if (!start || !end) return 0
+  const s = new Date(start)
+  const e = new Date(end)
+  if (Number.isNaN(s.getTime()) || Number.isNaN(e.getTime())) return 0
+  let months = (e.getFullYear() - s.getFullYear()) * 12 + (e.getMonth() - s.getMonth())
+  if (e.getDate() < s.getDate()) months -= 1
+  return Math.max(0, months)
+}
+
+/** Add N months to an ISO date and return YYYY-MM-DD. Clamps to month length. */
+function addMonths(iso: string, months: number): string {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  const day = d.getDate()
+  d.setMonth(d.getMonth() + months)
+  // Handle overflow (e.g. Jan 31 + 1 month → Feb 28).
+  if (d.getDate() !== day) d.setDate(0)
+  const yyyy = d.getFullYear()
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  return `${yyyy}-${mm}-${dd}`
+}
 
 const schema = z.object({
   fullName: z.string().min(1, 'Full name required'),
@@ -64,6 +89,11 @@ export function TenantFormDialog({ rooms, tenant, onClose, onSave }: Props) {
   const isEdit = !!tenant?.id
   const [phonesExtra, setPhonesExtra] = useState<string[]>(tenant?.phonesExtra ?? [])
   const [showGenerate, setShowGenerate] = useState(false)
+  // Contract duration (months) — entering this together with Contract Start
+  // auto-computes Contract End. Seeded from existing start+end when editing.
+  const [contractDuration, setContractDuration] = useState<number>(() =>
+    monthsBetween(tenant?.contractStart, tenant?.contractEnd),
+  )
 
   const initialBranch = tenant?.roomId
     ? (rooms.find((r) => r.id === tenant.roomId)?.branch ?? '')
@@ -101,6 +131,14 @@ export function TenantFormDialog({ rooms, tenant, onClose, onSave }: Props) {
 
   const selectedRoomId = watch('roomId')
   const selectedRoom = rooms.find((r) => r.id === selectedRoomId)
+
+  // Auto-compute Contract End from Contract Start + Duration (months).
+  const watchedStart = watch('contractStart')
+  useEffect(() => {
+    if (!watchedStart || contractDuration <= 0) return
+    const end = addMonths(watchedStart, contractDuration)
+    if (end) setValue('contractEnd', end, { shouldDirty: true })
+  }, [watchedStart, contractDuration, setValue])
 
   const onSubmit = async (data: FormData) => {
     setLoading(true)
@@ -289,14 +327,40 @@ export function TenantFormDialog({ rooms, tenant, onClose, onSave }: Props) {
             </TabsContent>
 
             <TabsContent value="contract" className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="space-y-1.5">
                   <Label>{t('tenant_form_contract_start')}</Label>
                   <Input type="date" {...register('contractStart')} />
                 </div>
                 <div className="space-y-1.5">
+                  <Label>{t('tenant_form_contract_duration')}</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    max="600"
+                    value={contractDuration || ''}
+                    onChange={(e) => setContractDuration(Number(e.target.value) || 0)}
+                    placeholder="12"
+                  />
+                  <div className="flex flex-wrap gap-1">
+                    {[6, 12, 24].map((m) => (
+                      <Button
+                        key={m}
+                        type="button"
+                        size="sm"
+                        variant={contractDuration === m ? 'default' : 'outline'}
+                        className="h-6 px-2 text-[11px]"
+                        onClick={() => setContractDuration(m)}
+                      >
+                        {m} {t('tenant_form_months_short')}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+                <div className="space-y-1.5">
                   <Label>{t('tenant_form_contract_end')}</Label>
                   <Input type="date" {...register('contractEnd')} />
+                  <p className="text-[10px] text-muted-foreground">{t('tenant_form_contract_end_auto')}</p>
                 </div>
               </div>
               <div className="rounded-md border border-dashed p-4 flex items-start gap-3">

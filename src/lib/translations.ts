@@ -459,6 +459,9 @@ export const translations = {
     tenant_form_payday_label: 'Pay Day (day of month)',
     tenant_form_contract_start: 'Contract Start',
     tenant_form_contract_end: 'Contract End',
+    tenant_form_contract_duration: 'Duration (months)',
+    tenant_form_contract_end_auto: 'Auto-filled from Start + Duration.',
+    tenant_form_months_short: 'mo',
     tenant_form_add_btn: 'Add Tenant',
     tenant_form_update_btn: 'Update Tenant',
     // Generate Contract feature
@@ -1075,6 +1078,9 @@ export const translations = {
     tenant_form_payday_label: 'ថ្ងៃបង់ប្រាក់',
     tenant_form_contract_start: 'ចាប់ផ្តើមកិច្ចសន្យា',
     tenant_form_contract_end: 'បញ្ចប់កិច្ចសន្យា',
+    tenant_form_contract_duration: 'រយៈពេល (ខែ)',
+    tenant_form_contract_end_auto: 'បំពេញដោយស្វ័យប្រវត្តិពីថ្ងៃចាប់ផ្តើម + រយៈពេល។',
+    tenant_form_months_short: 'ខែ',
     tenant_form_add_btn: 'បន្ថែមអ្នករស់នៅ',
     // Telegram link recovery
     tenant_link_banner_title: 'Telegram មិនទាន់ភ្ជាប់',
