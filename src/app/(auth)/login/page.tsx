@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useLanguage } from '@/contexts/language-context'
+import { useBranding } from '@/contexts/branding-context'
 
 const schema = z.object({
   email: z.string().email('Invalid email address'),
@@ -21,6 +22,7 @@ type FormData = z.infer<typeof schema>
 
 export default function LoginPage() {
   const { t } = useLanguage()
+  const { title, subtitle, logo } = useBranding()
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [loginError, setLoginError] = useState('')
@@ -70,12 +72,17 @@ export default function LoginPage() {
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ type: 'spring', stiffness: 200, delay: 0.1 }}
-            className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-blue-600 shadow-lg shadow-blue-500/30 mb-4"
+            className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-blue-600 shadow-lg shadow-blue-500/30 mb-4 overflow-hidden"
           >
-            <Building2 className="w-8 h-8 text-white" />
+            {logo ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={logo} alt={title} className="w-full h-full object-cover" />
+            ) : (
+              <Building2 className="w-8 h-8 text-white" />
+            )}
           </motion.div>
-          <h1 className="text-3xl font-bold text-white">Takmao</h1>
-          <p className="text-blue-300 mt-1">{t('login_subtitle')}</p>
+          <h1 className="text-3xl font-bold text-white">{title}</h1>
+          <p className="text-blue-300 mt-1">{subtitle}</p>
         </div>
 
         {/* Login card */}
@@ -146,7 +153,7 @@ export default function LoginPage() {
         </div>
 
         <p className="text-center text-white/30 text-xs mt-6">
-          © {new Date().getFullYear()} Takmao Rental Management. All rights reserved.
+          © {new Date().getFullYear()} {title} {subtitle}. All rights reserved.
         </p>
       </motion.div>
     </div>

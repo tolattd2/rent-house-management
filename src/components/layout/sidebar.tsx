@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils'
 import { useSession } from 'next-auth/react'
 import { logout } from '@/lib/actions'
 import { useLanguage } from '@/contexts/language-context'
+import { useBranding } from '@/contexts/branding-context'
 import { TranslationKey } from '@/lib/translations'
 
 interface NavItem {
@@ -48,6 +49,7 @@ export function Sidebar({ collapsed, onCollapse }: SidebarProps) {
   const router = useRouter()
   const { data: session } = useSession()
   const { t } = useLanguage()
+  const { title, subtitle, logo } = useBranding()
   const warmed = useRef<Set<string>>(new Set())
 
   function warmCache(href: string) {
@@ -68,8 +70,13 @@ export function Sidebar({ collapsed, onCollapse }: SidebarProps) {
       {/* Logo */}
       <div className="flex items-center h-16 px-4 border-b border-sidebar-border flex-shrink-0">
         <div className="flex items-center gap-3 min-w-0">
-          <div className="w-8 h-8 rounded-lg bg-sidebar-primary flex items-center justify-center flex-shrink-0">
-            <Building2 className="w-4 h-4 text-sidebar-primary-foreground" />
+          <div className="w-8 h-8 rounded-lg bg-sidebar-primary flex items-center justify-center flex-shrink-0 overflow-hidden">
+            {logo ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={logo} alt={title} className="w-full h-full object-cover" />
+            ) : (
+              <Building2 className="w-4 h-4 text-sidebar-primary-foreground" />
+            )}
           </div>
           <AnimatePresence>
             {!collapsed && (
@@ -80,8 +87,8 @@ export function Sidebar({ collapsed, onCollapse }: SidebarProps) {
                 transition={{ duration: 0.2 }}
                 className="overflow-hidden"
               >
-                <p className="font-bold text-sm text-sidebar-foreground truncate">Takmao</p>
-                <p className="text-xs text-sidebar-foreground/60 truncate">Rental Management</p>
+                <p className="font-bold text-sm text-sidebar-foreground truncate">{title}</p>
+                <p className="text-xs text-sidebar-foreground/60 truncate">{subtitle}</p>
               </motion.div>
             )}
           </AnimatePresence>

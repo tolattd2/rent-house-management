@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { useForm } from 'react-hook-form'
-import { Save, Building2, DollarSign, MessageSquare, Mail, Phone, Users, Plus, Key, Trash2, QrCode, Upload, X, Send, MapPin } from 'lucide-react'
+import { Save, Building2, DollarSign, MessageSquare, Mail, Phone, Users, Plus, Key, Trash2, QrCode, Upload, X, Send, MapPin, Image as ImageIcon, Palette } from 'lucide-react'
 import { mapHref } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -33,14 +33,16 @@ interface UserRow {
 
 interface Props { settings: Record<string, string> }
 
-const VALID_TABS = ['rates', 'company', 'telegram', 'email', 'sms', 'qr', 'users'] as const
+const VALID_TABS = ['general', 'rates', 'company', 'telegram', 'email', 'sms', 'qr', 'users'] as const
+
+const MAX_LOGO_BYTES = 500_000  // logo data URL ships with every page load — keep it small
 
 export function SettingsClient({ settings: initial }: Props) {
   const { t } = useLanguage()
   const router = useRouter()
   const searchParams = useSearchParams()
   const tabParam = searchParams?.get('tab') ?? ''
-  const initialTab = (VALID_TABS as readonly string[]).includes(tabParam) ? tabParam : 'rates'
+  const initialTab = (VALID_TABS as readonly string[]).includes(tabParam) ? tabParam : 'general'
   const { data: session } = useSession()
   const isAdmin = session?.user?.role === 'admin'
   const [loading, setLoading] = useState(false)
@@ -201,6 +203,41 @@ export function SettingsClient({ settings: initial }: Props) {
     })
   }
 
+  // App branding (global title/subtitle/logo, separate from per-branch info).
+  // Existing DB values seed the editor so the current logo shows up first.
+  const [appTitle, setAppTitle] = useState(initial.app_title ?? 'Takmao')
+  const [appSubtitle, setAppSubtitle] = useState(initial.app_subtitle ?? 'Rental Management')
+  const [appLogo, setAppLogo] = useState(initial.app_logo ?? '')
+  const logoInputRef = useRef<HTMLInputElement | null>(null)
+  // Pending file goes through the same square crop dialog used for QR codes.
+  const [logoCropPending, setLogoCropPending] = useState<File | null>(null)
+
+  const handleLogoFile = useCallback((file: File | undefined) => {
+    if (!file) return
+    if (!file.type.startsWith('image/')) {
+      toast({ title: 'Logo must be an image', variant: 'destructive' })
+      return
+    }
+    setLogoCropPending(file)
+  }, [])
+
+  const handleLogoCropConfirm = useCallback((croppedFile: File) => {
+    setLogoCropPending(null)
+    if (croppedFile.size > MAX_LOGO_BYTES) {
+      toast({
+        title: 'Logo too large after crop',
+        description: `Pick a smaller area or compress the source. Limit is ${Math.round(MAX_LOGO_BYTES / 1024)}KB.`,
+        variant: 'destructive',
+      })
+      return
+    }
+    const reader = new FileReader()
+    reader.onload = () => {
+      if (typeof reader.result === 'string') setAppLogo(reader.result)
+    }
+    reader.readAsDataURL(croppedFile)
+  }, [])
+
   const [testingTelegram, setTestingTelegram] = useState(false)
   const [testingLateAlert, setTestingLateAlert] = useState(false)
   const [testingLandlordAlert, setTestingLandlordAlert] = useState(false)
@@ -313,6 +350,9 @@ export function SettingsClient({ settings: initial }: Props) {
         })(),
         late_alert_repeat: lateAlertMode === 'repeat' ? 'true' : 'false',
         landlord_alert_enabled: landlordAlertEnabled ? 'true' : 'false',
+        app_title: appTitle.trim(),
+        app_subtitle: appSubtitle.trim(),
+        app_logo: appLogo,
       }),
     })
     const result = await res.json()
@@ -336,6 +376,7 @@ export function SettingsClient({ settings: initial }: Props) {
         <Tabs defaultValue={initialTab} onValueChange={(v) => { if (v === 'users') loadUsers() }}>
           <div className="overflow-x-auto">
             <TabsList className="flex-nowrap w-max min-w-full">
+              <TabsTrigger value="general"><Palette className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">{t('settings_general')}</span></TabsTrigger>
               <TabsTrigger value="rates"><DollarSign className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">{t('settings_rates')}</span></TabsTrigger>
               <TabsTrigger value="company"><Building2 className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">{t('settings_company')}</span></TabsTrigger>
               <TabsTrigger value="telegram"><MessageSquare className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">{t('settings_telegram_bot')}</span></TabsTrigger>
@@ -345,6 +386,82 @@ export function SettingsClient({ settings: initial }: Props) {
               <TabsTrigger value="users"><Users className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">{t('settings_users')}</span></TabsTrigger>
             </TabsList>
           </div>
+
+          <TabsContent value="general" className="mt-4 space-y-4">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Palette className="w-4 h-4" />{t('settings_app_branding')}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label>{t('settings_app_title')}</Label>
+                    <Input
+                      value={appTitle}
+                      onChange={(e) => setAppTitle(e.target.value)}
+                      placeholder="Takmao"
+                    />
+                    <p className="text-xs text-muted-foreground">{t('settings_app_title_hint')}</p>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>{t('settings_app_subtitle')}</Label>
+                    <Input
+                      value={appSubtitle}
+                      onChange={(e) => setAppSubtitle(e.target.value)}
+                      placeholder="Rental Management"
+                    />
+                    <p className="text-xs text-muted-foreground">{t('settings_app_subtitle_hint')}</p>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>{t('settings_app_logo')}</Label>
+                  <div className="flex items-center gap-4">
+                    <div className="w-16 h-16 rounded-xl bg-muted border border-border flex items-center justify-center overflow-hidden flex-shrink-0">
+                      {appLogo ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={appLogo} alt="App logo" className="w-full h-full object-cover" />
+                      ) : (
+                        <ImageIcon className="w-6 h-6 text-muted-foreground/40" />
+                      )}
+                    </div>
+                    <div className="flex gap-2 flex-wrap">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => logoInputRef.current?.click()}
+                      >
+                        <Upload className="w-3.5 h-3.5 mr-1.5" />
+                        {appLogo ? t('settings_app_logo_replace') : t('settings_app_logo_upload')}
+                      </Button>
+                      {appLogo && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="text-destructive hover:bg-destructive/10"
+                          onClick={() => setAppLogo('')}
+                          title={t('settings_app_logo_clear')}
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </Button>
+                      )}
+                    </div>
+                    <input
+                      ref={logoInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="sr-only"
+                      onChange={(e) => { handleLogoFile(e.target.files?.[0]); e.target.value = '' }}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">{t('settings_app_logo_hint')}</p>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
           <TabsContent value="rates" className="mt-4 space-y-4">
             {branches.map((br) => (
@@ -904,6 +1021,14 @@ export function SettingsClient({ settings: initial }: Props) {
         onClose={closeDialog}
         onConfirm={dialogState.onConfirm}
       />
+
+      {logoCropPending && (
+        <QrCropDialog
+          file={logoCropPending}
+          onConfirm={handleLogoCropConfirm}
+          onCancel={() => setLogoCropPending(null)}
+        />
+      )}
 
       {cropPending && (
         <QrCropDialog

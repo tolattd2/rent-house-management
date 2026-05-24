@@ -27,6 +27,9 @@ const SETTING_LABELS: Record<string, string> = {
   late_alert_threshold_days: 'Auto Overdue Alert (Tenant) Threshold (days)',
   late_alert_repeat: 'Auto Overdue Alert (Tenant) Repeat Every Threshold',
   landlord_alert_enabled: 'Overdue Alert (Landlord) Enabled',
+  app_title: 'App Title',
+  app_subtitle: 'App Subtitle',
+  app_logo: 'App Logo',
 }
 
 export async function GET() {
