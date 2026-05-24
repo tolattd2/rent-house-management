@@ -25,6 +25,7 @@ const SETTING_LABELS: Record<string, string> = {
   branches: 'Branches',
   late_alert_enabled: 'Auto Overdue Alert (Tenant) Enabled',
   late_alert_threshold_days: 'Auto Overdue Alert (Tenant) Threshold (days)',
+  late_alert_repeat: 'Auto Overdue Alert (Tenant) Repeat Every Threshold',
   landlord_alert_enabled: 'Overdue Alert (Landlord) Enabled',
 }
 

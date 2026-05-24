@@ -206,6 +206,9 @@ export function SettingsClient({ settings: initial }: Props) {
   const [testingLandlordAlert, setTestingLandlordAlert] = useState(false)
   const [lateAlertEnabled, setLateAlertEnabled] = useState(initial.late_alert_enabled !== 'false')
   const [lateAlertThresholdDays, setLateAlertThresholdDays] = useState(initial.late_alert_threshold_days ?? '10')
+  const [lateAlertMode, setLateAlertMode] = useState<'once' | 'repeat'>(
+    initial.late_alert_repeat === 'true' ? 'repeat' : 'once',
+  )
   const [landlordAlertEnabled, setLandlordAlertEnabled] = useState(initial.landlord_alert_enabled === 'true')
   const [settingUpWebhook, setSettingUpWebhook] = useState(false)
   const [linkingEnabled, setLinkingEnabled] = useState(initial.telegram_linking_enabled === 'true')
@@ -308,6 +311,7 @@ export function SettingsClient({ settings: initial }: Props) {
           const n = Math.floor(Number(lateAlertThresholdDays))
           return Number.isFinite(n) && n > 0 ? String(n) : '10'
         })(),
+        late_alert_repeat: lateAlertMode === 'repeat' ? 'true' : 'false',
         landlord_alert_enabled: landlordAlertEnabled ? 'true' : 'false',
       }),
     })
@@ -528,20 +532,39 @@ export function SettingsClient({ settings: initial }: Props) {
                     </div>
                     <Switch checked={lateAlertEnabled} onCheckedChange={setLateAlertEnabled} />
                   </div>
-                  <div className="space-y-1.5 max-w-xs">
-                    <Label>Overdue threshold (days)</Label>
-                    <Input
-                      type="number"
-                      min={1}
-                      step={1}
-                      value={lateAlertThresholdDays}
-                      onChange={(e) => setLateAlertThresholdDays(e.target.value)}
-                      disabled={!lateAlertEnabled}
-                      placeholder="10"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Tenant is notified once their billing is this many days overdue (e.g. 10 = on day 10).
-                    </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label>Overdue threshold (days)</Label>
+                      <Input
+                        type="number"
+                        min={1}
+                        step={1}
+                        value={lateAlertThresholdDays}
+                        onChange={(e) => setLateAlertThresholdDays(e.target.value)}
+                        disabled={!lateAlertEnabled}
+                        placeholder="10"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Tenant is notified once their billing is this many days overdue (e.g. 10 = on day 10).
+                      </p>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Send mode</Label>
+                      <Select
+                        value={lateAlertMode}
+                        onValueChange={(v) => setLateAlertMode(v as 'once' | 'repeat')}
+                        disabled={!lateAlertEnabled}
+                      >
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="once">Send once</SelectItem>
+                          <SelectItem value="repeat">Repeat every threshold days</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">
+                        Once: alert a single time when the threshold is reached. Repeat: alert again at each multiple (e.g. day 10, 20, 30…).
+                      </p>
+                    </div>
                   </div>
                   <Button
                     type="button"

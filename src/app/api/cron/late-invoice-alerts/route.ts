@@ -35,15 +35,24 @@ export async function GET(req: NextRequest) {
   const threshold = Number.isFinite(thresholdRaw) && thresholdRaw > 0
     ? Math.floor(thresholdRaw)
     : DEFAULT_LATE_THRESHOLD_DAYS
+  const repeatMode = settings.late_alert_repeat === 'true'
 
-  let alreadySent: string[] = []
+  // Track per-invoice the last daysLate value we alerted at. Supports the
+  // legacy array shape (just billing IDs) for back-compat with previous runs.
+  const lastAlerted: Record<string, number> = {}
   try {
-    const parsed = JSON.parse(settings.late_alert_sent || '[]')
-    if (Array.isArray(parsed)) alreadySent = parsed
+    const parsed = JSON.parse(settings.late_alert_sent || '{}')
+    if (Array.isArray(parsed)) {
+      for (const id of parsed) if (typeof id === 'string') lastAlerted[id] = threshold
+    } else if (parsed && typeof parsed === 'object') {
+      for (const [id, v] of Object.entries(parsed)) {
+        const n = Number(v)
+        if (Number.isFinite(n)) lastAlerted[id] = n
+      }
+    }
   } catch {
-    alreadySent = []
+    /* ignore — start fresh */
   }
-  const alreadySentSet = new Set(alreadySent)
 
   const billings = await db.billing.findMany({
     where: { paymentStatus: { not: 'paid' } },
@@ -58,11 +67,21 @@ export async function GET(req: NextRequest) {
     .map((b) => ({ b, days: daysLate(b.billingMonth, b.tenant!.payDay) }))
     .filter((x) => x.days >= threshold)
 
-  const newly = late.filter((x) => !alreadySentSet.has(x.b.id))
+  // In once-mode: alert only if we've never alerted this invoice.
+  // In repeat-mode: alert when the invoice has crossed into a new threshold
+  // tier since the last alert (handles missed cron days gracefully).
+  const newly = late.filter((x) => {
+    const last = lastAlerted[x.b.id]
+    if (last === undefined) return true
+    if (!repeatMode) return false
+    const currentTier = Math.floor(x.days / threshold) * threshold
+    const lastTier = Math.floor(last / threshold) * threshold
+    return currentTier > lastTier
+  })
 
   let alerted = 0
   let skippedUnlinked = 0
-  const successIds: string[] = []
+  const successDays: Record<string, number> = {}
 
   for (const x of newly) {
     const tenant = x.b.tenant!
@@ -90,7 +109,7 @@ export async function GET(req: NextRequest) {
     const result = await sendTelegramTo(tenant.telegramChatId, msg)
     if (result.ok) {
       alerted++
-      successIds.push(x.b.id)
+      successDays[x.b.id] = x.days
     }
 
     await db.notification
@@ -105,14 +124,21 @@ export async function GET(req: NextRequest) {
       .catch(() => null)
   }
 
-  // Keep already-alerted invoices that are still overdue, plus the ones sent
-  // just now. Unlinked / failed sends are left out so they retry tomorrow.
+  // Keep prior per-invoice last-alerted day for invoices still overdue, then
+  // overwrite with this run's successes. Unlinked / failed sends are left out
+  // so they retry tomorrow.
   const lateIds = new Set(late.map((x) => x.b.id))
-  const newSent = [...alreadySent.filter((id) => lateIds.has(id)), ...successIds]
+  const nextState: Record<string, number> = {}
+  for (const [id, days] of Object.entries(lastAlerted)) {
+    if (lateIds.has(id)) nextState[id] = days
+  }
+  for (const [id, days] of Object.entries(successDays)) {
+    nextState[id] = days
+  }
   await db.setting.upsert({
     where: { key: 'late_alert_sent' },
-    update: { value: JSON.stringify(newSent) },
-    create: { key: 'late_alert_sent', value: JSON.stringify(newSent), label: 'Late alert state' },
+    update: { value: JSON.stringify(nextState) },
+    create: { key: 'late_alert_sent', value: JSON.stringify(nextState), label: 'Late alert state' },
   })
 
   return NextResponse.json({
