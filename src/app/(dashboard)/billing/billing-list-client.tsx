@@ -72,11 +72,15 @@ export function BillingListClient({ billings: initial }: Props) {
 
   const range = monthRange(monthFrom, monthTo)
 
-  // Paid / Unpaid / Partial count cards only follow the branch filter so the
-  // overall status breakdown stays visible regardless of search/month/status.
-  const branchScoped = billings.filter(
-    (b) => branchFilter === 'all' || b.room?.branch === branchFilter,
-  )
+  // Paid / Unpaid / Partial count cards follow branch + month only, so the
+  // status breakdown stays visible regardless of search/status filter.
+  const branchScoped = billings.filter((b) => {
+    const matchBranch = branchFilter === 'all' || b.room?.branch === branchFilter
+    const matchMonth = range
+      ? b.billingMonth >= range[0] && b.billingMonth <= range[1]
+      : monthFilter === 'all' || b.billingMonth === monthFilter
+    return matchBranch && matchMonth
+  })
 
   const filtered = sortRoomsByNumber(
     billings.filter((b) => {
