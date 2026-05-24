@@ -24,6 +24,7 @@ const SETTING_LABELS: Record<string, string> = {
   twilio_phone: 'Twilio Phone Number',
   branches: 'Branches',
   late_alert_enabled: 'Auto Overdue Alert (Tenant) Enabled',
+  late_alert_threshold_days: 'Auto Overdue Alert (Tenant) Threshold (days)',
   landlord_alert_enabled: 'Overdue Alert (Landlord) Enabled',
 }
 

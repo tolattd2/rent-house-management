@@ -6,14 +6,14 @@ import { computeLateFee, daysLate } from '@/lib/late-fees'
 
 export const dynamic = 'force-dynamic'
 
-const LATE_THRESHOLD_DAYS = 10
+const DEFAULT_LATE_THRESHOLD_DAYS = 10
 
 /**
- * Daily job: for every invoice more than LATE_THRESHOLD_DAYS overdue, send the
- * late tenant a bilingual (Khmer + English) overdue warning on their own
- * Telegram. Each invoice is alerted once; the set of already-alerted invoices
- * is tracked in the `late_alert_sent` setting. Tenants who haven't linked
- * their Telegram are skipped and retried daily until they link.
+ * Daily job: for every invoice at least `late_alert_threshold_days` overdue,
+ * send the late tenant a bilingual (Khmer + English) overdue warning on their
+ * own Telegram. Each invoice is alerted once; the set of already-alerted
+ * invoices is tracked in the `late_alert_sent` setting. Tenants who haven't
+ * linked their Telegram are skipped and retried daily until they link.
  * Honors the `late_alert_enabled` on/off setting.
  */
 export async function GET(req: NextRequest) {
@@ -30,6 +30,11 @@ export async function GET(req: NextRequest) {
   if (settings.late_alert_enabled === 'false') {
     return NextResponse.json({ ok: true, skipped: 'disabled' })
   }
+
+  const thresholdRaw = Number(settings.late_alert_threshold_days)
+  const threshold = Number.isFinite(thresholdRaw) && thresholdRaw > 0
+    ? Math.floor(thresholdRaw)
+    : DEFAULT_LATE_THRESHOLD_DAYS
 
   let alreadySent: string[] = []
   try {
@@ -51,7 +56,7 @@ export async function GET(req: NextRequest) {
   const late = billings
     .filter((b) => b.tenant)
     .map((b) => ({ b, days: daysLate(b.billingMonth, b.tenant!.payDay) }))
-    .filter((x) => x.days > LATE_THRESHOLD_DAYS)
+    .filter((x) => x.days >= threshold)
 
   const newly = late.filter((x) => !alreadySentSet.has(x.b.id))
 

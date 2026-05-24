@@ -205,6 +205,7 @@ export function SettingsClient({ settings: initial }: Props) {
   const [testingLateAlert, setTestingLateAlert] = useState(false)
   const [testingLandlordAlert, setTestingLandlordAlert] = useState(false)
   const [lateAlertEnabled, setLateAlertEnabled] = useState(initial.late_alert_enabled !== 'false')
+  const [lateAlertThresholdDays, setLateAlertThresholdDays] = useState(initial.late_alert_threshold_days ?? '10')
   const [landlordAlertEnabled, setLandlordAlertEnabled] = useState(initial.landlord_alert_enabled === 'true')
   const [settingUpWebhook, setSettingUpWebhook] = useState(false)
   const [linkingEnabled, setLinkingEnabled] = useState(initial.telegram_linking_enabled === 'true')
@@ -303,6 +304,10 @@ export function SettingsClient({ settings: initial }: Props) {
         ...ratePayload,
         branches: JSON.stringify(branches),
         late_alert_enabled: lateAlertEnabled ? 'true' : 'false',
+        late_alert_threshold_days: (() => {
+          const n = Math.floor(Number(lateAlertThresholdDays))
+          return Number.isFinite(n) && n > 0 ? String(n) : '10'
+        })(),
         landlord_alert_enabled: landlordAlertEnabled ? 'true' : 'false',
       }),
     })
@@ -517,11 +522,26 @@ export function SettingsClient({ settings: initial }: Props) {
                     <div>
                       <Label>Auto Overdue Alert For Tenant</Label>
                       <p className="text-xs text-muted-foreground">
-                        Message the tenant directly (Khmer + English) when their invoice is more than
-                        10 days overdue — checked daily. Penalty uses the Late Penalty rate.
+                        Message the tenant directly (Khmer + English) when their invoice is at least
+                        the configured number of days overdue — checked daily. Penalty uses the Late Penalty rate.
                       </p>
                     </div>
                     <Switch checked={lateAlertEnabled} onCheckedChange={setLateAlertEnabled} />
+                  </div>
+                  <div className="space-y-1.5 max-w-xs">
+                    <Label>Overdue threshold (days)</Label>
+                    <Input
+                      type="number"
+                      min={1}
+                      step={1}
+                      value={lateAlertThresholdDays}
+                      onChange={(e) => setLateAlertThresholdDays(e.target.value)}
+                      disabled={!lateAlertEnabled}
+                      placeholder="10"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Tenant is notified once their billing is this many days overdue (e.g. 10 = on day 10).
+                    </p>
                   </div>
                   <Button
                     type="button"
