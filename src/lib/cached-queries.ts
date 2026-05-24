@@ -467,8 +467,8 @@ export const getNotificationsData = unstable_cache(
         include: {
           tenant: {
             select: {
-              id: true, fullName: true, phone: true,
-              room: { select: { branch: true } },
+              id: true, fullName: true, phone: true, telegramChatId: true,
+              room: { select: { branch: true, roomNumber: true } },
             },
           },
         },
