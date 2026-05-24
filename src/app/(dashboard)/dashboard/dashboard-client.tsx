@@ -273,7 +273,7 @@ export function DashboardClient({ rooms, tenants, billings, expenses, unpaidBill
           <StatsCard title={t('status_maintenance')}    value={stats.maintenance} icon={Wrench} color="yellow" index={8} compact />
         </Link>
         <Link href="/notices" className="block">
-          <StatsCard title={t('notices_title')}         value={filteredNotices.length} icon={Bell}   color="amber"  index={9} compact />
+          <StatsCard title={t('notices_title')}         value={filteredNotices.length} icon={Bell}   color="orange" index={9} compact />
         </Link>
       </div>
 
