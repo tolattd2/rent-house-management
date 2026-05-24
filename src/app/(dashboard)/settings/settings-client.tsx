@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { useForm } from 'react-hook-form'
 import { Save, Building2, DollarSign, MessageSquare, Mail, Phone, Users, Plus, Key, Trash2, QrCode, Upload, X, Send, MapPin } from 'lucide-react'
@@ -33,9 +33,14 @@ interface UserRow {
 
 interface Props { settings: Record<string, string> }
 
+const VALID_TABS = ['rates', 'company', 'telegram', 'email', 'sms', 'qr', 'users'] as const
+
 export function SettingsClient({ settings: initial }: Props) {
   const { t } = useLanguage()
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const tabParam = searchParams?.get('tab') ?? ''
+  const initialTab = (VALID_TABS as readonly string[]).includes(tabParam) ? tabParam : 'rates'
   const { data: session } = useSession()
   const isAdmin = session?.user?.role === 'admin'
   const [loading, setLoading] = useState(false)
@@ -319,7 +324,7 @@ export function SettingsClient({ settings: initial }: Props) {
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)}>
-        <Tabs defaultValue="rates" onValueChange={(v) => { if (v === 'users') loadUsers() }}>
+        <Tabs defaultValue={initialTab} onValueChange={(v) => { if (v === 'users') loadUsers() }}>
           <div className="overflow-x-auto">
             <TabsList className="flex-nowrap w-max min-w-full">
               <TabsTrigger value="rates"><DollarSign className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">{t('settings_rates')}</span></TabsTrigger>

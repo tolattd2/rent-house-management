@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { Bell, Send, MessageSquare, Search, ImagePlus, AlertTriangle } from 'lucide-react'
+import { Bell, Send, MessageSquare, Search, ImagePlus, AlertTriangle, Settings } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
@@ -160,6 +160,16 @@ export function NotificationsClient({ unpaidBillings, allBillings, linkedTenants
             <span className="text-xs text-muted-foreground">{t('notifications_custom_reminder')}</span>
             <Button size="sm" variant="outline" onClick={() => setShowCustom(true)}>
               <ImagePlus className="w-3.5 h-3.5 mr-1.5" />{t('notifications_custom_compose')}
+            </Button>
+          </div>
+          <div className="flex flex-col items-end gap-1">
+            <span className="text-xs text-muted-foreground">{t('settings_telegram_bot')}</span>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => router.push('/settings?tab=telegram')}
+            >
+              <Settings className="w-3.5 h-3.5 mr-1.5" />{t('nav_settings')}
             </Button>
           </div>
         </div>
