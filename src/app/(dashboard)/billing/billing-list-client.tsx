@@ -77,7 +77,11 @@ export function BillingListClient({ billings: initial }: Props) {
         (b.tenant?.fullName ?? '').toLowerCase().includes(search.toLowerCase()) ||
         (b.room?.roomNumber ?? '').includes(search) ||
         b.billingMonth.includes(search)
-      const matchStatus = statusFilter === 'all' || b.paymentStatus === statusFilter
+      const matchStatus =
+        statusFilter === 'all' ||
+        (statusFilter === 'unpaid_partial'
+          ? b.paymentStatus === 'unpaid' || b.paymentStatus === 'partial'
+          : b.paymentStatus === statusFilter)
       const matchMonth = range
         ? b.billingMonth >= range[0] && b.billingMonth <= range[1]
         : monthFilter === 'all' || b.billingMonth === monthFilter
@@ -200,6 +204,7 @@ export function BillingListClient({ billings: initial }: Props) {
           <SelectTrigger className="w-36 h-9"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">{t('billing_all_status')}</SelectItem>
+            <SelectItem value="unpaid_partial">{t('status_unpaid_partial')}</SelectItem>
             <SelectItem value="paid">{t('status_paid')}</SelectItem>
             <SelectItem value="unpaid">{t('status_unpaid')}</SelectItem>
             <SelectItem value="partial">{t('status_partial')}</SelectItem>
