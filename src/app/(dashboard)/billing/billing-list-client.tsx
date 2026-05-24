@@ -71,6 +71,13 @@ export function BillingListClient({ billings: initial }: Props) {
   const branches = useBranches().map((b) => b.name)
 
   const range = monthRange(monthFrom, monthTo)
+
+  // Paid / Unpaid / Partial count cards only follow the branch filter so the
+  // overall status breakdown stays visible regardless of search/month/status.
+  const branchScoped = billings.filter(
+    (b) => branchFilter === 'all' || b.room?.branch === branchFilter,
+  )
+
   const filtered = sortRoomsByNumber(
     billings.filter((b) => {
       const matchSearch =
@@ -174,9 +181,9 @@ export function BillingListClient({ billings: initial }: Props) {
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         <Card className={cn('hover:shadow-md transition-all duration-200 hover:-translate-y-0.5', CARD_STYLES.green.card)}><div className="p-4"><p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{t('billing_revenue')}</p><p className={cn('text-xl font-bold mt-1.5 tabular-nums', CARD_STYLES.green.value)}>{formatCompact(totalRevenue)}</p></div></Card>
         <Card className={cn('hover:shadow-md transition-all duration-200 hover:-translate-y-0.5', CARD_STYLES.red.card)}><div className="p-4"><p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{t('billing_outstanding')}</p><p className={cn('text-xl font-bold mt-1.5 tabular-nums', CARD_STYLES.red.value)}>{formatCompact(totalOutstanding)}</p></div></Card>
-        <Card className={cn('hover:shadow-md transition-all duration-200 hover:-translate-y-0.5', CARD_STYLES.emerald.card)}><div className="p-4"><p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{t('billing_paid_count')}</p><p className={cn('text-xl font-bold mt-1.5 tabular-nums', CARD_STYLES.emerald.value)}>{filtered.filter((b) => b.paymentStatus === 'paid').length}</p></div></Card>
-        <Card className={cn('hover:shadow-md transition-all duration-200 hover:-translate-y-0.5', CARD_STYLES.orange.card)}><div className="p-4"><p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{t('billing_unpaid_count')}</p><p className={cn('text-xl font-bold mt-1.5 tabular-nums', CARD_STYLES.orange.value)}>{filtered.filter((b) => b.paymentStatus === 'unpaid').length}</p></div></Card>
-        <Card className={cn('hover:shadow-md transition-all duration-200 hover:-translate-y-0.5', CARD_STYLES.amber.card)}><div className="p-4"><p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{t('billing_partial_count')}</p><p className={cn('text-xl font-bold mt-1.5 tabular-nums', CARD_STYLES.amber.value)}>{filtered.filter((b) => b.paymentStatus === 'partial').length}</p></div></Card>
+        <Card className={cn('hover:shadow-md transition-all duration-200 hover:-translate-y-0.5', CARD_STYLES.emerald.card)}><div className="p-4"><p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{t('billing_paid_count')}</p><p className={cn('text-xl font-bold mt-1.5 tabular-nums', CARD_STYLES.emerald.value)}>{branchScoped.filter((b) => b.paymentStatus === 'paid').length}</p></div></Card>
+        <Card className={cn('hover:shadow-md transition-all duration-200 hover:-translate-y-0.5', CARD_STYLES.orange.card)}><div className="p-4"><p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{t('billing_unpaid_count')}</p><p className={cn('text-xl font-bold mt-1.5 tabular-nums', CARD_STYLES.orange.value)}>{branchScoped.filter((b) => b.paymentStatus === 'unpaid').length}</p></div></Card>
+        <Card className={cn('hover:shadow-md transition-all duration-200 hover:-translate-y-0.5', CARD_STYLES.amber.card)}><div className="p-4"><p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{t('billing_partial_count')}</p><p className={cn('text-xl font-bold mt-1.5 tabular-nums', CARD_STYLES.amber.value)}>{branchScoped.filter((b) => b.paymentStatus === 'partial').length}</p></div></Card>
       </div>
 
       {/* Filters */}
