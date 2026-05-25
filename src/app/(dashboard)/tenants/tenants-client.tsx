@@ -12,7 +12,7 @@ import { Card } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { MonthRangePicker, monthRange } from '@/components/ui/month-range-picker'
 import { TenantFormDialog } from '@/components/tenants/tenant-form-dialog'
-import { formatCurrency, formatDate, formatPhones, sortRoomsByNumber, cn } from '@/lib/utils'
+import { formatCurrency, formatDate, formatPhones, groupByBranch, cn } from '@/lib/utils'
 import { CARD_STYLES, type CardColor } from '@/lib/card-colors'
 import { toast } from '@/hooks/use-toast'
 import { useLanguage } from '@/contexts/language-context'
@@ -125,23 +125,23 @@ export function TenantsClient({ tenants: initial, rooms }: Props) {
     owing: snapshot.filter(owingBy).length,
   }
 
-  const filtered = sortRoomsByNumber(
-    tenants.filter((t) => {
-      const matchSearch =
-        t.fullName.toLowerCase().includes(search.toLowerCase()) ||
-        t.phone.includes(search) ||
-        t.phonesExtra.some((p) => p.includes(search)) ||
-        (t.room?.roomNumber ?? '').toLowerCase().includes(search.toLowerCase())
-      const matchStatus =
-        statusFilter === 'all' ? true
-          : statusFilter === 'active' ? !movedOutBy(t)
-            : statusFilter === 'inactive' ? movedOutBy(t)
-              : statusFilter === 'movedout' ? movedOutInMonth(t)
-                : owingBy(t)
-      const matchBranch = branchFilter === 'all' || t.room?.branch === branchFilter
-      return matchSearch && matchStatus && matchBranch
-    }).map((t) => ({ ...t, roomNumber: t.room?.roomNumber ?? '' }))
-  )
+  const filtered = tenants.filter((t) => {
+    const matchSearch =
+      t.fullName.toLowerCase().includes(search.toLowerCase()) ||
+      t.phone.includes(search) ||
+      t.phonesExtra.some((p) => p.includes(search)) ||
+      (t.room?.roomNumber ?? '').toLowerCase().includes(search.toLowerCase())
+    const matchStatus =
+      statusFilter === 'all' ? true
+        : statusFilter === 'active' ? !movedOutBy(t)
+          : statusFilter === 'inactive' ? movedOutBy(t)
+            : statusFilter === 'movedout' ? movedOutInMonth(t)
+              : owingBy(t)
+    const matchBranch = branchFilter === 'all' || t.room?.branch === branchFilter
+    return matchSearch && matchStatus && matchBranch
+  }).map((t) => ({ ...t, roomNumber: t.room?.roomNumber ?? '', branch: t.room?.branch ?? '' }))
+
+  const grouped = groupByBranch(filtered)
 
   const handleMoveOut = async (id: string) => {
     if (!confirm(t('tenant_moveout_confirm'))) return
@@ -243,15 +243,22 @@ export function TenantsClient({ tenants: initial, rooms }: Props) {
           onChange={(f, to) => { setMonthFrom(f); setMonthTo(to); if (f || to) setMonth('all') }} />
       </div>
 
-      {/* Card list — used across all screen sizes */}
+      {/* Card list — grouped by branch, rooms ascending inside each group */}
       {filtered.length === 0 && (
         <div className="text-center py-16 text-muted-foreground">
           <User className="w-12 h-12 mx-auto mb-3 opacity-30" />
           <p>{t('tenants_empty')}</p>
         </div>
       )}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-        {filtered.map((tenant) => {
+      {grouped.map((group) => (
+        <div key={group.branch} className="space-y-3">
+          <div className="flex items-center gap-3 sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/70 py-2">
+            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">{group.branch}</h2>
+            <span className="text-xs text-muted-foreground tabular-nums">({group.items.length})</span>
+            <div className="flex-1 h-px bg-border" />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+            {group.items.map((tenant) => {
           const outstanding = tenant.billings.reduce((s, b) => s + b.totalUsd, 0)
           return (
             <Card key={tenant.id} className="p-4 hover:shadow-md transition-shadow">
@@ -312,7 +319,9 @@ export function TenantsClient({ tenants: initial, rooms }: Props) {
             </Card>
           )
         })}
-      </div>
+          </div>
+        </div>
+      ))}
 
       {showForm && (
         <TenantFormDialog

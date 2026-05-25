@@ -1,10 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { Fragment, useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Search, FileText, Printer, Trash2, CalendarClock, Bell } from 'lucide-react'
-import { formatCurrency, cn } from '@/lib/utils'
+import { formatCurrency, groupByBranch, cn } from '@/lib/utils'
 import { CARD_STYLES } from '@/lib/card-colors'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
@@ -85,6 +85,14 @@ export function InvoicesClient({ invoices: initial }: Props) {
     const matchBranch = branchFilter === 'all' || inv.billing?.room?.branch === branchFilter
     return matchSearch && matchStatus && matchMonth && matchBranch
   })
+
+  const grouped = groupByBranch(
+    filtered.map((inv) => ({
+      ...inv,
+      roomNumber: inv.billing?.room?.roomNumber ?? '',
+      branch: inv.billing?.room?.branch ?? '',
+    })),
+  )
 
   const totalAmount = filtered.reduce((s, inv) => s + (inv.billing?.totalUsd ?? 0), 0)
   const paidCount = filtered.filter((inv) => inv.billing?.paymentStatus === 'paid').length
@@ -213,15 +221,22 @@ export function InvoicesClient({ invoices: initial }: Props) {
           onChange={(f, to) => { setMonthFrom(f); setMonthTo(to); if (f || to) setMonthFilter('all') }} />
       </div>
 
-      {/* Mobile card list */}
-      <div className="md:hidden space-y-3">
+      {/* Mobile card list — grouped by branch */}
+      <div className="md:hidden space-y-5">
         {filtered.length === 0 && (
           <div className="text-center py-16 text-muted-foreground">
             <FileText className="w-12 h-12 mx-auto mb-3 opacity-30" />
             <p>{t('invoices_empty')}</p>
           </div>
         )}
-        {filtered.map((inv) => {
+        {grouped.map((group) => (
+          <div key={group.branch} className="space-y-3">
+            <div className="flex items-center gap-3">
+              <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">{group.branch}</h2>
+              <span className="text-xs text-muted-foreground tabular-nums">({group.items.length})</span>
+              <div className="flex-1 h-px bg-border" />
+            </div>
+            {group.items.map((inv) => {
           const status = inv.billing?.paymentStatus
           return (
             <Card key={inv.id} className="p-4">
@@ -299,9 +314,11 @@ export function InvoicesClient({ invoices: initial }: Props) {
             </Card>
           )
         })}
+          </div>
+        ))}
       </div>
 
-      {/* Desktop table */}
+      {/* Desktop table — branch header rows split each group */}
       <Card className="hidden md:block">
         <TableScroll>
           <table className="w-full min-w-[820px] text-sm">
@@ -318,7 +335,15 @@ export function InvoicesClient({ invoices: initial }: Props) {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((inv, i) => (
+              {grouped.map((group) => (
+                <Fragment key={group.branch}>
+                  <tr className="bg-muted/40">
+                    <td colSpan={8} className="px-4 py-2">
+                      <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{group.branch}</span>
+                      <span className="ml-2 text-xs text-muted-foreground tabular-nums">({group.items.length})</span>
+                    </td>
+                  </tr>
+                  {group.items.map((inv, i) => (
                 <tr key={inv.id}
                   className={`border-b border-border last:border-0 hover:bg-muted/30 ${i % 2 ? 'bg-muted/10' : ''}`}>
                   <td className="px-4 py-3 font-medium">{inv.billing?.room ? roomLabel(inv.billing.room) : '—'}</td>
@@ -389,6 +414,8 @@ export function InvoicesClient({ invoices: initial }: Props) {
                     </div>
                   </td>
                 </tr>
+                  ))}
+                </Fragment>
               ))}
               {filtered.length === 0 && (
                 <tr>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { Fragment, useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { Bell, Send, MessageSquare, Search, ImagePlus, AlertTriangle, Settings, History, RotateCcw, CheckCircle2, XCircle, Clock } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { TableScroll } from '@/components/ui/table-scroll'
-import { formatCurrency, cn, sortRoomsByNumber } from '@/lib/utils'
+import { formatCurrency, cn, groupByBranch } from '@/lib/utils'
 import { toast } from '@/hooks/use-toast'
 import { useLanguage } from '@/contexts/language-context'
 import { useBranches, useRoomLabel } from '@/contexts/branches-context'
@@ -104,10 +104,13 @@ export function NotificationsClient({ notifications, unpaidBillings, linkedTenan
   }
 
   const filteredUnpaid = useMemo(
-    () => sortRoomsByNumber(
-      unpaidBillings.filter(matchesFilters).map((b) => ({ ...b, roomNumber: b.room?.roomNumber ?? '' })),
-    ),
+    () => unpaidBillings.filter(matchesFilters),
     [unpaidBillings, branchFilter, statusFilter, search],
+  )
+
+  const unpaidGroups = useMemo(
+    () => groupByBranch(filteredUnpaid.map((b) => ({ ...b, roomNumber: b.room?.roomNumber ?? '', branch: b.room?.branch ?? '' }))),
+    [filteredUnpaid],
   )
 
   const filteredHistory = useMemo(() => {
@@ -327,7 +330,14 @@ export function NotificationsClient({ notifications, unpaidBillings, linkedTenan
               <p>{t('notifications_empty')}</p>
             </div>
           ) : (
-            filteredUnpaid.map((b) => (
+            unpaidGroups.map((group) => (
+              <div key={group.branch} className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">{group.branch}</h2>
+                  <span className="text-xs text-muted-foreground tabular-nums">({group.items.length})</span>
+                  <div className="flex-1 h-px bg-border" />
+                </div>
+                {group.items.map((b) => (
               <Card key={b.id} className="p-4">
                 <div className="flex items-start justify-between gap-2 mb-3">
                   <div className="min-w-0">
@@ -391,6 +401,8 @@ export function NotificationsClient({ notifications, unpaidBillings, linkedTenan
                   </div>
                 )}
               </Card>
+                ))}
+              </div>
             ))
           )
         ) : (
@@ -477,7 +489,15 @@ export function NotificationsClient({ notifications, unpaidBillings, linkedTenan
                       </td>
                     </tr>
                   )}
-                  {filteredUnpaid.map((b, i) => (
+                  {unpaidGroups.map((group) => (
+                    <Fragment key={group.branch}>
+                      <tr className="bg-muted/40">
+                        <td colSpan={6} className="px-4 py-2">
+                          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{group.branch}</span>
+                          <span className="ml-2 text-xs text-muted-foreground tabular-nums">({group.items.length})</span>
+                        </td>
+                      </tr>
+                      {group.items.map((b, i) => (
                     <tr key={b.id} className={`border-b border-border last:border-0 hover:bg-muted/30 ${i % 2 ? 'bg-muted/10' : ''}`}>
                       <td className="px-4 py-3 font-medium">
                         {b.room ? `${t('room')} ${roomLabel(b.room)}` : '—'}
@@ -540,6 +560,8 @@ export function NotificationsClient({ notifications, unpaidBillings, linkedTenan
                         )}
                       </td>
                     </tr>
+                      ))}
+                    </Fragment>
                   ))}
                 </tbody>
               </table>

@@ -16,7 +16,7 @@ import { GenerateMonthlyDialog } from '@/components/billing/generate-monthly-dia
 import { BatchGenerateInvoiceDialog } from '@/components/invoices/batch-generate-dialog'
 import { NoticeDialog } from '@/components/tenants/notice-dialog'
 import { PromiseDialog } from '@/components/invoices/promise-dialog'
-import { formatCurrency, formatCompact, exportToCSV, sortRoomsByNumber, cn } from '@/lib/utils'
+import { formatCurrency, formatCompact, exportToCSV, groupByBranch, cn } from '@/lib/utils'
 import { CARD_STYLES } from '@/lib/card-colors'
 import { toast } from '@/hooks/use-toast'
 import { useSession } from 'next-auth/react'
@@ -86,24 +86,24 @@ export function BillingListClient({ billings: initial }: Props) {
     return matchBranch && matchMonth
   })
 
-  const filtered = sortRoomsByNumber(
-    billings.filter((b) => {
-      const matchSearch =
-        (b.tenant?.fullName ?? '').toLowerCase().includes(search.toLowerCase()) ||
-        (b.room?.roomNumber ?? '').includes(search) ||
-        b.billingMonth.includes(search)
-      const matchStatus =
-        statusFilter === 'all' ||
-        (statusFilter === 'unpaid_partial'
-          ? b.paymentStatus === 'unpaid' || b.paymentStatus === 'partial'
-          : b.paymentStatus === statusFilter)
-      const matchMonth = range
-        ? b.billingMonth >= range[0] && b.billingMonth <= range[1]
-        : monthFilter === 'all' || b.billingMonth === monthFilter
-      const matchBranch = branchFilter === 'all' || b.room?.branch === branchFilter
-      return matchSearch && matchStatus && matchMonth && matchBranch
-    }).map((b) => ({ ...b, roomNumber: b.room?.roomNumber ?? '' }))
-  )
+  const filtered = billings.filter((b) => {
+    const matchSearch =
+      (b.tenant?.fullName ?? '').toLowerCase().includes(search.toLowerCase()) ||
+      (b.room?.roomNumber ?? '').includes(search) ||
+      b.billingMonth.includes(search)
+    const matchStatus =
+      statusFilter === 'all' ||
+      (statusFilter === 'unpaid_partial'
+        ? b.paymentStatus === 'unpaid' || b.paymentStatus === 'partial'
+        : b.paymentStatus === statusFilter)
+    const matchMonth = range
+      ? b.billingMonth >= range[0] && b.billingMonth <= range[1]
+      : monthFilter === 'all' || b.billingMonth === monthFilter
+    const matchBranch = branchFilter === 'all' || b.room?.branch === branchFilter
+    return matchSearch && matchStatus && matchMonth && matchBranch
+  }).map((b) => ({ ...b, roomNumber: b.room?.roomNumber ?? '', branch: b.room?.branch ?? '' }))
+
+  const grouped = groupByBranch(filtered)
 
   const totalRevenue = filtered
     .filter((b) => b.paymentStatus === 'paid')
@@ -240,15 +240,22 @@ export function BillingListClient({ billings: initial }: Props) {
           onChange={(f, to) => { setMonthFrom(f); setMonthTo(to); if (f || to) setMonthFilter('all') }} />
       </div>
 
-      {/* Card list — used across all screen sizes */}
+      {/* Card list — grouped by branch, rooms ascending inside each group */}
       {filtered.length === 0 && (
         <div className="text-center py-16 text-muted-foreground">
           <FileText className="w-12 h-12 mx-auto mb-3 opacity-30" />
           <p>{t('billing_empty')}</p>
         </div>
       )}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-        {filtered.map((b) => {
+      {grouped.map((group) => (
+        <div key={group.branch} className="space-y-3">
+          <div className="flex items-center gap-3 sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/70 py-2">
+            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">{group.branch}</h2>
+            <span className="text-xs text-muted-foreground tabular-nums">({group.items.length})</span>
+            <div className="flex-1 h-px bg-border" />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+            {group.items.map((b) => {
           const totalPaid = b.payments.reduce((s, p) => s + p.amountUsd, 0)
           const balance = Math.max(0, b.totalUsd - totalPaid)
           const payDay = b.tenant?.payDay ?? 1
@@ -348,7 +355,9 @@ export function BillingListClient({ billings: initial }: Props) {
             </Card>
           )
         })}
-      </div>
+          </div>
+        </div>
+      ))}
 
       {payDialog && (
         <PaymentDialog

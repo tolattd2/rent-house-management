@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { Fragment, useMemo, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { motion } from 'framer-motion'
 import {
@@ -12,7 +12,7 @@ import { RevenueChart } from '@/components/dashboard/revenue-chart'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { TableScroll } from '@/components/ui/table-scroll'
 import { Badge } from '@/components/ui/badge'
-import { formatCompact, formatDate, formatMonth, formatPhones, cn } from '@/lib/utils'
+import { formatCompact, formatDate, formatMonth, formatPhones, groupByBranch, cn } from '@/lib/utils'
 import Link from 'next/link'
 import { useLanguage } from '@/contexts/language-context'
 import { useBranches, useRoomLabel } from '@/contexts/branches-context'
@@ -167,6 +167,31 @@ export function DashboardClient({ rooms, tenants, billings, expenses, unpaidBill
   const collectionRate = stats.paidBillings + stats.unpaidBillings > 0
     ? Math.round((stats.paidBillings / (stats.paidBillings + stats.unpaidBillings)) * 100)
     : 0
+
+  // Top-10 preview lists are grouped by branch and rooms inside each branch
+  // count up, so the same branch's rooms always cluster together — easier to
+  // glance at than a mixed list. We cap at 10 items across all groups.
+  const limitGroups = <T,>(groups: Array<{ branch: string; items: T[] }>, max: number) => {
+    const out: Array<{ branch: string; items: T[] }> = []
+    let count = 0
+    for (const g of groups) {
+      if (count >= max) break
+      const take = Math.min(g.items.length, max - count)
+      out.push({ branch: g.branch, items: g.items.slice(0, take) })
+      count += take
+    }
+    return out
+  }
+
+  const unpaidGroups = useMemo(() => limitGroups(
+    groupByBranch(filteredUnpaid.map((b) => ({ ...b, roomNumber: b.room?.roomNumber ?? '', branch: b.room?.branch ?? '' }))),
+    10,
+  ), [filteredUnpaid])
+
+  const noticeGroups = useMemo(() => limitGroups(
+    groupByBranch(filteredNotices.map((n) => ({ ...n, roomNumber: n.tenant?.room?.roomNumber ?? '', branch: n.tenant?.room?.branch ?? '' }))),
+    10,
+  ), [filteredNotices])
 
   return (
     <div className="space-y-5 animate-fade-in">
@@ -341,45 +366,54 @@ export function DashboardClient({ rooms, tenants, billings, expenses, unpaidBill
               </Link>
             </CardHeader>
             <CardContent className="p-0">
-              {/* Mobile card list */}
-              <div className="md:hidden p-3 space-y-3">
-                {filteredUnpaid.slice(0, 10).map((bill) => (
-                  <div key={bill.id} className="p-3 rounded-lg border border-border">
-                    <div className="flex items-start justify-between gap-2 mb-2">
-                      <div className="min-w-0">
-                        <p className="font-medium truncate">
-                          {bill.room ? `${t('room')} ${roomLabel(bill.room)}` : '—'}
-                        </p>
-                        <Link href={`/tenants/${bill.tenant?.id}`} className="text-sm text-muted-foreground truncate hover:text-primary block">
-                          {bill.tenant?.fullName ?? '—'}
-                        </Link>
-                        {bill.tenant && (
-                          <p className="text-xs text-muted-foreground">{formatPhones(bill.tenant.phone, bill.tenant.phonesExtra)}</p>
-                        )}
-                      </div>
-                      <Badge variant={bill.paymentStatus === 'unpaid' ? 'error' : 'warning'} className="shrink-0 capitalize">
-                        {t(bill.paymentStatus === 'unpaid' ? 'status_unpaid' : 'status_partial')}
-                      </Badge>
+              {/* Mobile card list — grouped by branch */}
+              <div className="md:hidden p-3 space-y-4">
+                {unpaidGroups.map((group) => (
+                  <div key={group.branch} className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <span className={cn('text-xs px-2 py-0.5 rounded-full font-medium', branchChipColor(group.branch))}>
+                        {group.branch}
+                      </span>
+                      <span className="text-xs text-muted-foreground tabular-nums">({group.items.length})</span>
                     </div>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground tabular-nums">{bill.billingMonth}</span>
-                      <div className="text-right">
-                        <span className="font-semibold tabular-nums">${bill.totalUsd.toFixed(2)}</span>
-                        <p className="text-xs text-muted-foreground tabular-nums">{Math.round(bill.totalRiel).toLocaleString()} ៛</p>
+                    {group.items.map((bill) => (
+                      <div key={bill.id} className="p-3 rounded-lg border border-border">
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <div className="min-w-0">
+                            <p className="font-medium truncate">
+                              {bill.room ? `${t('room')} ${roomLabel(bill.room)}` : '—'}
+                            </p>
+                            <Link href={`/tenants/${bill.tenant?.id}`} className="text-sm text-muted-foreground truncate hover:text-primary block">
+                              {bill.tenant?.fullName ?? '—'}
+                            </Link>
+                            {bill.tenant && (
+                              <p className="text-xs text-muted-foreground">{formatPhones(bill.tenant.phone, bill.tenant.phonesExtra)}</p>
+                            )}
+                          </div>
+                          <Badge variant={bill.paymentStatus === 'unpaid' ? 'error' : 'warning'} className="shrink-0 capitalize">
+                            {t(bill.paymentStatus === 'unpaid' ? 'status_unpaid' : 'status_partial')}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground tabular-nums">{bill.billingMonth}</span>
+                          <div className="text-right">
+                            <span className="font-semibold tabular-nums">${bill.totalUsd.toFixed(2)}</span>
+                            <p className="text-xs text-muted-foreground tabular-nums">{Math.round(bill.totalRiel).toLocaleString()} ៛</p>
+                          </div>
+                        </div>
                       </div>
-                    </div>
+                    ))}
                   </div>
                 ))}
               </div>
 
-              {/* Desktop table */}
+              {/* Desktop table — branch header rows split each group */}
               <div className="hidden md:block">
               <TableScroll>
                 <table className="w-full min-w-[600px] text-sm">
                   <thead>
                     <tr className="border-b border-border bg-muted/30">
                       <th className="text-left px-5 py-2.5 text-xs font-medium text-muted-foreground">{t('room')}</th>
-                      {branch === 'all' && <th className="text-left px-5 py-2.5 text-xs font-medium text-muted-foreground">{t('branch')}</th>}
                       <th className="text-left px-5 py-2.5 text-xs font-medium text-muted-foreground">{t('tenant')}</th>
                       <th className="text-left px-5 py-2.5 text-xs font-medium text-muted-foreground">{t('billing_col_month')}</th>
                       <th className="text-right px-5 py-2.5 text-xs font-medium text-muted-foreground">{t('amount')}</th>
@@ -387,41 +421,43 @@ export function DashboardClient({ rooms, tenants, billings, expenses, unpaidBill
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredUnpaid.slice(0, 10).map((bill, i) => (
-                      <tr
-                        key={bill.id}
-                        className={`border-b border-border last:border-0 hover:bg-muted/40 transition-colors ${i % 2 === 0 ? '' : 'bg-muted/10'}`}
-                      >
-                        <td className="px-5 py-3 text-muted-foreground">
-                          {bill.room ? `${t('room')} ${roomLabel(bill.room)}` : '—'}
-                        </td>
-                        {branch === 'all' && (
-                          <td className="px-5 py-3">
-                            <span className={cn(
-                              'text-xs px-2 py-0.5 rounded-full font-medium',
-                              branchChipColor(bill.room?.branch)
-                            )}>
-                              {bill.room?.branch}
+                    {unpaidGroups.map((group) => (
+                      <Fragment key={group.branch}>
+                        <tr className="bg-muted/40">
+                          <td colSpan={5} className="px-5 py-2">
+                            <span className={cn('text-xs px-2 py-0.5 rounded-full font-medium', branchChipColor(group.branch))}>
+                              {group.branch}
                             </span>
+                            <span className="ml-2 text-xs text-muted-foreground tabular-nums">({group.items.length})</span>
                           </td>
-                        )}
-                        <td className="px-5 py-3">
-                          <Link href={`/tenants/${bill.tenant?.id}`} className="font-medium hover:text-primary">
-                            {bill.tenant?.fullName ?? '—'}
-                          </Link>
-                          <p className="text-xs text-muted-foreground">{bill.tenant && formatPhones(bill.tenant.phone, bill.tenant.phonesExtra)}</p>
-                        </td>
-                        <td className="px-5 py-3 text-muted-foreground tabular-nums">{bill.billingMonth}</td>
-                        <td className="px-5 py-3 text-right">
-                          <span className="font-semibold tabular-nums">${bill.totalUsd.toFixed(2)}</span>
-                          <p className="text-xs text-muted-foreground">{Math.round(bill.totalRiel).toLocaleString()} ៛</p>
-                        </td>
-                        <td className="px-5 py-3 text-right">
-                          <Badge variant={bill.paymentStatus === 'unpaid' ? 'error' : 'warning'} className="capitalize">
-                            {t(bill.paymentStatus === 'unpaid' ? 'status_unpaid' : 'status_partial')}
-                          </Badge>
-                        </td>
-                      </tr>
+                        </tr>
+                        {group.items.map((bill, i) => (
+                          <tr
+                            key={bill.id}
+                            className={`border-b border-border last:border-0 hover:bg-muted/40 transition-colors ${i % 2 === 0 ? '' : 'bg-muted/10'}`}
+                          >
+                            <td className="px-5 py-3 text-muted-foreground">
+                              {bill.room ? `${t('room')} ${roomLabel(bill.room)}` : '—'}
+                            </td>
+                            <td className="px-5 py-3">
+                              <Link href={`/tenants/${bill.tenant?.id}`} className="font-medium hover:text-primary">
+                                {bill.tenant?.fullName ?? '—'}
+                              </Link>
+                              <p className="text-xs text-muted-foreground">{bill.tenant && formatPhones(bill.tenant.phone, bill.tenant.phonesExtra)}</p>
+                            </td>
+                            <td className="px-5 py-3 text-muted-foreground tabular-nums">{bill.billingMonth}</td>
+                            <td className="px-5 py-3 text-right">
+                              <span className="font-semibold tabular-nums">${bill.totalUsd.toFixed(2)}</span>
+                              <p className="text-xs text-muted-foreground">{Math.round(bill.totalRiel).toLocaleString()} ៛</p>
+                            </td>
+                            <td className="px-5 py-3 text-right">
+                              <Badge variant={bill.paymentStatus === 'unpaid' ? 'error' : 'warning'} className="capitalize">
+                                {t(bill.paymentStatus === 'unpaid' ? 'status_unpaid' : 'status_partial')}
+                              </Badge>
+                            </td>
+                          </tr>
+                        ))}
+                      </Fragment>
                     ))}
                   </tbody>
                 </table>
@@ -448,46 +484,50 @@ export function DashboardClient({ rooms, tenants, billings, expenses, unpaidBill
               </Link>
             </CardHeader>
             <CardContent className="p-0">
-              {/* Mobile card list */}
-              <div className="md:hidden p-3 space-y-3">
-                {filteredNotices.slice(0, 10).map((n) => (
-                  <div key={n.id} className="p-3 rounded-lg border border-border">
-                    <div className="flex items-start justify-between gap-2 mb-2">
-                      <div className="min-w-0">
-                        <p className="font-medium truncate">
-                          {n.tenant?.room ? `${t('room')} ${roomLabel(n.tenant.room)}` : '—'}
-                        </p>
-                        <Link href={`/tenants/${n.tenant?.id}`} className="text-sm text-muted-foreground truncate hover:text-primary block">
-                          {n.tenant?.fullName ?? '—'}
-                        </Link>
-                        {n.tenant?.room?.branch && (
-                          <span className={cn('inline-block mt-1 text-xs px-2 py-0.5 rounded-full font-medium', branchChipColor(n.tenant.room.branch))}>
-                            {n.tenant.room.branch}
-                          </span>
+              {/* Mobile card list — grouped by branch */}
+              <div className="md:hidden p-3 space-y-4">
+                {noticeGroups.map((group) => (
+                  <div key={group.branch} className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <span className={cn('text-xs px-2 py-0.5 rounded-full font-medium', branchChipColor(group.branch))}>
+                        {group.branch}
+                      </span>
+                      <span className="text-xs text-muted-foreground tabular-nums">({group.items.length})</span>
+                    </div>
+                    {group.items.map((n) => (
+                      <div key={n.id} className="p-3 rounded-lg border border-border">
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <div className="min-w-0">
+                            <p className="font-medium truncate">
+                              {n.tenant?.room ? `${t('room')} ${roomLabel(n.tenant.room)}` : '—'}
+                            </p>
+                            <Link href={`/tenants/${n.tenant?.id}`} className="text-sm text-muted-foreground truncate hover:text-primary block">
+                              {n.tenant?.fullName ?? '—'}
+                            </Link>
+                          </div>
+                          <Badge variant={n.type === 'move_out' ? 'error' : n.type === 'general' ? 'secondary' : 'warning'} className="shrink-0">
+                            {t(`notice_type_${n.type}` as Parameters<typeof t>[0])}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground whitespace-pre-wrap break-words">{n.message}</p>
+                        {n.expectedDate && (
+                          <p className="text-xs text-amber-700 dark:text-amber-500 mt-2 tabular-nums">
+                            {t('notice_expected')}: {formatDate(n.expectedDate)}
+                          </p>
                         )}
                       </div>
-                      <Badge variant={n.type === 'move_out' ? 'error' : n.type === 'general' ? 'secondary' : 'warning'} className="shrink-0">
-                        {t(`notice_type_${n.type}` as Parameters<typeof t>[0])}
-                      </Badge>
-                    </div>
-                    <p className="text-sm text-muted-foreground whitespace-pre-wrap break-words">{n.message}</p>
-                    {n.expectedDate && (
-                      <p className="text-xs text-amber-700 dark:text-amber-500 mt-2 tabular-nums">
-                        {t('notice_expected')}: {formatDate(n.expectedDate)}
-                      </p>
-                    )}
+                    ))}
                   </div>
                 ))}
               </div>
 
-              {/* Desktop table */}
+              {/* Desktop table — branch header rows split each group */}
               <div className="hidden md:block">
               <TableScroll>
                 <table className="w-full min-w-[640px] text-sm">
                   <thead>
                     <tr className="border-b border-border bg-muted/30">
                       <th className="text-left px-5 py-2.5 text-xs font-medium text-muted-foreground">{t('room')}</th>
-                      {branch === 'all' && <th className="text-left px-5 py-2.5 text-xs font-medium text-muted-foreground">{t('branch')}</th>}
                       <th className="text-left px-5 py-2.5 text-xs font-medium text-muted-foreground">{t('tenant')}</th>
                       <th className="text-left px-5 py-2.5 text-xs font-medium text-muted-foreground">{t('notice_type')}</th>
                       <th className="text-left px-5 py-2.5 text-xs font-medium text-muted-foreground">{t('notice_message')}</th>
@@ -495,36 +535,41 @@ export function DashboardClient({ rooms, tenants, billings, expenses, unpaidBill
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredNotices.slice(0, 10).map((n, i) => (
-                      <tr
-                        key={n.id}
-                        className={`border-b border-border last:border-0 hover:bg-muted/40 transition-colors ${i % 2 === 0 ? '' : 'bg-muted/10'}`}
-                      >
-                        <td className="px-5 py-3 text-muted-foreground">
-                          {n.tenant?.room ? `${t('room')} ${roomLabel(n.tenant.room)}` : '—'}
-                        </td>
-                        {branch === 'all' && (
-                          <td className="px-5 py-3">
-                            <span className={cn('text-xs px-2 py-0.5 rounded-full font-medium', branchChipColor(n.tenant?.room?.branch))}>
-                              {n.tenant?.room?.branch ?? '—'}
+                    {noticeGroups.map((group) => (
+                      <Fragment key={group.branch}>
+                        <tr className="bg-muted/40">
+                          <td colSpan={5} className="px-5 py-2">
+                            <span className={cn('text-xs px-2 py-0.5 rounded-full font-medium', branchChipColor(group.branch))}>
+                              {group.branch}
                             </span>
+                            <span className="ml-2 text-xs text-muted-foreground tabular-nums">({group.items.length})</span>
                           </td>
-                        )}
-                        <td className="px-5 py-3">
-                          <Link href={`/tenants/${n.tenant?.id}`} className="font-medium hover:text-primary">
-                            {n.tenant?.fullName ?? '—'}
-                          </Link>
-                        </td>
-                        <td className="px-5 py-3">
-                          <Badge variant={n.type === 'move_out' ? 'error' : n.type === 'general' ? 'secondary' : 'warning'}>
-                            {t(`notice_type_${n.type}` as Parameters<typeof t>[0])}
-                          </Badge>
-                        </td>
-                        <td className="px-5 py-3 text-muted-foreground max-w-[260px] truncate">{n.message}</td>
-                        <td className="px-5 py-3 text-muted-foreground tabular-nums">
-                          {n.expectedDate ? formatDate(n.expectedDate) : '—'}
-                        </td>
-                      </tr>
+                        </tr>
+                        {group.items.map((n, i) => (
+                          <tr
+                            key={n.id}
+                            className={`border-b border-border last:border-0 hover:bg-muted/40 transition-colors ${i % 2 === 0 ? '' : 'bg-muted/10'}`}
+                          >
+                            <td className="px-5 py-3 text-muted-foreground">
+                              {n.tenant?.room ? `${t('room')} ${roomLabel(n.tenant.room)}` : '—'}
+                            </td>
+                            <td className="px-5 py-3">
+                              <Link href={`/tenants/${n.tenant?.id}`} className="font-medium hover:text-primary">
+                                {n.tenant?.fullName ?? '—'}
+                              </Link>
+                            </td>
+                            <td className="px-5 py-3">
+                              <Badge variant={n.type === 'move_out' ? 'error' : n.type === 'general' ? 'secondary' : 'warning'}>
+                                {t(`notice_type_${n.type}` as Parameters<typeof t>[0])}
+                              </Badge>
+                            </td>
+                            <td className="px-5 py-3 text-muted-foreground max-w-[260px] truncate">{n.message}</td>
+                            <td className="px-5 py-3 text-muted-foreground tabular-nums">
+                              {n.expectedDate ? formatDate(n.expectedDate) : '—'}
+                            </td>
+                          </tr>
+                        ))}
+                      </Fragment>
                     ))}
                   </tbody>
                 </table>

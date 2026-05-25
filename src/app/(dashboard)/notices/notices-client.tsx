@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { Fragment, useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
@@ -16,7 +16,7 @@ import { TableScroll } from '@/components/ui/table-scroll'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { DeleteConfirmDialog } from '@/components/ui/delete-confirm-dialog'
 import { NoticeDialog, type TenantNotice, type NoticeTenantOption } from '@/components/tenants/notice-dialog'
-import { formatDate, cn } from '@/lib/utils'
+import { formatDate, groupByBranch, cn } from '@/lib/utils'
 import { CARD_STYLES, type CardColor } from '@/lib/card-colors'
 import { toast } from '@/hooks/use-toast'
 import { useLanguage } from '@/contexts/language-context'
@@ -94,6 +94,14 @@ export function NoticesClient({ notices: initial, tenants }: Props) {
   })
 
   const openCount = notices.filter((n) => n.status === 'open').length
+
+  const grouped = groupByBranch(
+    filtered.map((n) => ({
+      ...n,
+      roomNumber: n.tenant?.room?.roomNumber ?? '',
+      branch: n.tenant?.room?.branch ?? '',
+    })),
+  )
 
   function openNew() {
     setEditing(null)
@@ -250,15 +258,22 @@ export function NoticesClient({ notices: initial, tenants }: Props) {
         </Select>
       </div>
 
-      {/* Mobile card list */}
-      <div className="md:hidden space-y-3">
+      {/* Mobile card list — grouped by branch */}
+      <div className="md:hidden space-y-5">
         {filtered.length === 0 && (
           <div className="text-center py-16 text-muted-foreground">
             <Bell className="w-12 h-12 mx-auto mb-3 opacity-30" />
             <p>{t('notices_empty')}</p>
           </div>
         )}
-        {filtered.map((n) => {
+        {grouped.map((group) => (
+          <div key={group.branch} className="space-y-3">
+            <div className="flex items-center gap-3">
+              <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">{group.branch}</h2>
+              <span className="text-xs text-muted-foreground tabular-nums">({group.items.length})</span>
+              <div className="flex-1 h-px bg-border" />
+            </div>
+            {group.items.map((n) => {
           const meta = NOTICE_META[n.type]
           const resolved = n.status === 'resolved'
           return (
@@ -324,9 +339,11 @@ export function NoticesClient({ notices: initial, tenants }: Props) {
             </Card>
           )
         })}
+          </div>
+        ))}
       </div>
 
-      {/* Desktop table */}
+      {/* Desktop table — branch header rows split each group */}
       <Card className="hidden md:block">
         <TableScroll>
           <table className="w-full min-w-[1000px] text-sm">
@@ -343,7 +360,15 @@ export function NoticesClient({ notices: initial, tenants }: Props) {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((n, i) => {
+              {grouped.map((group) => (
+                <Fragment key={group.branch}>
+                  <tr className="bg-muted/40">
+                    <td colSpan={8} className="px-4 py-2">
+                      <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{group.branch}</span>
+                      <span className="ml-2 text-xs text-muted-foreground tabular-nums">({group.items.length})</span>
+                    </td>
+                  </tr>
+                  {group.items.map((n, i) => {
                 const meta = NOTICE_META[n.type]
                 const Icon = meta.icon
                 const resolved = n.status === 'resolved'
@@ -419,7 +444,9 @@ export function NoticesClient({ notices: initial, tenants }: Props) {
                     </td>
                   </tr>
                 )
-              })}
+                  })}
+                </Fragment>
+              ))}
             </tbody>
           </table>
           {filtered.length === 0 && (

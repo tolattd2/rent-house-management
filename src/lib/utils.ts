@@ -160,3 +160,32 @@ export function sortRoomsByNumber<T extends { roomNumber: string }>(rooms: T[]):
     return numA - numB
   })
 }
+
+/**
+ * Group tenant-bearing records by their branch and sort each group's rows
+ * by room number ascending. Used by every tenant-information list (tenants,
+ * billing, invoices, notifications, notices) so the same branch always lines
+ * up the same way and rooms inside it count up — easier to scan and track.
+ */
+export function groupByBranch<T extends { roomNumber: string; branch: string | null | undefined }>(
+  items: T[],
+  unassignedLabel = '—',
+): Array<{ branch: string; items: T[] }> {
+  const buckets = new Map<string, T[]>()
+  for (const item of items) {
+    const key = (item.branch ?? '').trim() || unassignedLabel
+    const bucket = buckets.get(key)
+    if (bucket) bucket.push(item)
+    else buckets.set(key, [item])
+  }
+  const groups = Array.from(buckets.entries()).map(([branch, rows]) => ({
+    branch,
+    items: sortRoomsByNumber(rows),
+  }))
+  groups.sort((a, b) => {
+    if (a.branch === unassignedLabel) return 1
+    if (b.branch === unassignedLabel) return -1
+    return a.branch.localeCompare(b.branch)
+  })
+  return groups
+}
