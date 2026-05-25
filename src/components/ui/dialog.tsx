@@ -46,6 +46,10 @@ const DialogContent = React.forwardRef<
         'max-h-[90vh] overflow-y-auto',
         className
       )}
+      // Prevent accidental dismissal by clicking/tapping the backdrop. Users
+      // must use an explicit Cancel/Save/Close action (or the X button).
+      // Callers can still override by passing their own onInteractOutside.
+      onInteractOutside={(e) => e.preventDefault()}
       {...props}
     >
       {children}

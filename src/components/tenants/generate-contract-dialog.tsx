@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Upload, FileText, Download, Save, RefreshCw, BookTemplate, Wand2 } from 'lucide-react'
+import { Upload, FileText, Printer, Save, RefreshCw, BookTemplate, Wand2 } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { RichTextEditor, plainTextToHtml, looksLikeHtml } from '@/components/ui/rich-text-editor'
@@ -49,6 +49,10 @@ export function GenerateContractDialog({ tenantId, vars, onClose, initialText }:
   const [extracting, setExtracting] = useState(false)
   const [templates, setTemplates] = useState<SavedTemplate[]>([])
   const [savingTemplate, setSavingTemplate] = useState(false)
+  // Print/preview page settings — applied to the @page rule when opening the
+  // print window. Users can change these to match their paper before printing.
+  const [paperSize, setPaperSize] = useState<'A4' | 'A5' | 'Letter' | 'Legal'>('A4')
+  const [pageMargin, setPageMargin] = useState('20mm')
 
   const duration = useMemo(
     () => vars.durationLabel || computeDurationLabel(vars.contractStart, vars.contractEnd),
@@ -214,9 +218,10 @@ export function GenerateContractDialog({ tenantId, vars, onClose, initialText }:
       return
     }
     const title = `Agreement — ${vars.tenantName || ''}`
+    const safeMargin = pageMargin.trim() || '20mm'
     win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${title}</title>
 <style>
-  @page { size: A4; margin: 20mm; }
+  @page { size: ${paperSize}; margin: ${safeMargin}; }
   body { font-family: 'Khmer OS Siemreap', 'Noto Sans Khmer', 'Khmer OS', 'Times New Roman', serif; font-size: 12pt; line-height: 1.6; color: #111; }
   h1 { font-size: 18pt; text-align: center; margin: 0.4em 0; }
   h2 { font-size: 14pt; margin: 0.6em 0 0.3em; }
@@ -266,7 +271,7 @@ export function GenerateContractDialog({ tenantId, vars, onClose, initialText }:
           <input
             ref={fileRef}
             type="file"
-            accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
             className="hidden"
             onChange={handleUpload}
           />
@@ -348,12 +353,36 @@ export function GenerateContractDialog({ tenantId, vars, onClose, initialText }:
           ariaLabel={t('contract_gen_title')}
         />
 
-        <div className="flex flex-wrap justify-end gap-2 pt-2 border-t">
+        <div className="flex flex-wrap items-center justify-end gap-2 pt-2 border-t">
+          <label className="text-xs text-muted-foreground inline-flex items-center gap-1">
+            {t('contract_gen_paper_size')}
+            <select
+              className="h-9 rounded-md border bg-background px-2 text-sm"
+              value={paperSize}
+              onChange={(e) => setPaperSize(e.target.value as typeof paperSize)}
+            >
+              <option value="A4">A4</option>
+              <option value="A5">A5</option>
+              <option value="Letter">Letter</option>
+              <option value="Legal">Legal</option>
+            </select>
+          </label>
+          <label className="text-xs text-muted-foreground inline-flex items-center gap-1">
+            {t('contract_gen_margin')}
+            <input
+              type="text"
+              className="h-9 w-28 rounded-md border bg-background px-2 text-sm"
+              value={pageMargin}
+              onChange={(e) => setPageMargin(e.target.value)}
+              placeholder="20mm"
+              title={t('contract_gen_margin_hint')}
+            />
+          </label>
           <Button type="button" variant="outline" onClick={onClose}>
             {t('cancel')}
           </Button>
           <Button type="button" variant="outline" onClick={handleDownload}>
-            <Download className="w-4 h-4 mr-1" />{t('contract_gen_download_btn')}
+            <Printer className="w-4 h-4 mr-1" />{t('contract_gen_download_btn')}
           </Button>
           <Button type="button" onClick={handleSave} loading={saving}>
             <Save className="w-4 h-4 mr-1" />{t('contract_gen_save_btn')}
