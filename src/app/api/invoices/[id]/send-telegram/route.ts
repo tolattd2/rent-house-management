@@ -16,7 +16,7 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
   })
   if (!billing) return NextResponse.json({ ok: false, error: 'Billing not found' }, { status: 404 })
 
-  const msg = buildReminderMessage({
+  const msg = await buildReminderMessage({
     tenantName: billing.tenant?.fullName ?? 'Unknown',
     roomNumber: billing.room?.roomNumber ?? '—',
     billingMonth: billing.billingMonth,

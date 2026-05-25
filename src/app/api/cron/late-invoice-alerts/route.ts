@@ -94,7 +94,7 @@ export async function GET(req: NextRequest) {
 
     const { penaltyUsd } = computeLateFee(settings, branchList, x.b.room?.branch, x.b.billingMonth, tenant.payDay)
 
-    const msg = buildLateReminderMessage({
+    const msg = await buildLateReminderMessage({
       tenantName: tenant.fullName,
       roomNumber: x.b.room?.roomNumber ?? '—',
       billingMonth: x.b.billingMonth,

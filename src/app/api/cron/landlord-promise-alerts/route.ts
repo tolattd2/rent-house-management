@@ -65,7 +65,7 @@ export async function GET(req: NextRequest) {
     if (balance <= 0) { skippedPaid++; continue }
 
     const daysSince = Math.floor((today.getTime() - promise.getTime()) / 86_400_000)
-    const msg = buildLandlordPromiseOverdueMessage({
+    const msg = await buildLandlordPromiseOverdueMessage({
       tenantName: billing.tenant?.fullName ?? 'Unknown tenant',
       tenantPhone: billing.tenant?.phone ?? undefined,
       roomNumber: billing.room?.roomNumber ?? '—',

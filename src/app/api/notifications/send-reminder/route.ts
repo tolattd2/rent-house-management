@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
     }
 
     const msg = reminderKind === 'late'
-      ? buildLateReminderMessage({
+      ? await buildLateReminderMessage({
         tenantName: tenant.fullName,
         roomNumber: billing.room?.roomNumber ?? '—',
         billingMonth: billing.billingMonth,
@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
         payDay: tenant.payDay,
         branchName: billing.room?.branch,
       })
-      : buildReminderMessage({
+      : await buildReminderMessage({
         tenantName: tenant.fullName,
         roomNumber: billing.room?.roomNumber ?? '—',
         billingMonth: billing.billingMonth,

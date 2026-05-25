@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
     // Tenants who haven't linked their Telegram yet are skipped, not failed.
     if (!billing.tenant.telegramChatId) { skipped++; continue }
 
-    const msg = buildReminderMessage({
+    const msg = await buildReminderMessage({
       tenantName: billing.tenant.fullName,
       roomNumber: billing.room?.roomNumber ?? '—',
       billingMonth: billing.billingMonth,

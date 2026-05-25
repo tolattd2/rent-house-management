@@ -18,7 +18,7 @@ export async function POST() {
   const penaltyPerDay = Number(rateRow?.value) || 0
   const sampleDays = 15
 
-  const sample = buildLateReminderMessage({
+  const sample = await buildLateReminderMessage({
     tenantName: 'Test Tenant',
     roomNumber: '101',
     billingMonth: new Date().toISOString().slice(0, 7),

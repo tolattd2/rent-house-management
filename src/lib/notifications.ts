@@ -1,4 +1,22 @@
 import { getSettingsMap } from './cached-queries'
+import { parseBranches, branchSlug } from './branches'
+
+/**
+ * Property name shown in notification titles, picked per tenant's branch.
+ * Mirrors the fallback chain used by the invoice PDF (see invoice-card.tsx).
+ */
+async function resolvePropertyName(branchName: string | null | undefined): Promise<string> {
+  const settings = await getSettingsMap()
+  const branches = parseBranches(settings.branches)
+  const slug = branchSlug(branches, branchName)
+  return (
+    settings[`company_${slug}_name`]?.trim() ||
+    settings.company_name?.trim() ||
+    settings.app_title?.trim() ||
+    branchName?.trim() ||
+    'Rental'
+  )
+}
 
 export async function sendTelegramMessage(message: string): Promise<{ ok: boolean; error?: string }> {
   const settings = await getSettingsMap()
@@ -99,7 +117,7 @@ export async function sendSMS(to: string, message: string): Promise<{ ok: boolea
 
 export type ReminderLang = 'en' | 'km'
 
-export function buildReminderMessage(params: {
+export async function buildReminderMessage(params: {
   tenantName: string
   roomNumber: string
   billingMonth: string
@@ -108,10 +126,10 @@ export function buildReminderMessage(params: {
   payDay?: number
   lang?: ReminderLang
   branchName?: string | null
-}): string {
+}): Promise<string> {
   const rielFormatted = Math.round(params.totalRiel).toLocaleString()
   const usd = params.totalUsd.toFixed(2)
-  const branch = params.branchName?.trim() || 'Takmao Rental'
+  const branch = await resolvePropertyName(params.branchName)
 
   if (params.lang === 'km') {
     const closing = params.payDay
@@ -145,7 +163,7 @@ export function buildReminderMessage(params: {
  * "promise to pay" date has passed without payment. Uses the shared admin
  * Telegram chat, so the landlord can chase up directly.
  */
-export function buildLandlordPromiseOverdueMessage(params: {
+export async function buildLandlordPromiseOverdueMessage(params: {
   tenantName: string
   tenantPhone?: string
   roomNumber: string
@@ -156,11 +174,11 @@ export function buildLandlordPromiseOverdueMessage(params: {
   balanceUsd: number
   promiseDate: string
   daysSincePromise: number
-}): string {
+}): Promise<string> {
   const riel = Math.round(params.totalRiel).toLocaleString()
   const usd = params.totalUsd.toFixed(2)
   const balance = params.balanceUsd.toFixed(2)
-  const branch = params.branchName?.trim() || 'Takmao Rental'
+  const branch = await resolvePropertyName(params.branchName)
   const phoneLine = params.tenantPhone?.trim() ? `📞 ${params.tenantPhone.trim()}\n` : ''
 
   return (
@@ -181,7 +199,7 @@ export function buildLandlordPromiseOverdueMessage(params: {
  * daily auto-alert cron. Warns how many days late they are and the late-fee
  * penalty they will be charged next month.
  */
-export function buildLateReminderMessage(params: {
+export async function buildLateReminderMessage(params: {
   tenantName: string
   roomNumber: string
   billingMonth: string
@@ -191,11 +209,11 @@ export function buildLateReminderMessage(params: {
   penaltyUsd: number
   payDay?: number
   branchName?: string | null
-}): string {
+}): Promise<string> {
   const riel = Math.round(params.totalRiel).toLocaleString()
   const usd = params.totalUsd.toFixed(2)
   const penalty = params.penaltyUsd.toFixed(2)
-  const branch = params.branchName?.trim() || 'Takmao Rental'
+  const branch = await resolvePropertyName(params.branchName)
   const payDayLine = params.payDay
     ? `ថ្ងៃត្រូវបង់ / Pay Day៖ ${params.payDay}\n`
     : ''

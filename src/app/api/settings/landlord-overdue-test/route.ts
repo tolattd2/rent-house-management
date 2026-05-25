@@ -17,7 +17,7 @@ export async function POST() {
   const today = new Date()
   const promised = new Date(today.getTime() - 3 * 86_400_000).toISOString().slice(0, 10)
 
-  const sample = buildLandlordPromiseOverdueMessage({
+  const sample = await buildLandlordPromiseOverdueMessage({
     tenantName: 'Test Tenant',
     tenantPhone: '012 345 678',
     roomNumber: '101',
