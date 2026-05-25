@@ -61,6 +61,9 @@ const PLACEHOLDERS = [
   'contract_start',
   'contract_end',
   'contract_duration',
+  // Money-in-words (English: "one hundred US dollars exact")
+  'rent_in_word',
+  'deposit_in_word',
   // Khmer-localised variants
   'tenant_name_km',
   'gender_km',
@@ -85,6 +88,12 @@ const PLACEHOLDERS = [
   'contract_start_km',
   'contract_end_km',
   'contract_duration_km',
+  // Money-in-words (Khmer: "មួយរយដុល្លារគត់")
+  'rent_in_word_km',
+  'deposit_in_word_km',
+  // Generic alias — same as rent_in_word_km (the most common use case for "the
+  // amount in words" inside the contract body is the monthly rent).
+  'money_in_word',
 ] as const
 
 export type PlaceholderKey = (typeof PLACEHOLDERS)[number]
@@ -236,6 +245,121 @@ function fmtUsdKhmer(n: number): string {
   return `${toKhmerDigits((n || 0).toFixed(2))} ដុល្លារ`
 }
 
+const KHMER_ONES = ['', 'មួយ', 'ពីរ', 'បី', 'បួន', 'ប្រាំ', 'ប្រាំមួយ', 'ប្រាំពីរ', 'ប្រាំបី', 'ប្រាំបួន']
+// Tens-place words 20-90. 0 and 10 are handled separately.
+const KHMER_TENS = ['', '', 'ម្ភៃ', 'សាមសិប', 'សែសិប', 'ហាសិប', 'ហុកសិប', 'ចិតសិប', 'ប៉ែតសិប', 'កៅសិប']
+
+/** Convert a non-negative integer (≤ ~999 billion) into its spelled-out Khmer reading. */
+function intToKhmerWords(n: number): string {
+  if (!Number.isFinite(n) || n < 0) return ''
+  if (n === 0) return 'សូន្យ'
+
+  const parts: string[] = []
+
+  const billions = Math.floor(n / 1_000_000_000)
+  if (billions > 0) {
+    parts.push(intToKhmerWords(billions) + 'ប៊ីលាន')
+    n %= 1_000_000_000
+  }
+  const millions = Math.floor(n / 1_000_000)
+  if (millions > 0) {
+    parts.push(intToKhmerWords(millions) + 'លាន')
+    n %= 1_000_000
+  }
+  const saen = Math.floor(n / 100_000)
+  if (saen > 0) {
+    parts.push(KHMER_ONES[saen] + 'សែន')
+    n %= 100_000
+  }
+  const meun = Math.floor(n / 10_000)
+  if (meun > 0) {
+    parts.push(KHMER_ONES[meun] + 'ម៉ឺន')
+    n %= 10_000
+  }
+  const thousands = Math.floor(n / 1_000)
+  if (thousands > 0) {
+    parts.push(KHMER_ONES[thousands] + 'ពាន់')
+    n %= 1_000
+  }
+  const hundreds = Math.floor(n / 100)
+  if (hundreds > 0) {
+    parts.push(KHMER_ONES[hundreds] + 'រយ')
+    n %= 100
+  }
+
+  // 0–99 remainder: 10–19 uses ដប់, 20–99 uses tens word + ones.
+  const tens = Math.floor(n / 10)
+  if (tens === 1) {
+    parts.push(n === 10 ? 'ដប់' : 'ដប់' + KHMER_ONES[n - 10])
+    n = 0
+  } else if (tens >= 2) {
+    parts.push(KHMER_TENS[tens])
+    n %= 10
+  }
+  if (n > 0) parts.push(KHMER_ONES[n])
+
+  return parts.join('')
+}
+
+const ENGLISH_ONES = [
+  '', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine',
+  'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen',
+  'seventeen', 'eighteen', 'nineteen',
+]
+const ENGLISH_TENS = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety']
+
+function englishUnder1000(n: number): string {
+  if (n < 20) return ENGLISH_ONES[n]
+  if (n < 100) {
+    const t = Math.floor(n / 10)
+    const r = n % 10
+    return r === 0 ? ENGLISH_TENS[t] : `${ENGLISH_TENS[t]}-${ENGLISH_ONES[r]}`
+  }
+  const h = Math.floor(n / 100)
+  const r = n % 100
+  return r === 0 ? `${ENGLISH_ONES[h]} hundred` : `${ENGLISH_ONES[h]} hundred ${englishUnder1000(r)}`
+}
+
+function intToEnglishWords(n: number): string {
+  if (!Number.isFinite(n) || n < 0) return ''
+  if (n === 0) return 'zero'
+  const parts: string[] = []
+  if (n >= 1_000_000_000) {
+    parts.push(`${englishUnder1000(Math.floor(n / 1_000_000_000))} billion`)
+    n %= 1_000_000_000
+  }
+  if (n >= 1_000_000) {
+    parts.push(`${englishUnder1000(Math.floor(n / 1_000_000))} million`)
+    n %= 1_000_000
+  }
+  if (n >= 1_000) {
+    parts.push(`${englishUnder1000(Math.floor(n / 1_000))} thousand`)
+    n %= 1_000
+  }
+  if (n > 0) parts.push(englishUnder1000(n))
+  return parts.join(' ')
+}
+
+/** USD amount → Khmer spelled-out reading, e.g. 100 → "មួយរយដុល្លារគត់". */
+export function moneyInKhmerWords(usd: number): string {
+  if (!Number.isFinite(usd) || usd < 0) return ''
+  const cents = Math.round(usd * 100)
+  const dollars = Math.floor(cents / 100)
+  const rem = cents % 100
+  if (rem === 0) return `${intToKhmerWords(dollars)}ដុល្លារគត់`
+  return `${intToKhmerWords(dollars)}ដុល្លារ និង${intToKhmerWords(rem)}សេន`
+}
+
+/** USD amount → English spelled-out reading, e.g. 100 → "one hundred US dollars exact". */
+export function moneyInEnglishWords(usd: number): string {
+  if (!Number.isFinite(usd) || usd < 0) return ''
+  const cents = Math.round(usd * 100)
+  const dollars = Math.floor(cents / 100)
+  const rem = cents % 100
+  if (rem === 0) return `${intToEnglishWords(dollars)} US dollars exact`
+  return `${intToEnglishWords(dollars)} US dollars and ${intToEnglishWords(rem)} cents`
+}
+
 /** Replace {{key}} markers in `text` with values from vars. Keeps unknown markers intact. */
 export function fillPlaceholders(text: string, vars: AgreementVars): string {
   const durationEn = vars.durationLabel || durationEnglish(vars.contractStart, vars.contractEnd)
@@ -269,6 +393,8 @@ export function fillPlaceholders(text: string, vars: AgreementVars): string {
     contract_start: vars.contractStart || '',
     contract_end: vars.contractEnd || '',
     contract_duration: durationEn,
+    rent_in_word: moneyInEnglishWords(vars.monthlyRent),
+    deposit_in_word: moneyInEnglishWords(vars.depositAmount),
 
     // Khmer-localised — translate where there's a known mapping; otherwise
     // convert ASCII digits to Khmer numerals; proper nouns pass through.
@@ -295,6 +421,10 @@ export function fillPlaceholders(text: string, vars: AgreementVars): string {
     contract_start_km:   toKhmerDigits(vars.contractStart || ''),
     contract_end_km:     toKhmerDigits(vars.contractEnd || ''),
     contract_duration_km: durationKm,
+    rent_in_word_km:     moneyInKhmerWords(vars.monthlyRent),
+    deposit_in_word_km:  moneyInKhmerWords(vars.depositAmount),
+    // Generic alias — same as rent_in_word_km, for the user's preferred name.
+    money_in_word:       moneyInKhmerWords(vars.monthlyRent),
   }
 
   return text.replace(/\{\{\s*([a-z_]+)\s*\}\}/gi, (m, key: string) => {

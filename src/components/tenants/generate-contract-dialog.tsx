@@ -389,7 +389,7 @@ function PlaceholderHelp() {
     },
     {
       title: t('contract_gen_ph_group_rental'),
-      keys: ['room', 'branch', 'rent', 'deposit', 'pay_day'],
+      keys: ['room', 'branch', 'rent', 'deposit', 'pay_day', 'rent_in_word', 'deposit_in_word'],
     },
     {
       title: t('contract_gen_ph_group_contract'),
