@@ -108,48 +108,71 @@ export function TenantDetailClient({ tenant, rooms }: Props) {
 
     // 794px ≈ 210 mm at 96 dpi → A4 width
     const A4_WIDTH_PX = 794
-    const container = document.createElement('div')
-    container.style.cssText = [
-      // Render visibly (off-screen via negative left causes html2canvas to
-      // skip some descendants). opacity:0 + pointer-events:none keeps it
-      // invisible without breaking layout/rasterization.
+
+    // We render the contract inside an isolated iframe so the page's Tailwind
+    // base layer (`* { border-color: hsl(var(--border)) }` and friends) cannot
+    // bleed in and break html2canvas. The iframe has only the print stylesheet
+    // we control.
+    const iframe = document.createElement('iframe')
+    iframe.style.cssText = [
       'position: fixed',
-      'left: 0',
+      'left: -10000px',
       'top: 0',
-      'z-index: -1',
-      'opacity: 0',
-      'pointer-events: none',
       `width: ${A4_WIDTH_PX}px`,
-      'padding: 20mm',
-      'box-sizing: border-box',
+      'height: 1px',
+      'border: 0',
       'background: #ffffff',
-      "font-family: 'Khmer OS Siemreap', 'Noto Sans Khmer', 'Khmer OS', 'Times New Roman', serif",
-      'font-size: 12pt',
-      'line-height: 1.6',
-      'color: #111111',
     ].join(';')
-    container.innerHTML = html
-    document.body.appendChild(container)
+    document.body.appendChild(iframe)
 
     try {
       toast({ title: t('contract_gen_send_preparing') })
 
-      // Give layout/fonts a tick to settle before rasterizing.
+      const iframeDoc = iframe.contentDocument
+      if (!iframeDoc) throw new Error('Could not access iframe document')
+      iframeDoc.open()
+      iframeDoc.write(`<!doctype html><html><head><meta charset="utf-8"><style>
+  html, body { margin: 0; padding: 0; background: #ffffff; }
+  body {
+    font-family: 'Khmer OS Siemreap', 'Noto Sans Khmer', 'Khmer OS', 'Times New Roman', serif;
+    font-size: 12pt; line-height: 1.6; color: #111111;
+    padding: 20mm; box-sizing: border-box; width: ${A4_WIDTH_PX}px;
+  }
+  h1 { font-size: 18pt; text-align: center; margin: 0.4em 0; }
+  h2 { font-size: 14pt; margin: 0.6em 0 0.3em; }
+  h3 { font-size: 12pt; margin: 0.5em 0 0.25em; }
+  p  { margin: 0.35em 0; }
+  ul, ol { margin: 0.3em 0 0.3em 1.5em; }
+  blockquote { border-left: 3px solid #888; margin: 0.5em 0; padding-left: 0.6em; color: #444; }
+  pre { background: #f3f3f3; padding: 0.5em; border-radius: 4px; white-space: pre-wrap; }
+</style></head><body>${html}</body></html>`)
+      iframeDoc.close()
+
+      // Wait for layout/fonts inside the iframe to settle.
       await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
-      if (document.fonts?.ready) await document.fonts.ready
+      if (iframeDoc.fonts?.ready) await iframeDoc.fonts.ready
+
+      const body = iframeDoc.body
+      // Grow the iframe to fit content so html2canvas sees the full height.
+      iframe.style.height = `${body.scrollHeight}px`
 
       const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
         import('html2canvas'),
         import('jspdf'),
       ])
 
-      const canvas = await html2canvas(container, {
+      const canvas = await html2canvas(body, {
         scale: 2,
         backgroundColor: '#ffffff',
         useCORS: true,
         windowWidth: A4_WIDTH_PX,
         width: A4_WIDTH_PX,
+        height: body.scrollHeight,
+        windowHeight: body.scrollHeight,
       })
+      if (canvas.width === 0 || canvas.height === 0) {
+        throw new Error('Empty render — contract content could not be captured')
+      }
 
       const pdf = new jsPDF({ unit: 'pt', format: 'a4' })
       const pageWidth = pdf.internal.pageSize.getWidth()
@@ -196,7 +219,7 @@ export function TenantDetailClient({ tenant, rooms }: Props) {
         variant: 'destructive',
       })
     } finally {
-      container.remove()
+      iframe.remove()
       setSendingContractId(null)
     }
   }
