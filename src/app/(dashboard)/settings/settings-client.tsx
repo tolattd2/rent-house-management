@@ -50,6 +50,7 @@ export function SettingsClient({ settings: initial }: Props) {
   // Users state
   const [users, setUsers] = useState<UserRow[]>([])
   const [usersLoading, setUsersLoading] = useState(false)
+  const [usersError, setUsersError] = useState<string | null>(null)
   const [showAddUser, setShowAddUser] = useState(false)
   const [addingUser, setAddingUser] = useState(false)
   const [newUser, setNewUser] = useState({ name: '', email: '', password: '', role: 'staff' as const, phone: '' })
@@ -147,10 +148,22 @@ export function SettingsClient({ settings: initial }: Props) {
 
   async function loadUsers() {
     setUsersLoading(true)
-    const res = await fetch('/api/users')
-    const data = await res.json()
-    if (data.ok) setUsers(data.data)
-    setUsersLoading(false)
+    setUsersError(null)
+    try {
+      const res = await fetch('/api/users')
+      const data = await res.json().catch(() => ({ ok: false, error: `HTTP ${res.status}` }))
+      if (data.ok) {
+        setUsers(data.data)
+      } else {
+        setUsers([])
+        setUsersError(data.error || `HTTP ${res.status}`)
+      }
+    } catch (e) {
+      setUsers([])
+      setUsersError(e instanceof Error ? e.message : 'Network error')
+    } finally {
+      setUsersLoading(false)
+    }
   }
 
   async function handleAddUser() {
@@ -892,8 +905,13 @@ export function SettingsClient({ settings: initial }: Props) {
               <CardContent>
                 {usersLoading ? (
                   <p className="text-sm text-muted-foreground py-4 text-center">Loading...</p>
+                ) : usersError ? (
+                  <div className="py-4 text-center space-y-2">
+                    <p className="text-sm text-destructive">Could not load users: {usersError}</p>
+                    <Button type="button" size="sm" variant="outline" onClick={loadUsers}>Retry</Button>
+                  </div>
                 ) : users.length === 0 ? (
-                  <p className="text-sm text-muted-foreground py-4 text-center">{t('settings_admin_only_note')}</p>
+                  <p className="text-sm text-muted-foreground py-4 text-center">No users found yet — add one with the button above.</p>
                 ) : (
                   <div className="space-y-2">
                     {users.map((u) => (
