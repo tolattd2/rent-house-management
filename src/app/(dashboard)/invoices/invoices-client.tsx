@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Search, FileText, Printer, Trash2, CalendarClock } from 'lucide-react'
+import { Search, FileText, Printer, Trash2, CalendarClock, Bell } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
 import { CARD_STYLES } from '@/lib/card-colors'
 import { Badge } from '@/components/ui/badge'
@@ -20,6 +20,7 @@ import { toast } from '@/hooks/use-toast'
 import { InvoiceBatchPrintDialog } from '@/components/invoices/batch-print-dialog'
 import { InvoiceBatchDeleteDialog } from '@/components/invoices/batch-delete-dialog'
 import { PromiseDialog } from '@/components/invoices/promise-dialog'
+import { NoticeDialog } from '@/components/tenants/notice-dialog'
 import { useDeleteWithUndo, runDeleteWithUndo } from '@/hooks/use-delete-with-undo'
 import { usePersistentState } from '@/hooks/use-persistent-state'
 import { DeleteConfirmDialog } from '@/components/ui/delete-confirm-dialog'
@@ -58,6 +59,7 @@ export function InvoicesClient({ invoices: initial }: Props) {
   const [showBatchPrint, setShowBatchPrint] = useState(false)
   const [showBatchDelete, setShowBatchDelete] = useState(false)
   const [promiseBillingId, setPromiseBillingId] = useState<string | null>(null)
+  const [noticeTenantId, setNoticeTenantId] = useState<string | null>(null)
   const { triggerDelete, dialogState, closeDialog } = useDeleteWithUndo()
 
   const branches = useBranches().map((b) => b.name)
@@ -71,7 +73,11 @@ export function InvoicesClient({ invoices: initial }: Props) {
       inv.invoiceNumber.toLowerCase().includes(search.toLowerCase()) ||
       (inv.billing?.billingMonth ?? '').includes(search) ||
       (inv.billing?.room?.roomNumber ?? '').includes(search)
-    const matchStatus = statusFilter === 'all' || inv.billing?.paymentStatus === statusFilter
+    const matchStatus =
+      statusFilter === 'all' ||
+      (statusFilter === 'unpaid_partial'
+        ? inv.billing?.paymentStatus === 'unpaid' || inv.billing?.paymentStatus === 'partial'
+        : inv.billing?.paymentStatus === statusFilter)
     const bm = inv.billing?.billingMonth ?? ''
     const matchMonth = range
       ? bm >= range[0] && bm <= range[1]
@@ -183,13 +189,16 @@ export function InvoicesClient({ invoices: initial }: Props) {
             {b === 'all' ? t('all_branches') : b}
           </Button>
         ))}
-        {(['all', 'paid', 'unpaid'] as const).map((s) => (
-          <Button key={s} variant={statusFilter === s ? 'default' : 'outline'} size="sm"
-            className="h-9 px-3 text-sm"
-            onClick={() => setStatusFilter(s)}>
-            {s === 'all' ? t('billing_all_status') : s === 'paid' ? t('status_paid') : t('status_unpaid')}
-          </Button>
-        ))}
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-40 h-9"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{t('billing_all_status')}</SelectItem>
+            <SelectItem value="unpaid_partial">{t('status_unpaid_partial')}</SelectItem>
+            <SelectItem value="paid">{t('status_paid')}</SelectItem>
+            <SelectItem value="unpaid">{t('status_unpaid')}</SelectItem>
+            <SelectItem value="partial">{t('status_partial')}</SelectItem>
+          </SelectContent>
+        </Select>
         <Select
           value={monthFilter}
           onValueChange={(v) => { setMonthFilter(v); setMonthFrom(''); setMonthTo('') }}
@@ -234,8 +243,21 @@ export function InvoicesClient({ invoices: initial }: Props) {
                   <td className="px-4 py-3">{inv.billing?.billingMonth ?? '—'}</td>
                   <td className="px-4 py-3 text-right font-medium">{formatCurrency(inv.billing?.totalUsd ?? 0)}</td>
                   <td className="px-4 py-3 text-center">
-                    <Badge variant={inv.billing?.paymentStatus === 'paid' ? 'success' : 'error'} className="capitalize">
-                      {inv.billing?.paymentStatus === 'paid' ? t('status_paid') : t('status_unpaid')}
+                    <Badge
+                      variant={
+                        inv.billing?.paymentStatus === 'paid'
+                          ? 'success'
+                          : inv.billing?.paymentStatus === 'partial'
+                          ? 'warning'
+                          : 'error'
+                      }
+                      className="capitalize"
+                    >
+                      {inv.billing?.paymentStatus === 'paid'
+                        ? t('status_paid')
+                        : inv.billing?.paymentStatus === 'partial'
+                        ? t('status_partial')
+                        : t('status_unpaid')}
                     </Badge>
                   </td>
                   <td className="px-4 py-3 font-mono text-xs">{inv.invoiceNumber}</td>
@@ -257,6 +279,17 @@ export function InvoicesClient({ invoices: initial }: Props) {
                           onClick={() => setPromiseBillingId(inv.billingId)}
                         >
                           <CalendarClock className="w-3.5 h-3.5" />
+                        </Button>
+                      )}
+                      {isAdmin && inv.tenant && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-xs h-8 px-2 text-amber-600 hover:bg-amber-500/10"
+                          title={t('notice_add')}
+                          onClick={() => setNoticeTenantId(inv.tenant!.id)}
+                        >
+                          <Bell className="w-3.5 h-3.5" />
                         </Button>
                       )}
                       {isAdmin && (
@@ -310,6 +343,14 @@ export function InvoicesClient({ invoices: initial }: Props) {
         <PromiseDialog
           billingId={promiseBillingId}
           onClose={() => setPromiseBillingId(null)}
+        />
+      )}
+
+      {noticeTenantId && (
+        <NoticeDialog
+          tenantId={noticeTenantId}
+          onClose={() => setNoticeTenantId(null)}
+          onSave={() => setNoticeTenantId(null)}
         />
       )}
     </div>
