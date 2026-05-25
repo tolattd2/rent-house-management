@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import {
   Plus, Search, Bell, Trash2, Pencil, CheckCircle2, RotateCcw,
-  LogOut, Wrench, AlertTriangle, FileText,
+  LogOut, Wrench, AlertTriangle, FileText, Hammer,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -128,6 +128,36 @@ export function NoticesClient({ notices: initial, tenants }: Props) {
       setNotices((prev) => prev.map((x) => (x.id === n.id ? { ...x, ...data.record } : x)))
       toast({ title: next === 'resolved' ? t('notice_resolved_toast') : t('notice_reopened_toast') })
       router.refresh()
+    } else {
+      toast({ title: 'Error', description: data.error, variant: 'destructive' })
+    }
+  }
+
+  const [addingMaintenanceId, setAddingMaintenanceId] = useState<string | null>(null)
+  async function handleAddToMaintenance(n: NoticeRecord) {
+    if (!n.tenant?.room) {
+      toast({ title: t('notice_add_to_maintenance_no_room'), variant: 'destructive' })
+      return
+    }
+    setAddingMaintenanceId(n.id)
+    const res = await fetch('/api/maintenance', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: n.message,
+        description: n.message,
+        category: 'general',
+        repairFeeUsd: 0,
+        reportedDate: new Date().toISOString().slice(0, 10),
+        notes: '',
+        roomId: n.tenant.room.id,
+        tenantId: n.tenant.id,
+      }),
+    })
+    const data = await res.json()
+    setAddingMaintenanceId(null)
+    if (data.ok) {
+      toast({ title: t('notice_added_to_maintenance_toast') })
     } else {
       toast({ title: 'Error', description: data.error, variant: 'destructive' })
     }
@@ -268,6 +298,18 @@ export function NoticesClient({ notices: initial, tenants }: Props) {
                       ? <><RotateCcw className="w-3.5 h-3.5 mr-1.5" />{t('notice_reopen')}</>
                       : <><CheckCircle2 className="w-3.5 h-3.5 mr-1.5 text-green-600" />{t('notice_resolve')}</>}
                   </Button>
+                  {n.type === 'repair' && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-10 px-3 text-blue-600 border-blue-200 hover:bg-blue-500/10"
+                      title={t('notice_add_to_maintenance')}
+                      disabled={addingMaintenanceId === n.id}
+                      onClick={() => handleAddToMaintenance(n)}
+                    >
+                      <Hammer className="w-3.5 h-3.5" />
+                    </Button>
+                  )}
                   <Button variant="outline" size="sm" className="h-10 px-3" onClick={() => openEdit(n)}>
                     <Pencil className="w-3.5 h-3.5" />
                   </Button>
@@ -353,6 +395,16 @@ export function NoticesClient({ notices: initial, tenants }: Props) {
                               ? <RotateCcw className="w-3.5 h-3.5" />
                               : <CheckCircle2 className="w-3.5 h-3.5 text-green-600" />}
                           </Button>
+                          {n.type === 'repair' && (
+                            <Button
+                              variant="ghost" size="sm" className="h-8 px-2 text-blue-600 hover:bg-blue-500/10"
+                              title={t('notice_add_to_maintenance')}
+                              disabled={addingMaintenanceId === n.id}
+                              onClick={() => handleAddToMaintenance(n)}
+                            >
+                              <Hammer className="w-3.5 h-3.5" />
+                            </Button>
+                          )}
                           <Button variant="ghost" size="sm" className="h-8 px-2" onClick={() => openEdit(n)}>
                             <Pencil className="w-3.5 h-3.5" />
                           </Button>
