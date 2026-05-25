@@ -306,6 +306,16 @@ export function BillingListClient({ billings: initial }: Props) {
                     {t('billing_pay')}
                   </Button>
                 )}
+                <Link href={`/invoices/${b.id}`} className="flex-1">
+                  <Button variant="outline" size="sm" className="w-full h-10">{t('billing_invoice')}</Button>
+                </Link>
+                {isAdmin && (
+                  <Link href={`/billing/${b.id}/edit`}>
+                    <Button variant="outline" size="sm" className="h-10 px-3">
+                      <Pencil className="w-4 h-4" />
+                    </Button>
+                  </Link>
+                )}
                 {isAdmin && b.paymentStatus !== 'paid' && (
                   <Button
                     variant="outline"
@@ -316,16 +326,6 @@ export function BillingListClient({ billings: initial }: Props) {
                   >
                     <CalendarClock className="w-4 h-4" />
                   </Button>
-                )}
-                <Link href={`/invoices/${b.id}`} className="flex-1">
-                  <Button variant="outline" size="sm" className="w-full h-10">{t('billing_invoice')}</Button>
-                </Link>
-                {isAdmin && (
-                  <Link href={`/billing/${b.id}/edit`}>
-                    <Button variant="outline" size="sm" className="h-10 px-3">
-                      <Pencil className="w-4 h-4" />
-                    </Button>
-                  </Link>
                 )}
                 {isAdmin && b.tenant && (
                   <Button
