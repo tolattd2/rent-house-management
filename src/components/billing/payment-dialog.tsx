@@ -17,6 +17,7 @@ import { useLanguage } from '@/contexts/language-context'
 const schema = z.object({
   amountUsd: z.coerce.number().min(0.01, 'Amount must be > 0'),
   paymentMethod: z.enum(['Cash', 'ABA_Pay', 'Wing', 'TrueMoney', 'Bank_Transfer', 'Other']),
+  paymentDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date'),
   transactionRef: z.string().default(''),
   notes: z.string().default(''),
 })
@@ -43,9 +44,10 @@ export function PaymentDialog({ billing, onClose, onSave }: Props) {
   const totalPaid = billing.payments.reduce((s, p) => s + p.amountUsd, 0)
   const balance = Math.max(0, billing.totalUsd - totalPaid)
 
+  const today = new Date().toISOString().slice(0, 10)
   const { register, handleSubmit, setValue, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { amountUsd: balance, paymentMethod: 'ABA_Pay', transactionRef: '', notes: '' },
+    defaultValues: { amountUsd: balance, paymentMethod: 'ABA_Pay', paymentDate: today, transactionRef: '', notes: '' },
   })
 
   const onSubmit = async (data: FormData) => {
@@ -91,10 +93,17 @@ export function PaymentDialog({ billing, onClose, onSave }: Props) {
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="space-y-1.5">
-            <Label>{t('payment_amount_usd')} *</Label>
-            <Input type="number" step="0.01" {...register('amountUsd')} />
-            {errors.amountUsd && <p className="text-xs text-destructive">{errors.amountUsd.message}</p>}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>{t('payment_amount_usd')} *</Label>
+              <Input type="number" step="0.01" {...register('amountUsd')} />
+              {errors.amountUsd && <p className="text-xs text-destructive">{errors.amountUsd.message}</p>}
+            </div>
+            <div className="space-y-1.5">
+              <Label>{t('payment_date_label')} *</Label>
+              <Input type="date" {...register('paymentDate')} />
+              {errors.paymentDate && <p className="text-xs text-destructive">{errors.paymentDate.message}</p>}
+            </div>
           </div>
 
           <div className="space-y-1.5">

@@ -11,6 +11,7 @@ const paymentSchema = z.object({
   paymentMethod: z.enum(['Cash', 'ABA_Pay', 'Wing', 'TrueMoney', 'Bank_Transfer', 'Other']).default('Cash'),
   transactionRef: z.string().default(''),
   notes: z.string().default(''),
+  paymentDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
 })
 
 export async function POST(req: NextRequest) {
@@ -37,6 +38,7 @@ export async function POST(req: NextRequest) {
         transactionRef: data.transactionRef,
         notes: data.notes,
         receivedById: session.user.id,
+        ...(data.paymentDate ? { createdAt: new Date(`${data.paymentDate}T00:00:00.000Z`) } : {}),
       },
     })
 
@@ -57,7 +59,10 @@ export async function POST(req: NextRequest) {
       where: { id: data.billingId },
       data: {
         paymentStatus,
-        paymentDate: paymentStatus === 'paid' ? new Date().toISOString().slice(0, 10) : billing.paymentDate,
+        paymentDate:
+          paymentStatus === 'paid'
+            ? data.paymentDate ?? new Date().toISOString().slice(0, 10)
+            : billing.paymentDate,
       },
     })
 
