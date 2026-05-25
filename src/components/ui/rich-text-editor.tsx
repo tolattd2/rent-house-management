@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   Bold, Italic, Underline, Strikethrough,
   AlignLeft, AlignCenter, AlignRight, AlignJustify,
@@ -40,14 +40,49 @@ interface Props {
   ariaLabel?: string
 }
 
+type ToolbarState = {
+  bold: boolean
+  italic: boolean
+  underline: boolean
+  strikethrough: boolean
+  align: 'left' | 'center' | 'right' | 'justify' | null
+  ul: boolean
+  ol: boolean
+  fontName: string  // matches one of FONT_FAMILIES[].value, or '' when unknown
+  fontSize: string  // matches one of FONT_SIZES[].cmd as string, or '' when unknown
+  block: string     // 'p' | 'h1' | 'h2' | 'h3' | 'pre' | 'blockquote' | ''
+}
+
+const INITIAL_STATE: ToolbarState = {
+  bold: false, italic: false, underline: false, strikethrough: false,
+  align: 'left', ul: false, ol: false,
+  fontName: '', fontSize: '', block: '',
+}
+
+/** Strip outer quotes and lower-case the first font name in a CSS family list. */
+function normalizeFirstFont(s: string): string {
+  if (!s) return ''
+  const first = s.split(',')[0]?.trim() ?? ''
+  return first.replace(/^["']|["']$/g, '').toLowerCase()
+}
+
+/** Find the FONT_FAMILIES value whose first font matches `current` (best-effort). */
+function matchFontFamily(current: string): string {
+  const target = normalizeFirstFont(current)
+  if (!target) return ''
+  const hit = FONT_FAMILIES.find((f) => normalizeFirstFont(f.value) === target)
+  return hit?.value ?? ''
+}
+
 /**
  * Lightweight rich text editor built on contenteditable + document.execCommand.
- * Saves HTML. Supports bold/italic/underline/strikethrough, alignment, lists,
- * font family, font size, text color, undo/redo, clear-formatting.
+ * Saves HTML. The toolbar reflects the active selection's formatting state
+ * (bold/italic/alignment highlighted, font/size/style selects showing the
+ * current value) the same way a desktop word processor does.
  */
 export function RichTextEditor({ value, onChange, className, ariaLabel }: Props) {
   const ref = useRef<HTMLDivElement>(null)
-  const [, force] = useState(0)
+  const [state, setState] = useState<ToolbarState>(INITIAL_STATE)
 
   // Keep the DOM in sync when `value` changes from outside (e.g. Reset to template
   // or initial load). Avoid re-writing while the user is typing.
@@ -56,15 +91,70 @@ export function RichTextEditor({ value, onChange, className, ariaLabel }: Props)
     if (ref.current.innerHTML !== value) ref.current.innerHTML = value
   }, [value])
 
+  /** Read current formatting from the browser selection and update toolbar state. */
+  const readState = useCallback(() => {
+    if (typeof document === 'undefined') return
+    // Only update when the selection lives inside our editor — avoids
+    // toolbar state flickering when the user clicks elsewhere on the page.
+    const sel = window.getSelection()
+    const editor = ref.current
+    if (!editor) return
+    if (sel && sel.rangeCount > 0) {
+      const node = sel.getRangeAt(0).commonAncestorContainer
+      const el = node.nodeType === 1 ? (node as Element) : node.parentElement
+      if (!el || !editor.contains(el)) return
+    }
+
+    let block = ''
+    try {
+      const raw = String(document.queryCommandValue('formatBlock') || '').toLowerCase()
+      // Browsers may return 'h1', '<h1>', or 'paragraph'. Normalize.
+      block = raw.replace(/^<|>$/g, '').replace(/^paragraph$/, 'p')
+    } catch { /* ignore */ }
+
+    let align: ToolbarState['align'] = 'left'
+    try {
+      if (document.queryCommandState('justifyCenter')) align = 'center'
+      else if (document.queryCommandState('justifyRight')) align = 'right'
+      else if (document.queryCommandState('justifyFull')) align = 'justify'
+      else if (document.queryCommandState('justifyLeft')) align = 'left'
+    } catch { /* ignore */ }
+
+    let fontName = ''
+    let fontSize = ''
+    try { fontName = matchFontFamily(String(document.queryCommandValue('fontName') || '')) } catch { /* ignore */ }
+    try { fontSize = String(document.queryCommandValue('fontSize') || '') } catch { /* ignore */ }
+
+    setState({
+      bold: safeState('bold'),
+      italic: safeState('italic'),
+      underline: safeState('underline'),
+      strikethrough: safeState('strikeThrough'),
+      align,
+      ul: safeState('insertUnorderedList'),
+      ol: safeState('insertOrderedList'),
+      fontName, fontSize, block,
+    })
+  }, [])
+
+  // Listen for selection moves anywhere in the page; we filter to our editor
+  // inside readState. Also covers clicks, arrow keys, and programmatic moves.
+  useEffect(() => {
+    const handler = () => readState()
+    document.addEventListener('selectionchange', handler)
+    return () => document.removeEventListener('selectionchange', handler)
+  }, [readState])
+
   function exec(command: string, arg?: string) {
     ref.current?.focus()
     document.execCommand(command, false, arg)
     if (ref.current) onChange(ref.current.innerHTML)
-    force((n) => n + 1)
+    readState()
   }
 
   function handleInput() {
     if (ref.current) onChange(ref.current.innerHTML)
+    readState()
   }
 
   return (
@@ -75,12 +165,12 @@ export function RichTextEditor({ value, onChange, className, ariaLabel }: Props)
         <Sep />
 
         <select
-          className="text-xs h-8 rounded border bg-background px-1.5"
+          className="text-xs h-8 rounded border bg-background px-1.5 max-w-[10rem]"
           title="Font family"
-          defaultValue=""
-          onChange={(e) => { if (e.target.value) { exec('fontName', e.target.value); e.target.value = '' } }}
+          value={state.fontName}
+          onChange={(e) => { if (e.target.value) exec('fontName', e.target.value) }}
         >
-          <option value="">{/* placeholder */}Font</option>
+          <option value="" disabled>Font</option>
           {FONT_FAMILIES.map((f) => (
             <option key={f.label} value={f.value} style={{ fontFamily: f.value }}>{f.label}</option>
           ))}
@@ -89,10 +179,10 @@ export function RichTextEditor({ value, onChange, className, ariaLabel }: Props)
         <select
           className="text-xs h-8 rounded border bg-background px-1.5"
           title="Font size"
-          defaultValue=""
-          onChange={(e) => { if (e.target.value) { exec('fontSize', e.target.value); e.target.value = '' } }}
+          value={state.fontSize}
+          onChange={(e) => { if (e.target.value) exec('fontSize', e.target.value) }}
         >
-          <option value="">Size</option>
+          <option value="" disabled>Size</option>
           {FONT_SIZES.map((s) => (
             <option key={s.label} value={String(s.cmd)}>{s.label}</option>
           ))}
@@ -101,10 +191,10 @@ export function RichTextEditor({ value, onChange, className, ariaLabel }: Props)
         <select
           className="text-xs h-8 rounded border bg-background px-1.5"
           title="Heading / paragraph"
-          defaultValue=""
-          onChange={(e) => { if (e.target.value) { exec('formatBlock', e.target.value); e.target.value = '' } }}
+          value={state.block}
+          onChange={(e) => { if (e.target.value) exec('formatBlock', e.target.value) }}
         >
-          <option value="">Style</option>
+          <option value="" disabled>Style</option>
           <option value="p">Paragraph</option>
           <option value="h1">Heading 1</option>
           <option value="h2">Heading 2</option>
@@ -114,10 +204,10 @@ export function RichTextEditor({ value, onChange, className, ariaLabel }: Props)
         </select>
 
         <Sep />
-        <ToolBtn title="Bold" onClick={() => exec('bold')}><Bold className="w-4 h-4" /></ToolBtn>
-        <ToolBtn title="Italic" onClick={() => exec('italic')}><Italic className="w-4 h-4" /></ToolBtn>
-        <ToolBtn title="Underline" onClick={() => exec('underline')}><Underline className="w-4 h-4" /></ToolBtn>
-        <ToolBtn title="Strikethrough" onClick={() => exec('strikeThrough')}><Strikethrough className="w-4 h-4" /></ToolBtn>
+        <ToolBtn title="Bold"          active={state.bold}          onClick={() => exec('bold')}>         <Bold className="w-4 h-4" /></ToolBtn>
+        <ToolBtn title="Italic"        active={state.italic}        onClick={() => exec('italic')}>       <Italic className="w-4 h-4" /></ToolBtn>
+        <ToolBtn title="Underline"     active={state.underline}     onClick={() => exec('underline')}>    <Underline className="w-4 h-4" /></ToolBtn>
+        <ToolBtn title="Strikethrough" active={state.strikethrough} onClick={() => exec('strikeThrough')}><Strikethrough className="w-4 h-4" /></ToolBtn>
         <Sep />
 
         <label
@@ -144,14 +234,14 @@ export function RichTextEditor({ value, onChange, className, ariaLabel }: Props)
         </label>
         <Sep />
 
-        <ToolBtn title="Align left"    onClick={() => exec('justifyLeft')}>   <AlignLeft className="w-4 h-4" />   </ToolBtn>
-        <ToolBtn title="Align center"  onClick={() => exec('justifyCenter')}> <AlignCenter className="w-4 h-4" /> </ToolBtn>
-        <ToolBtn title="Align right"   onClick={() => exec('justifyRight')}>  <AlignRight className="w-4 h-4" />  </ToolBtn>
-        <ToolBtn title="Justify"       onClick={() => exec('justifyFull')}>   <AlignJustify className="w-4 h-4" /></ToolBtn>
+        <ToolBtn title="Align left"   active={state.align === 'left'}    onClick={() => exec('justifyLeft')}>   <AlignLeft className="w-4 h-4" />   </ToolBtn>
+        <ToolBtn title="Align center" active={state.align === 'center'}  onClick={() => exec('justifyCenter')}> <AlignCenter className="w-4 h-4" /> </ToolBtn>
+        <ToolBtn title="Align right"  active={state.align === 'right'}   onClick={() => exec('justifyRight')}>  <AlignRight className="w-4 h-4" />  </ToolBtn>
+        <ToolBtn title="Justify"      active={state.align === 'justify'} onClick={() => exec('justifyFull')}>   <AlignJustify className="w-4 h-4" /></ToolBtn>
         <Sep />
 
-        <ToolBtn title="Bulleted list"  onClick={() => exec('insertUnorderedList')}><List className="w-4 h-4" />        </ToolBtn>
-        <ToolBtn title="Numbered list"  onClick={() => exec('insertOrderedList')}>  <ListOrdered className="w-4 h-4" /> </ToolBtn>
+        <ToolBtn title="Bulleted list" active={state.ul} onClick={() => exec('insertUnorderedList')}><List className="w-4 h-4" /></ToolBtn>
+        <ToolBtn title="Numbered list" active={state.ol} onClick={() => exec('insertOrderedList')}>  <ListOrdered className="w-4 h-4" /></ToolBtn>
         <Sep />
 
         <ToolBtn title="Clear formatting" onClick={() => exec('removeFormat')}>
@@ -168,6 +258,8 @@ export function RichTextEditor({ value, onChange, className, ariaLabel }: Props)
         suppressContentEditableWarning
         onInput={handleInput}
         onBlur={handleInput}
+        onKeyUp={readState}
+        onMouseUp={readState}
         // Paste rich content as plain text so Word/PDF dumps don't bring along
         // huge inline styles that bloat the saved HTML.
         onPaste={(e) => {
@@ -181,16 +273,25 @@ export function RichTextEditor({ value, onChange, className, ariaLabel }: Props)
   )
 }
 
+/** Safely read a queryCommandState in browsers that may throw on unsupported commands. */
+function safeState(cmd: string): boolean {
+  try { return document.queryCommandState(cmd) } catch { return false }
+}
+
 function ToolBtn({
-  children, onClick, title,
-}: { children: React.ReactNode; onClick: () => void; title: string }) {
+  children, onClick, title, active,
+}: { children: React.ReactNode; onClick: () => void; title: string; active?: boolean }) {
   return (
     <Button
       type="button"
       variant="ghost"
       size="sm"
-      className="h-8 w-8 p-0"
+      className={cn(
+        'h-8 w-8 p-0',
+        active && 'bg-accent text-accent-foreground ring-1 ring-border',
+      )}
       title={title}
+      aria-pressed={active ?? undefined}
       onMouseDown={(e) => e.preventDefault()}
       onClick={onClick}
     >
