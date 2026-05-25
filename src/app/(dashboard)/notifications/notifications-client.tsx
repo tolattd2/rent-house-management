@@ -72,7 +72,7 @@ export function NotificationsClient({ notifications, unpaidBillings, linkedTenan
   const { t } = useLanguage()
   const roomLabel = useRoomLabel()
   const [sending, setSending] = useState<string | null>(null)
-  const [sendingBulk, setSendingBulk] = useState<'en' | 'km' | null>(null)
+  const [sendingBulk, setSendingBulk] = useState<boolean>(false)
   const [resending, setResending] = useState<string | null>(null)
   const [branchFilter, setBranchFilter] = usePersistentState('notifications/branch', 'all')
   const [statusFilter, setStatusFilter] = usePersistentState<'all' | 'paid' | 'unpaid' | 'partial'>('notifications/status', 'all')
@@ -148,12 +148,12 @@ export function NotificationsClient({ notifications, unpaidBillings, linkedTenan
     setSending(null)
   }
 
-  const handleBulkReminder = async (lang: 'en' | 'km') => {
-    setSendingBulk(lang)
+  const handleBulkReminder = async () => {
+    setSendingBulk(true)
     const res = await fetch('/api/notifications/send-bulk', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ branch: branchFilter === 'all' ? undefined : branchFilter, lang }),
+      body: JSON.stringify({ branch: branchFilter === 'all' ? undefined : branchFilter }),
     })
     const data = await res.json()
     if (data.ok) {
@@ -162,7 +162,7 @@ export function NotificationsClient({ notifications, unpaidBillings, linkedTenan
     } else {
       toast({ title: 'Error', description: data.error, variant: 'destructive' })
     }
-    setSendingBulk(null)
+    setSendingBulk(false)
   }
 
   const handleResend = async (notificationId: string) => {
@@ -195,24 +195,14 @@ export function NotificationsClient({ notifications, unpaidBillings, linkedTenan
         <div className="flex flex-wrap items-end gap-x-5 gap-y-3">
           <div className="flex flex-col items-end gap-1">
             <span className="text-xs text-muted-foreground">{t('notifications_invoice_reminder')}</span>
-            <div className="flex gap-2">
-              <Button
-                size="sm"
-                onClick={() => handleBulkReminder('en')}
-                loading={sendingBulk === 'en'}
-                disabled={filteredUnpaid.length === 0 || sendingBulk !== null}
-              >
-                <Send className="w-3.5 h-3.5 mr-1.5" />English ({filteredUnpaid.length})
-              </Button>
-              <Button
-                size="sm"
-                onClick={() => handleBulkReminder('km')}
-                loading={sendingBulk === 'km'}
-                disabled={filteredUnpaid.length === 0 || sendingBulk !== null}
-              >
-                <Send className="w-3.5 h-3.5 mr-1.5" />ខ្មែរ ({filteredUnpaid.length})
-              </Button>
-            </div>
+            <Button
+              size="sm"
+              onClick={handleBulkReminder}
+              loading={sendingBulk}
+              disabled={filteredUnpaid.length === 0 || sendingBulk}
+            >
+              <Send className="w-3.5 h-3.5 mr-1.5" />{t('notifications_send_all_tenants')} ({filteredUnpaid.length})
+            </Button>
           </div>
           <div className="flex flex-col items-end gap-1">
             <span className="text-xs text-muted-foreground">{t('notifications_custom_reminder')}</span>

@@ -221,6 +221,7 @@ export const translations = {
     rooms_total_card: 'Total',
     // Notifications extra
     notifications_send_all: 'Send All Reminders',
+    notifications_send_all_tenants: 'Send All Tenants',
     notifications_pending_reminders: 'Pending Payment Reminders',
     notifications_remind: 'Remind',
     notifications_history: 'Notification History',
@@ -869,6 +870,7 @@ export const translations = {
     rooms_total_card: 'សរុប',
     // Notifications extra
     notifications_send_all: 'ផ្ញើការរំលឹកទាំងអស់',
+    notifications_send_all_tenants: 'ផ្ញើទៅអ្នកជួលទាំងអស់',
     notifications_pending_reminders: 'ការរំលឹកការទូទាត់រង់ចាំ',
     notifications_remind: 'រំលឹក',
     notifications_history: 'ប្រវត្តិការជូនដំណឹង',
