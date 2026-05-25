@@ -275,7 +275,7 @@ export function InvoicesClient({ invoices: initial }: Props) {
                           variant="ghost"
                           size="sm"
                           className="text-xs h-8 px-2 text-blue-600 hover:bg-blue-500/10"
-                          title="Promise to Pay"
+                          title={t('promise_to_pay')}
                           onClick={() => setPromiseBillingId(inv.billingId)}
                         >
                           <CalendarClock className="w-3.5 h-3.5" />

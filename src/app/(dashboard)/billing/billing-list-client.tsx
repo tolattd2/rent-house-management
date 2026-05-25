@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Plus, Search, FileText, Calendar, Trash2, Printer, Pencil, Bell } from 'lucide-react'
+import { Plus, Search, FileText, Calendar, Trash2, Printer, Pencil, Bell, CalendarClock } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -15,6 +15,7 @@ import { BatchDeleteDialog } from '@/components/billing/batch-delete-dialog'
 import { GenerateMonthlyDialog } from '@/components/billing/generate-monthly-dialog'
 import { BatchGenerateInvoiceDialog } from '@/components/invoices/batch-generate-dialog'
 import { NoticeDialog } from '@/components/tenants/notice-dialog'
+import { PromiseDialog } from '@/components/invoices/promise-dialog'
 import { formatCurrency, formatCompact, exportToCSV, sortRoomsByNumber, cn } from '@/lib/utils'
 import { CARD_STYLES } from '@/lib/card-colors'
 import { toast } from '@/hooks/use-toast'
@@ -68,6 +69,7 @@ export function BillingListClient({ billings: initial }: Props) {
   const [showGenerate, setShowGenerate] = useState(false)
   const [showBatchInvoice, setShowBatchInvoice] = useState(false)
   const [noticeTenantId, setNoticeTenantId] = useState<string | null>(null)
+  const [promiseBillingId, setPromiseBillingId] = useState<string | null>(null)
   const { triggerDelete, dialogState, closeDialog } = useDeleteWithUndo()
 
   const branches = useBranches().map((b) => b.name)
@@ -304,6 +306,17 @@ export function BillingListClient({ billings: initial }: Props) {
                     {t('billing_pay')}
                   </Button>
                 )}
+                {isAdmin && b.paymentStatus !== 'paid' && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-10 px-3 text-blue-600 border-blue-200 hover:bg-blue-500/10"
+                    title={t('promise_to_pay')}
+                    onClick={() => setPromiseBillingId(b.id)}
+                  >
+                    <CalendarClock className="w-4 h-4" />
+                  </Button>
+                )}
                 <Link href={`/invoices/${b.id}`} className="flex-1">
                   <Button variant="outline" size="sm" className="w-full h-10">{t('billing_invoice')}</Button>
                 </Link>
@@ -383,6 +396,13 @@ export function BillingListClient({ billings: initial }: Props) {
           tenantId={noticeTenantId}
           onClose={() => setNoticeTenantId(null)}
           onSave={() => setNoticeTenantId(null)}
+        />
+      )}
+
+      {promiseBillingId && (
+        <PromiseDialog
+          billingId={promiseBillingId}
+          onClose={() => setPromiseBillingId(null)}
         />
       )}
     </div>
