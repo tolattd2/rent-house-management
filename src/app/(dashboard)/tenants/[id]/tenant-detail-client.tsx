@@ -91,10 +91,13 @@ export function TenantDetailClient({ tenant, rooms }: Props) {
   const [sendingContractId, setSendingContractId] = useState<string | null>(null)
 
   /**
-   * Render the saved contract HTML to a real PDF (jsPDF, lazy-loaded so the
-   * heavy converter isn't in the main bundle), upload to our send-contract
-   * endpoint, which forwards via Telegram sendDocument. We render off-screen
-   * with the same A4 print styling as printAgreement to keep parity.
+   * Render the saved contract HTML to a real PDF and upload to our
+   * send-contract endpoint, which forwards via Telegram sendDocument.
+   *
+   * We rasterize via html2canvas directly (jsPDF's built-in .html() races the
+   * canvas completion and produces blank pages on off-screen containers), then
+   * slice the resulting canvas into A4-sized pages on a jsPDF doc. Both libs
+   * are dynamic-imported so they stay out of the main bundle.
    */
   async function sendContractToTenant(contractId: string, html: string) {
     if (!tenant.telegramChatId) {
@@ -103,36 +106,71 @@ export function TenantDetailClient({ tenant, rooms }: Props) {
     }
     setSendingContractId(contractId)
 
-    const A4_WIDTH_PX = 794 // ≈ 210 mm at 96dpi — matches A4 print width
+    // 794px ≈ 210 mm at 96 dpi → A4 width
+    const A4_WIDTH_PX = 794
     const container = document.createElement('div')
     container.style.cssText = [
+      // Render visibly (off-screen via negative left causes html2canvas to
+      // skip some descendants). opacity:0 + pointer-events:none keeps it
+      // invisible without breaking layout/rasterization.
       'position: fixed',
-      'left: -10000px',
+      'left: 0',
       'top: 0',
+      'z-index: -1',
+      'opacity: 0',
+      'pointer-events: none',
       `width: ${A4_WIDTH_PX}px`,
       'padding: 20mm',
       'box-sizing: border-box',
-      'background: #fff',
+      'background: #ffffff',
       "font-family: 'Khmer OS Siemreap', 'Noto Sans Khmer', 'Khmer OS', 'Times New Roman', serif",
       'font-size: 12pt',
       'line-height: 1.6',
-      'color: #111',
+      'color: #111111',
     ].join(';')
     container.innerHTML = html
     document.body.appendChild(container)
 
     try {
       toast({ title: t('contract_gen_send_preparing') })
-      const { jsPDF } = await import('jspdf')
-      const doc = new jsPDF({ unit: 'pt', format: 'a4' })
-      await doc.html(container, {
-        x: 0,
-        y: 0,
-        width: 595, // A4 width in pt
+
+      // Give layout/fonts a tick to settle before rasterizing.
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+      if (document.fonts?.ready) await document.fonts.ready
+
+      const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+        import('html2canvas'),
+        import('jspdf'),
+      ])
+
+      const canvas = await html2canvas(container, {
+        scale: 2,
+        backgroundColor: '#ffffff',
+        useCORS: true,
         windowWidth: A4_WIDTH_PX,
-        autoPaging: 'text',
+        width: A4_WIDTH_PX,
       })
-      const blob = doc.output('blob')
+
+      const pdf = new jsPDF({ unit: 'pt', format: 'a4' })
+      const pageWidth = pdf.internal.pageSize.getWidth()
+      const pageHeight = pdf.internal.pageSize.getHeight()
+      const imgWidth = pageWidth
+      const imgHeight = (canvas.height * pageWidth) / canvas.width
+      const imgData = canvas.toDataURL('image/jpeg', 0.92)
+
+      // Place the same tall image on each page, offset upward so successive
+      // page-height slices show through. jsPDF clips anything outside the page.
+      let heightLeft = imgHeight
+      let position = 0
+      pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight)
+      heightLeft -= pageHeight
+      while (heightLeft > 0) {
+        position -= pageHeight
+        pdf.addPage()
+        pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight)
+        heightLeft -= pageHeight
+      }
+      const blob = pdf.output('blob')
 
       toast({ title: t('contract_gen_send_sending') })
       const fd = new FormData()
