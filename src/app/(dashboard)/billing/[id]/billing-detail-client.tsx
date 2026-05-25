@@ -55,9 +55,9 @@ export function BillingDetailClient({ billing }: { billing: Billing }) {
 
   return (
     <div className="space-y-6 animate-fade-in max-w-3xl">
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-2 sm:gap-3">
         <Button variant="ghost" size="sm" onClick={goBack}><ArrowLeft className="w-4 h-4 mr-1" />{t('back')}</Button>
-        <div className="flex-1" />
+        <div className="flex-1 min-w-0" />
         {billing.paymentStatus !== 'paid' && (
           <Button onClick={() => setShowPay(true)}>
             <CreditCard className="w-4 h-4 mr-2" />{t('record_payment')}
@@ -66,7 +66,7 @@ export function BillingDetailClient({ billing }: { billing: Billing }) {
         <Link href={`/invoices/${billing.id}`}>
           <Button variant="outline"><Receipt className="w-4 h-4 mr-2" />{t('invoices_title')}</Button>
         </Link>
-        <Button variant="outline" onClick={handleDelete} className="text-destructive border-destructive/30 hover:bg-destructive/10">
+        <Button variant="outline" onClick={handleDelete} className="shrink-0 text-destructive border-destructive/30 hover:bg-destructive/10">
           <Trash2 className="w-4 h-4" />
         </Button>
       </div>

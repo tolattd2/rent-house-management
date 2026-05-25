@@ -210,12 +210,12 @@ export function RoomsClient({ rooms: initialRooms, settings }: Props) {
 
                   {/* Actions */}
                   {isAdmin && (
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm" className="flex-1" onClick={() => { setEditRoom(room); setShowForm(true) }}>
+                    <div className="flex flex-wrap gap-2">
+                      <Button variant="outline" size="sm" className="flex-1 min-w-[6rem]" onClick={() => { setEditRoom(room); setShowForm(true) }}>
                         <Edit className="w-3.5 h-3.5 mr-1" /> {t('edit')}
                       </Button>
                       {!tenant && (
-                        <Button variant="outline" size="sm" onClick={() => handleDelete(room)} className="text-destructive hover:bg-destructive/10">
+                        <Button variant="outline" size="sm" onClick={() => handleDelete(room)} className="shrink-0 text-destructive hover:bg-destructive/10">
                           <Trash2 className="w-3.5 h-3.5" />
                         </Button>
                       )}

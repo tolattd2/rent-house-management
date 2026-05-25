@@ -382,12 +382,12 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
                 {expense.room && <span>{t('room')} {expense.room.roomNumber}</span>}
               </div>
               {isAdmin && (
-                <div className="flex gap-2 pt-2 border-t border-border">
-                  <Button variant="outline" size="sm" className="flex-1 h-10" onClick={() => openEdit(expense)}>
+                <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
+                  <Button variant="outline" size="sm" className="flex-1 min-w-[6rem] h-10" onClick={() => openEdit(expense)}>
                     <Edit className="w-3.5 h-3.5 mr-1.5" />{t('edit')}
                   </Button>
                   {!expense.maintenanceId && (
-                    <Button variant="outline" size="sm" className="h-10 px-3 text-destructive border-destructive/30"
+                    <Button variant="outline" size="sm" className="h-10 px-3 shrink-0 text-destructive border-destructive/30"
                       onClick={() => handleDelete(expense)}>
                       <Trash2 className="w-3.5 h-3.5" />
                     </Button>

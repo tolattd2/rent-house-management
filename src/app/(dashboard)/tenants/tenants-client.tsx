@@ -298,12 +298,12 @@ export function TenantsClient({ tenants: initial, rooms }: Props) {
                   <p className="tabular-nums">{tenant.payDay ?? '—'}</p>
                 </div>
               </div>
-              <div className="flex gap-2 pt-2 border-t border-border">
-                <Link href={`/tenants/${tenant.id}`} className="flex-1">
+              <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
+                <Link href={`/tenants/${tenant.id}`} className="flex-1 min-w-[5rem]">
                   <Button variant="outline" size="sm" className="w-full h-10">{t('view')}</Button>
                 </Link>
                 {isAdmin && tenant.status === 'active' && (
-                  <Button variant="outline" size="sm" className="flex-1 h-10"
+                  <Button variant="outline" size="sm" className="flex-1 min-w-[5rem] h-10"
                     onClick={() => handleMoveOut(tenant.id)}>
                     {t('tenants_move_out')}
                   </Button>

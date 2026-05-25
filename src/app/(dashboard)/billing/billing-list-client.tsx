@@ -296,21 +296,21 @@ export function BillingListClient({ billings: initial }: Props) {
                   )}
                 </div>
               </div>
-              <div className="flex gap-2 pt-2 border-t border-border">
-                <Link href={`/billing/${b.id}`} className="flex-1">
+              <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
+                <Link href={`/billing/${b.id}`} className="flex-1 min-w-[5rem]">
                   <Button variant="outline" size="sm" className="w-full h-10">{t('view')}</Button>
                 </Link>
                 {isAdmin && b.paymentStatus !== 'paid' && (
-                  <Button variant="outline" size="sm" className="flex-1 h-10 text-green-600 border-green-200"
+                  <Button variant="outline" size="sm" className="flex-1 min-w-[5rem] h-10 text-green-600 border-green-200"
                     onClick={() => setPayDialog(b)}>
                     {t('billing_pay')}
                   </Button>
                 )}
-                <Link href={`/invoices/${b.id}`} className="flex-1">
+                <Link href={`/invoices/${b.id}`} className="flex-1 min-w-[5rem]">
                   <Button variant="outline" size="sm" className="w-full h-10">{t('billing_invoice')}</Button>
                 </Link>
                 {isAdmin && (
-                  <Link href={`/billing/${b.id}/edit`}>
+                  <Link href={`/billing/${b.id}/edit`} className="shrink-0">
                     <Button variant="outline" size="sm" className="h-10 px-3">
                       <Pencil className="w-4 h-4" />
                     </Button>
@@ -320,7 +320,7 @@ export function BillingListClient({ billings: initial }: Props) {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-10 px-3 text-blue-600 border-blue-200 hover:bg-blue-500/10"
+                    className="h-10 px-3 shrink-0 text-blue-600 border-blue-200 hover:bg-blue-500/10"
                     title={t('promise_to_pay')}
                     onClick={() => setPromiseBillingId(b.id)}
                   >
@@ -331,7 +331,7 @@ export function BillingListClient({ billings: initial }: Props) {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-10 px-3 text-amber-600 border-amber-200 hover:bg-amber-500/10"
+                    className="h-10 px-3 shrink-0 text-amber-600 border-amber-200 hover:bg-amber-500/10"
                     title={t('notice_add')}
                     onClick={() => setNoticeTenantId(b.tenant!.id)}
                   >
@@ -339,7 +339,7 @@ export function BillingListClient({ billings: initial }: Props) {
                   </Button>
                 )}
                 {isAdmin && (
-                  <Button variant="outline" size="sm" className="h-10 text-destructive border-destructive/30 hover:bg-destructive/10"
+                  <Button variant="outline" size="sm" className="h-10 px-3 shrink-0 text-destructive border-destructive/30 hover:bg-destructive/10"
                     onClick={() => handleDelete(b)}>
                     <Trash2 className="w-4 h-4" />
                   </Button>

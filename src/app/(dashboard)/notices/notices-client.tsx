@@ -292,8 +292,8 @@ export function NoticesClient({ notices: initial, tenants }: Props) {
                 {t('notice_added_on')} {formatDate(String(n.createdAt))}
               </p>
               {isAdmin && (
-                <div className="flex gap-2 pt-2 border-t border-border">
-                  <Button variant="outline" size="sm" className="flex-1 h-10" onClick={() => toggleResolved(n)}>
+                <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
+                  <Button variant="outline" size="sm" className="flex-1 min-w-[6rem] h-10" onClick={() => toggleResolved(n)}>
                     {resolved
                       ? <><RotateCcw className="w-3.5 h-3.5 mr-1.5" />{t('notice_reopen')}</>
                       : <><CheckCircle2 className="w-3.5 h-3.5 mr-1.5 text-green-600" />{t('notice_resolve')}</>}
@@ -302,7 +302,7 @@ export function NoticesClient({ notices: initial, tenants }: Props) {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-10 px-3 text-blue-600 border-blue-200 hover:bg-blue-500/10"
+                      className="h-10 px-3 shrink-0 text-blue-600 border-blue-200 hover:bg-blue-500/10"
                       title={t('notice_add_to_maintenance')}
                       disabled={addingMaintenanceId === n.id}
                       onClick={() => handleAddToMaintenance(n)}
@@ -310,11 +310,11 @@ export function NoticesClient({ notices: initial, tenants }: Props) {
                       <Hammer className="w-3.5 h-3.5" />
                     </Button>
                   )}
-                  <Button variant="outline" size="sm" className="h-10 px-3" onClick={() => openEdit(n)}>
+                  <Button variant="outline" size="sm" className="h-10 px-3 shrink-0" onClick={() => openEdit(n)}>
                     <Pencil className="w-3.5 h-3.5" />
                   </Button>
                   <Button
-                    variant="outline" size="sm" className="h-10 px-3 text-destructive border-destructive/30"
+                    variant="outline" size="sm" className="h-10 px-3 shrink-0 text-destructive border-destructive/30"
                     onClick={() => handleDelete(n)}
                   >
                     <Trash2 className="w-3.5 h-3.5" />

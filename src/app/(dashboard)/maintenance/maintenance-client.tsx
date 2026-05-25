@@ -347,11 +347,11 @@ export function MaintenanceClient({ records: initial, rooms, tenants }: Props) {
                 )}
               </div>
               {isAdmin && (
-                <div className="flex gap-2 pt-2 border-t border-border">
-                  <Button variant="outline" size="sm" className="flex-1 h-10" onClick={() => openEdit(r)}>
+                <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
+                  <Button variant="outline" size="sm" className="flex-1 min-w-[6rem] h-10" onClick={() => openEdit(r)}>
                     <Pencil className="w-3.5 h-3.5 mr-1.5" />{t('edit')}
                   </Button>
-                  <Button variant="outline" size="sm" className="h-10 px-3 text-destructive border-destructive/30"
+                  <Button variant="outline" size="sm" className="h-10 px-3 shrink-0 text-destructive border-destructive/30"
                     onClick={() => handleDelete(r)}>
                     <Trash2 className="w-3.5 h-3.5" />
                   </Button>
