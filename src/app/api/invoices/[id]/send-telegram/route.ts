@@ -22,6 +22,14 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
     billingMonth: billing.billingMonth,
     totalUsd: billing.totalUsd,
     totalRiel: billing.totalRiel,
+    waterUsage: billing.waterUsage,
+    waterCostRiel: billing.waterCostRiel,
+    electricUsage: billing.electricUsage,
+    electricCostRiel: billing.electricCostRiel,
+    lateDays: billing.lateDays,
+    latePenaltyUsd: billing.latePenaltyUsd,
+    discountUsd: billing.discountUsd,
+    payDay: billing.tenant?.payDay,
     branchName: billing.room?.branch,
   })
 

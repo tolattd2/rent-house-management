@@ -115,46 +115,50 @@ export async function sendSMS(to: string, message: string): Promise<{ ok: boolea
   }
 }
 
-export type ReminderLang = 'en' | 'km'
-
 export async function buildReminderMessage(params: {
   tenantName: string
   roomNumber: string
   billingMonth: string
   totalUsd: number
   totalRiel: number
+  waterUsage: number
+  waterCostRiel: number
+  electricUsage: number
+  electricCostRiel: number
+  lateDays: number
+  latePenaltyUsd: number
+  discountUsd: number
   payDay?: number
-  lang?: ReminderLang
   branchName?: string | null
 }): Promise<string> {
+  const branch = await resolvePropertyName(params.branchName)
   const rielFormatted = Math.round(params.totalRiel).toLocaleString()
   const usd = params.totalUsd.toFixed(2)
-  const branch = await resolvePropertyName(params.branchName)
+  const waterRiel = Math.round(params.waterCostRiel).toLocaleString()
+  const electricRiel = Math.round(params.electricCostRiel).toLocaleString()
+  const penalty = params.latePenaltyUsd.toFixed(2)
+  const discount = params.discountUsd.toFixed(2)
 
-  if (params.lang === 'km') {
-    const closing = params.payDay
-      ? `សូមមេត្តាទូទាត់ប្រាក់ឱ្យបានទាន់ពេលវេលា មុនថ្ងៃទី ${params.payDay}។ សូមអរគុណ!`
-      : `សូមមេត្តាទូទាត់ប្រាក់ឱ្យបានទាន់ពេលវេលា។ សូមអរគុណ!`
-    return (
-      `🏠 <b>ការរំលឹកការទូទាត់ប្រាក់ — ${branch}</b>\n\n` +
-      `អ្នកជួល៖ ${params.tenantName}\n` +
-      `បន្ទប់៖ ${params.roomNumber}\n` +
-      `ខែ៖ ${params.billingMonth}\n` +
-      `ចំនួនទឹកប្រាក់ត្រូវបង់៖ $${usd} / ${rielFormatted} ៛\n\n` +
-      closing
-    )
-  }
-
+  const closingKm = params.payDay
+    ? `សូមមេត្តាទូទាត់ប្រាក់ឱ្យបានទាន់ពេលវេលា មុនថ្ងៃទី ${params.payDay}។ សូមអរគុណ!`
+    : `សូមមេត្តាទូទាត់ប្រាក់ឱ្យបានទាន់ពេលវេលា។ សូមអរគុណ!`
   const closingEn = params.payDay
     ? `Please pay on time, before day ${params.payDay} of the month. Thank you!`
     : `Please pay promptly. Thank you!`
+
   return (
-    `🏠 <b>Payment Reminder — ${branch}</b>\n\n` +
-    `Tenant: ${params.tenantName}\n` +
-    `Room: ${params.roomNumber}\n` +
-    `Month: ${params.billingMonth}\n` +
-    `Amount Due: $${usd} / ${rielFormatted} ៛\n\n` +
-    closingEn
+    `🏠 <b>ការរំលឹកការទូទាត់ប្រាក់ / Payment Reminder — ${branch}</b>\n\n` +
+    `អ្នកជួល / Tenant៖ ${params.tenantName}\n` +
+    `បន្ទប់ / Room៖ ${params.roomNumber}\n` +
+    `ខែ / Month៖ ${params.billingMonth}\n\n` +
+    `📊 <b>ការប្រើប្រាស់ / Usage</b>\n` +
+    `ទឹក / Water៖ ${params.waterUsage} m³ — ${waterRiel} ៛\n` +
+    `អគ្គិសនី / Electric៖ ${params.electricUsage} kWh — ${electricRiel} ៛\n\n` +
+    `💰 <b>ការគិតថ្លៃ / Charges</b>\n` +
+    `ការពិន័យយឺត / Late (${params.lateDays} ថ្ងៃ / days)៖ $${penalty}\n` +
+    `បញ្ចុះតម្លៃ / Discount៖ -$${discount}\n\n` +
+    `ត្រូវបង់សរុប / Total Due៖ $${usd} / ${rielFormatted} ៛\n\n` +
+    `${closingKm}\n${closingEn}`
   )
 }
 
@@ -205,15 +209,23 @@ export async function buildLateReminderMessage(params: {
   billingMonth: string
   totalUsd: number
   totalRiel: number
+  waterUsage: number
+  waterCostRiel: number
+  electricUsage: number
+  electricCostRiel: number
+  discountUsd: number
   lateDays: number
   penaltyUsd: number
   payDay?: number
   branchName?: string | null
 }): Promise<string> {
+  const branch = await resolvePropertyName(params.branchName)
   const riel = Math.round(params.totalRiel).toLocaleString()
   const usd = params.totalUsd.toFixed(2)
+  const waterRiel = Math.round(params.waterCostRiel).toLocaleString()
+  const electricRiel = Math.round(params.electricCostRiel).toLocaleString()
   const penalty = params.penaltyUsd.toFixed(2)
-  const branch = await resolvePropertyName(params.branchName)
+  const discount = params.discountUsd.toFixed(2)
   const payDayLine = params.payDay
     ? `ថ្ងៃត្រូវបង់ / Pay Day៖ ${params.payDay}\n`
     : ''
@@ -223,8 +235,14 @@ export async function buildLateReminderMessage(params: {
     `អ្នកជួល / Tenant៖ ${params.tenantName}\n` +
     `បន្ទប់ / Room៖ ${params.roomNumber}\n` +
     `ខែ / Month៖ ${params.billingMonth}\n` +
-    payDayLine +
-    `ត្រូវបង់ / Amount Due៖ $${usd} / ${riel} ៛\n\n` +
+    payDayLine + `\n` +
+    `📊 <b>ការប្រើប្រាស់ / Usage</b>\n` +
+    `ទឹក / Water៖ ${params.waterUsage} m³ — ${waterRiel} ៛\n` +
+    `អគ្គិសនី / Electric៖ ${params.electricUsage} kWh — ${electricRiel} ៛\n\n` +
+    `💰 <b>ការគិតថ្លៃ / Charges</b>\n` +
+    `ការពិន័យយឺត / Late (${params.lateDays} ថ្ងៃ / days)៖ $${penalty}\n` +
+    `បញ្ចុះតម្លៃ / Discount៖ -$${discount}\n\n` +
+    `ត្រូវបង់សរុប / Total Due៖ $${usd} / ${riel} ៛\n\n` +
     `⚠️ <b>ខ្មែរ</b>\n` +
     `អ្នកបានទូទាត់ថ្លៃខែនេះយឺត រហូតមកដល់ពេលនេះ ចំនួន ${params.lateDays} ថ្ងៃ។ ` +
     `ដូច្នេះ សូមមេត្តាទូទាត់ថ្លៃឈ្នួលឥឡូវនេះ បើមិនដូច្នោះទេ ` +

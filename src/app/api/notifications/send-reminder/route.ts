@@ -15,8 +15,9 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 })
 
   try {
-    const { tenantId, billingId, lang, kind } = await req.json()
-    const reminderLang = lang === 'km' ? 'km' : 'en'
+    // `lang` is accepted for backwards compatibility but no longer used: every reminder
+    // is now bilingual (Khmer + English).
+    const { tenantId, billingId, kind } = await req.json()
     const reminderKind = kind === 'late' ? 'late' : 'invoice'
 
     const [tenant, billing] = await Promise.all([
@@ -63,6 +64,11 @@ export async function POST(req: NextRequest) {
         billingMonth: billing.billingMonth,
         totalUsd: billing.totalUsd,
         totalRiel: billing.totalRiel,
+        waterUsage: billing.waterUsage,
+        waterCostRiel: billing.waterCostRiel,
+        electricUsage: billing.electricUsage,
+        electricCostRiel: billing.electricCostRiel,
+        discountUsd: billing.discountUsd,
         lateDays,
         penaltyUsd,
         payDay: tenant.payDay,
@@ -74,8 +80,14 @@ export async function POST(req: NextRequest) {
         billingMonth: billing.billingMonth,
         totalUsd: billing.totalUsd,
         totalRiel: billing.totalRiel,
+        waterUsage: billing.waterUsage,
+        waterCostRiel: billing.waterCostRiel,
+        electricUsage: billing.electricUsage,
+        electricCostRiel: billing.electricCostRiel,
+        lateDays: billing.lateDays,
+        latePenaltyUsd: billing.latePenaltyUsd,
+        discountUsd: billing.discountUsd,
         payDay: tenant.payDay,
-        lang: reminderLang,
         branchName: billing.room?.branch,
       })
 

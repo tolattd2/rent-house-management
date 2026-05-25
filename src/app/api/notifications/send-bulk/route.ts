@@ -9,9 +9,10 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 })
 
   // Optional branch filter — when set, only that branch's unpaid bills are reminded.
+  // `lang` is accepted for backwards compatibility but no longer used: every reminder
+  // is now bilingual (Khmer + English).
   const body = (await req.json().catch(() => ({}))) as { branch?: string; lang?: string }
   const branch = body.branch?.trim()
-  const reminderLang = body.lang === 'km' ? 'km' : 'en'
 
   const unpaid = await db.billing.findMany({
     where: {
@@ -36,8 +37,14 @@ export async function POST(req: NextRequest) {
       billingMonth: billing.billingMonth,
       totalUsd: billing.totalUsd,
       totalRiel: billing.totalRiel,
+      waterUsage: billing.waterUsage,
+      waterCostRiel: billing.waterCostRiel,
+      electricUsage: billing.electricUsage,
+      electricCostRiel: billing.electricCostRiel,
+      lateDays: billing.lateDays,
+      latePenaltyUsd: billing.latePenaltyUsd,
+      discountUsd: billing.discountUsd,
       payDay: billing.tenant.payDay,
-      lang: reminderLang,
       branchName: billing.room?.branch,
     })
 
