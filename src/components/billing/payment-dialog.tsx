@@ -45,7 +45,7 @@ export function PaymentDialog({ billing, onClose, onSave }: Props) {
 
   const { register, handleSubmit, setValue, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { amountUsd: balance, paymentMethod: 'Cash', transactionRef: '', notes: '' },
+    defaultValues: { amountUsd: balance, paymentMethod: 'ABA_Pay', transactionRef: '', notes: '' },
   })
 
   const onSubmit = async (data: FormData) => {
@@ -99,11 +99,11 @@ export function PaymentDialog({ billing, onClose, onSave }: Props) {
 
           <div className="space-y-1.5">
             <Label>{t('payment_method_label')}</Label>
-            <Select onValueChange={(v) => setValue('paymentMethod', v as FormData['paymentMethod'])} defaultValue="Cash">
+            <Select onValueChange={(v) => setValue('paymentMethod', v as FormData['paymentMethod'])} defaultValue="ABA_Pay">
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="Cash">{t('payment_cash')}</SelectItem>
                 <SelectItem value="ABA_Pay">{t('payment_aba')}</SelectItem>
+                <SelectItem value="Cash">{t('payment_cash')}</SelectItem>
                 <SelectItem value="Wing">{t('payment_wing')}</SelectItem>
                 <SelectItem value="TrueMoney">{t('payment_truemoney')}</SelectItem>
                 <SelectItem value="Bank_Transfer">{t('payment_bank')}</SelectItem>
