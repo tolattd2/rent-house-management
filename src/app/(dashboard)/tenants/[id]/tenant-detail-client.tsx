@@ -10,7 +10,7 @@ import {
   Edit, ArrowLeft, Home, FileText, CreditCard,
   CheckCircle2, AlertTriangle, LogOut,
   Bell, Plus, Pencil, Trash2, Wrench, RotateCcw,
-  Send, History, FileSignature, Eye, Printer
+  Send, History, FileSignature, Eye, Printer, MessageCircle
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -85,6 +85,83 @@ export function TenantDetailClient({ tenant, rooms }: Props) {
   // initialText is undefined to use the active contract's saved text, or a
   // specific contract's HTML to open that one for read/edit.
   const [generateOpen, setGenerateOpen] = useState<{ initialText?: string } | null>(null)
+
+  // Which contract row is currently mid-send to the tenant's Telegram chat.
+  // Used to drive a per-row loading state on the "Send to Tenant" button.
+  const [sendingContractId, setSendingContractId] = useState<string | null>(null)
+
+  /**
+   * Render the saved contract HTML to a real PDF (jsPDF, lazy-loaded so the
+   * heavy converter isn't in the main bundle), upload to our send-contract
+   * endpoint, which forwards via Telegram sendDocument. We render off-screen
+   * with the same A4 print styling as printAgreement to keep parity.
+   */
+  async function sendContractToTenant(contractId: string, html: string) {
+    if (!tenant.telegramChatId) {
+      toast({ title: t('contract_gen_send_no_telegram'), variant: 'destructive' })
+      return
+    }
+    setSendingContractId(contractId)
+
+    const A4_WIDTH_PX = 794 // ≈ 210 mm at 96dpi — matches A4 print width
+    const container = document.createElement('div')
+    container.style.cssText = [
+      'position: fixed',
+      'left: -10000px',
+      'top: 0',
+      `width: ${A4_WIDTH_PX}px`,
+      'padding: 20mm',
+      'box-sizing: border-box',
+      'background: #fff',
+      "font-family: 'Khmer OS Siemreap', 'Noto Sans Khmer', 'Khmer OS', 'Times New Roman', serif",
+      'font-size: 12pt',
+      'line-height: 1.6',
+      'color: #111',
+    ].join(';')
+    container.innerHTML = html
+    document.body.appendChild(container)
+
+    try {
+      toast({ title: t('contract_gen_send_preparing') })
+      const { jsPDF } = await import('jspdf')
+      const doc = new jsPDF({ unit: 'pt', format: 'a4' })
+      await doc.html(container, {
+        x: 0,
+        y: 0,
+        width: 595, // A4 width in pt
+        windowWidth: A4_WIDTH_PX,
+        autoPaging: 'text',
+      })
+      const blob = doc.output('blob')
+
+      toast({ title: t('contract_gen_send_sending') })
+      const fd = new FormData()
+      fd.append('file', blob, 'contract.pdf')
+      const res = await fetch(`/api/tenants/${tenant.id}/send-contract`, {
+        method: 'POST',
+        body: fd,
+      })
+      const data = await res.json()
+      if (data.ok) {
+        toast({ title: t('contract_gen_send_success') })
+      } else {
+        toast({
+          title: t('contract_gen_send_failed'),
+          description: data.error,
+          variant: 'destructive',
+        })
+      }
+    } catch (err) {
+      toast({
+        title: t('contract_gen_send_failed'),
+        description: err instanceof Error ? err.message : '',
+        variant: 'destructive',
+      })
+    } finally {
+      container.remove()
+      setSendingContractId(null)
+    }
+  }
 
   function printAgreement(html: string) {
     const win = window.open('', '_blank', 'width=900,height=700')
@@ -488,6 +565,17 @@ export function TenantDetailClient({ tenant, rooms }: Props) {
                         >
                           <Printer className="w-3.5 h-3.5 mr-1" />{t('contract_gen_download_btn')}
                         </Button>
+                        {isAdmin && (
+                          <Button
+                            variant="outline" size="sm"
+                            onClick={() => sendContractToTenant(c.id, c.agreementText || '')}
+                            loading={sendingContractId === c.id}
+                            disabled={!tenant.telegramChatId || sendingContractId !== null}
+                            title={tenant.telegramChatId ? undefined : t('contract_gen_send_no_telegram')}
+                          >
+                            <MessageCircle className="w-3.5 h-3.5 mr-1" />{t('contract_gen_send_btn')}
+                          </Button>
+                        )}
                       </div>
                     </>
                   ) : (

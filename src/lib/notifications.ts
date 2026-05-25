@@ -145,6 +145,41 @@ export async function sendBranchQrCodesToAdmin(
 }
 
 /**
+ * Upload a file (e.g. generated PDF) to a Telegram chat via sendDocument.
+ * Used to deliver the tenant agreement contract directly into the tenant's chat.
+ */
+export async function sendTelegramDocument(
+  chatId: string,
+  file: { buffer: Buffer; filename: string; mime?: string },
+  caption?: string,
+): Promise<{ ok: boolean; error?: string }> {
+  if (!chatId) return { ok: false, error: 'Tenant has not linked their Telegram.' }
+  const settings = await getSettingsMap()
+  const token = settings.telegram_token || process.env.TELEGRAM_BOT_TOKEN
+  if (!token) return { ok: false, error: 'Telegram not configured.' }
+
+  const mime = file.mime || 'application/octet-stream'
+  const form = new FormData()
+  form.append('chat_id', chatId)
+  form.append('document', new Blob([new Uint8Array(file.buffer)], { type: mime }), file.filename)
+  if (caption) {
+    form.append('caption', caption)
+    form.append('parse_mode', 'HTML')
+  }
+
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${token}/sendDocument`, {
+      method: 'POST',
+      body: form,
+    })
+    const data = await res.json()
+    return data.ok ? { ok: true } : { ok: false, error: data.description }
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : 'Unknown error' }
+  }
+}
+
+/**
  * Send a photo or video (referenced by a public URL) to a Telegram chat, with an
  * optional caption. Telegram fetches the media itself from the URL.
  */
