@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Plus, Search, FileText, Calendar, Trash2, Printer, Pencil } from 'lucide-react'
+import { Plus, Search, FileText, Calendar, Trash2, Printer, Pencil, Bell } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -14,6 +14,7 @@ import { PaymentDialog } from '@/components/billing/payment-dialog'
 import { BatchDeleteDialog } from '@/components/billing/batch-delete-dialog'
 import { GenerateMonthlyDialog } from '@/components/billing/generate-monthly-dialog'
 import { BatchGenerateInvoiceDialog } from '@/components/invoices/batch-generate-dialog'
+import { NoticeDialog } from '@/components/tenants/notice-dialog'
 import { formatCurrency, formatCompact, exportToCSV, sortRoomsByNumber, cn } from '@/lib/utils'
 import { CARD_STYLES } from '@/lib/card-colors'
 import { toast } from '@/hooks/use-toast'
@@ -66,6 +67,7 @@ export function BillingListClient({ billings: initial }: Props) {
   const [showBatchDelete, setShowBatchDelete] = useState(false)
   const [showGenerate, setShowGenerate] = useState(false)
   const [showBatchInvoice, setShowBatchInvoice] = useState(false)
+  const [noticeTenantId, setNoticeTenantId] = useState<string | null>(null)
   const { triggerDelete, dialogState, closeDialog } = useDeleteWithUndo()
 
   const branches = useBranches().map((b) => b.name)
@@ -312,6 +314,17 @@ export function BillingListClient({ billings: initial }: Props) {
                     </Button>
                   </Link>
                 )}
+                {isAdmin && b.tenant && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-10 px-3 text-amber-600 border-amber-200 hover:bg-amber-500/10"
+                    title={t('notice_add')}
+                    onClick={() => setNoticeTenantId(b.tenant!.id)}
+                  >
+                    <Bell className="w-4 h-4" />
+                  </Button>
+                )}
                 {isAdmin && (
                   <Button variant="outline" size="sm" className="h-10 text-destructive border-destructive/30 hover:bg-destructive/10"
                     onClick={() => handleDelete(b)}>
@@ -362,6 +375,14 @@ export function BillingListClient({ billings: initial }: Props) {
           branches={branches}
           onClose={() => setShowBatchInvoice(false)}
           onGenerated={() => setShowBatchInvoice(false)}
+        />
+      )}
+
+      {noticeTenantId && (
+        <NoticeDialog
+          tenantId={noticeTenantId}
+          onClose={() => setNoticeTenantId(null)}
+          onSave={() => setNoticeTenantId(null)}
         />
       )}
     </div>
