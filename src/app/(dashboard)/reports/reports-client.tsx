@@ -227,8 +227,43 @@ export function ReportsClient({ billings, expenses }: Props) {
         </Card>
       )}
 
-      {/* Billing table */}
-      <Card>
+      {/* Mobile card list */}
+      <div className="md:hidden space-y-3">
+        <h3 className="text-base font-semibold">{t('reports_billing_detail')} ({monthBillings.length} {t('billing_records')})</h3>
+        {sortRoomsByNumber(monthBillings.map((b) => ({ ...b, roomNumber: b.room?.roomNumber ?? '' }))).slice(0, 50).map((b) => (
+          <Card key={b.id} className="p-4">
+            <div className="flex items-start justify-between gap-2 mb-2">
+              <div className="min-w-0">
+                <p className="font-semibold leading-tight truncate">
+                  {b.room ? `${t('room')} ${roomLabel(b.room)}` : '—'}
+                </p>
+                <p className="text-sm text-muted-foreground truncate">{b.tenant?.fullName ?? '—'}</p>
+                <p className="text-xs text-muted-foreground font-mono mt-0.5">{b.billingMonth}</p>
+              </div>
+              <Badge
+                variant={b.paymentStatus === 'paid' ? 'success' : b.paymentStatus === 'partial' ? 'warning' : 'error'}
+                className="shrink-0"
+              >
+                {t(b.paymentStatus === 'paid' ? 'status_paid' : b.paymentStatus === 'partial' ? 'status_partial' : 'status_unpaid')}
+              </Badge>
+            </div>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+              <div>
+                <p className="text-xs text-muted-foreground">{t('branch')}</p>
+                <p className="truncate">{b.room?.branch ?? '—'}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">{t('reports_total_usd')}</p>
+                <p className="font-semibold tabular-nums">{formatCurrency(b.totalUsd)}</p>
+                <p className="text-xs text-muted-foreground tabular-nums">{Math.round(b.totalRiel).toLocaleString()} ៛</p>
+              </div>
+            </div>
+          </Card>
+        ))}
+      </div>
+
+      {/* Desktop billing table */}
+      <Card className="hidden md:block">
         <CardHeader><CardTitle className="text-base">{t('reports_billing_detail')} ({monthBillings.length} {t('billing_records')})</CardTitle></CardHeader>
         <TableScroll>
           <table className="w-full min-w-[780px] text-sm">

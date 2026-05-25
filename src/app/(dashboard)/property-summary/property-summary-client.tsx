@@ -254,7 +254,92 @@ export function PropertySummaryClient({ rooms, tenants, billings, expenses, main
       {/* ── Section 2: Comparison table ── */}
       <section className="space-y-3">
         <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">{t('ps_comparison')}</h2>
-        <Card>
+        {/* Mobile card list */}
+        <div className="md:hidden space-y-3">
+          {sortedRows.map((p) => (
+            <Card key={p.slug} className="p-4">
+              <p className="font-bold mb-3">{p.name}</p>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                <div>
+                  <p className="text-xs text-muted-foreground">{t('dashboard_total_rooms')}</p>
+                  <p className="tabular-nums">{p.total}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">{t('dashboard_occupancy_pct')}</p>
+                  <p className="tabular-nums">{p.occupancy}%</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">{t('dashboard_active_tenants')}</p>
+                  <p className="tabular-nums">{p.activeTenants}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">{t('ps_all_time_tenants')}</p>
+                  <p className="tabular-nums">{p.allTimeTenants}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">{t('dashboard_monthly_revenue')}</p>
+                  <p className="tabular-nums text-green-600 dark:text-green-400">{formatCurrency(p.revenue)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">{t('dashboard_monthly_expenses')}</p>
+                  <p className="tabular-nums text-orange-600 dark:text-orange-400">{formatCurrency(p.expenseTotal)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">{t('dashboard_net_income')}</p>
+                  <p className={cn('tabular-nums font-semibold', p.net >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400')}>{formatCurrency(p.net)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">{t('dashboard_outstanding')}</p>
+                  <p className="tabular-nums text-red-600 dark:text-red-400">{formatCurrency(p.outstanding)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">{t('collection_rate')}</p>
+                  <p className="tabular-nums">{p.collection}%</p>
+                </div>
+              </div>
+            </Card>
+          ))}
+          <Card className="p-4 bg-muted/40">
+            <p className="font-bold mb-3">{t('all_branches')}</p>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+              <div>
+                <p className="text-xs text-muted-foreground">{t('dashboard_total_rooms')}</p>
+                <p className="tabular-nums font-semibold">{totals.total}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">{t('dashboard_occupancy_pct')}</p>
+                <p className="tabular-nums font-semibold">{totals.total ? Math.round((totals.occupied / totals.total) * 100) : 0}%</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">{t('dashboard_active_tenants')}</p>
+                <p className="tabular-nums font-semibold">{totals.activeTenants}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">{t('ps_all_time_tenants')}</p>
+                <p className="tabular-nums font-semibold">{totals.allTimeTenants}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">{t('dashboard_monthly_revenue')}</p>
+                <p className="tabular-nums font-semibold">{formatCurrency(totals.revenue)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">{t('dashboard_monthly_expenses')}</p>
+                <p className="tabular-nums font-semibold">{formatCurrency(totals.expenseTotal)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">{t('dashboard_net_income')}</p>
+                <p className="tabular-nums font-semibold">{formatCurrency(totals.net)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">{t('dashboard_outstanding')}</p>
+                <p className="tabular-nums font-semibold">{formatCurrency(totals.outstanding)}</p>
+              </div>
+            </div>
+          </Card>
+        </div>
+
+        {/* Desktop table */}
+        <Card className="hidden md:block">
           <CardContent className="p-0">
             <TableScroll>
               <table className="w-full min-w-[860px] text-sm">

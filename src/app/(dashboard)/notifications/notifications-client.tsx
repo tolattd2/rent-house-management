@@ -318,8 +318,142 @@ export function NotificationsClient({ notifications, unpaidBillings, linkedTenan
         ))}
       </div>
 
-      {/* Table */}
-      <Card>
+      {/* Mobile card list */}
+      <div className="md:hidden space-y-3">
+        {tab === 'pending' ? (
+          filteredUnpaid.length === 0 ? (
+            <div className="text-center py-16 text-muted-foreground">
+              <Bell className="w-10 h-10 mx-auto mb-3 opacity-30" />
+              <p>{t('notifications_empty')}</p>
+            </div>
+          ) : (
+            filteredUnpaid.map((b) => (
+              <Card key={b.id} className="p-4">
+                <div className="flex items-start justify-between gap-2 mb-3">
+                  <div className="min-w-0">
+                    <p className="font-bold leading-tight truncate">
+                      {b.room ? `${t('room')} ${roomLabel(b.room)}` : '—'}
+                    </p>
+                    <p className="text-sm text-muted-foreground truncate mt-0.5">{b.tenant?.fullName ?? '—'}</p>
+                    {b.tenant?.phone && (
+                      <p className="text-xs text-muted-foreground tabular-nums">{b.tenant.phone}</p>
+                    )}
+                    <p className="text-xs text-muted-foreground font-mono mt-0.5">{b.billingMonth}</p>
+                  </div>
+                  <Badge variant={STATUS_BADGE_VARIANT[b.paymentStatus] ?? 'secondary'} className="shrink-0 capitalize">
+                    {t(
+                      b.paymentStatus === 'paid' ? 'status_paid'
+                        : b.paymentStatus === 'partial' ? 'status_partial'
+                          : 'status_unpaid',
+                    )}
+                  </Badge>
+                </div>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm mb-3">
+                  <div>
+                    <p className="text-xs text-muted-foreground">{t('branch')}</p>
+                    <p className="truncate">{b.room?.branch ?? '—'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">{t('notifications_col_total')}</p>
+                    <p className="font-semibold tabular-nums">{formatCurrency(b.totalUsd)}</p>
+                    <p className="text-xs text-muted-foreground tabular-nums">{Math.round(b.totalRiel).toLocaleString()} ៛</p>
+                  </div>
+                </div>
+                {!b.tenant?.telegramChatId ? (
+                  <p className="text-xs text-muted-foreground italic pt-2 border-t border-border">
+                    {t('notifications_not_linked')}
+                  </p>
+                ) : (
+                  <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
+                    <Button
+                      size="sm" variant="outline" className="flex-1 min-w-[6rem] h-10"
+                      onClick={() => handleSendReminder(b.tenant!.id, b.id, 'invoice')}
+                      loading={sending === `${b.id}:invoice`}
+                      disabled={sending !== null}
+                    >
+                      <MessageSquare className="w-3.5 h-3.5 mr-1" />{t('notifications_invoice_notified')}
+                    </Button>
+                    <Button
+                      size="sm" variant="outline"
+                      className="flex-1 min-w-[6rem] h-10 text-orange-600 border-orange-200 hover:bg-orange-50 dark:hover:bg-orange-950/30"
+                      onClick={() => handleSendReminder(b.tenant!.id, b.id, 'late')}
+                      loading={sending === `${b.id}:late`}
+                      disabled={sending !== null}
+                    >
+                      <AlertTriangle className="w-3.5 h-3.5 mr-1" />{t('notifications_late_notified')}
+                    </Button>
+                    <Button
+                      size="sm" variant="outline" className="flex-1 min-w-[6rem] h-10"
+                      onClick={() => setComposeTenant({ id: b.tenant!.id, name: b.tenant!.fullName })}
+                    >
+                      <ImagePlus className="w-3.5 h-3.5 mr-1" />{t('notifications_custom_compose')}
+                    </Button>
+                  </div>
+                )}
+              </Card>
+            ))
+          )
+        ) : (
+          filteredHistory.length === 0 ? (
+            <div className="text-center py-16 text-muted-foreground">
+              <History className="w-10 h-10 mx-auto mb-3 opacity-30" />
+              <p>{t('notifications_history_empty')}</p>
+            </div>
+          ) : (
+            filteredHistory.map((n) => {
+              const typeKey = NOTIF_TYPE_KEY[n.type as keyof typeof NOTIF_TYPE_KEY]
+              const typeLabel = typeKey ? t(typeKey) : n.type
+              const StatusIcon = n.status === 'sent' ? CheckCircle2 : n.status === 'failed' ? XCircle : Clock
+              const isExpanded = !!expanded[n.id]
+              return (
+                <Card key={n.id} className="p-4">
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <div className="min-w-0">
+                      <p className="font-medium truncate">{n.tenant?.fullName ?? '—'}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {n.tenant?.room?.branch ?? '—'}
+                        {n.tenant?.room?.roomNumber ? ` · ${t('room')} ${n.tenant.room.roomNumber}` : ''}
+                      </p>
+                      <p className="text-xs font-mono text-muted-foreground mt-0.5">{formatSentAt(n.createdAt)}</p>
+                    </div>
+                    <div className="flex flex-col items-end gap-1 shrink-0">
+                      <Badge variant={NOTIF_STATUS_BADGE[n.status] ?? 'secondary'} className="inline-flex items-center gap-1">
+                        <StatusIcon className="w-3 h-3" />
+                        {t(n.status === 'sent' ? 'notif_status_sent' : n.status === 'failed' ? 'notif_status_failed' : 'notif_status_pending')}
+                      </Badge>
+                      <Badge variant="secondary" className="font-normal">{typeLabel}</Badge>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => toggleExpanded(n.id)}
+                    className={cn(
+                      'block w-full text-left text-xs text-muted-foreground hover:text-foreground transition-colors whitespace-pre-wrap break-words mb-2',
+                      !isExpanded && 'line-clamp-2',
+                    )}
+                  >
+                    {n.message}
+                  </button>
+                  {n.tenant?.telegramChatId && (
+                    <div className="flex pt-2 border-t border-border">
+                      <Button
+                        size="sm" variant="outline" className="flex-1 h-10"
+                        onClick={() => handleResend(n.id)}
+                        loading={resending === n.id}
+                        disabled={resending !== null}
+                      >
+                        <RotateCcw className="w-3.5 h-3.5 mr-1" />{t('notifications_resend')}
+                      </Button>
+                    </div>
+                  )}
+                </Card>
+              )
+            })
+          )
+        )}
+      </div>
+
+      {/* Desktop table */}
+      <Card className="hidden md:block">
         <CardContent className="p-0">
           <TableScroll>
             {tab === 'pending' ? (

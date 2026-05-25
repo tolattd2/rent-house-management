@@ -341,6 +341,39 @@ export function DashboardClient({ rooms, tenants, billings, expenses, unpaidBill
               </Link>
             </CardHeader>
             <CardContent className="p-0">
+              {/* Mobile card list */}
+              <div className="md:hidden p-3 space-y-3">
+                {filteredUnpaid.slice(0, 10).map((bill) => (
+                  <div key={bill.id} className="p-3 rounded-lg border border-border">
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <div className="min-w-0">
+                        <p className="font-medium truncate">
+                          {bill.room ? `${t('room')} ${roomLabel(bill.room)}` : '—'}
+                        </p>
+                        <Link href={`/tenants/${bill.tenant?.id}`} className="text-sm text-muted-foreground truncate hover:text-primary block">
+                          {bill.tenant?.fullName ?? '—'}
+                        </Link>
+                        {bill.tenant && (
+                          <p className="text-xs text-muted-foreground">{formatPhones(bill.tenant.phone, bill.tenant.phonesExtra)}</p>
+                        )}
+                      </div>
+                      <Badge variant={bill.paymentStatus === 'unpaid' ? 'error' : 'warning'} className="shrink-0 capitalize">
+                        {t(bill.paymentStatus === 'unpaid' ? 'status_unpaid' : 'status_partial')}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground tabular-nums">{bill.billingMonth}</span>
+                      <div className="text-right">
+                        <span className="font-semibold tabular-nums">${bill.totalUsd.toFixed(2)}</span>
+                        <p className="text-xs text-muted-foreground tabular-nums">{Math.round(bill.totalRiel).toLocaleString()} ៛</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop table */}
+              <div className="hidden md:block">
               <TableScroll>
                 <table className="w-full min-w-[600px] text-sm">
                   <thead>
@@ -393,6 +426,7 @@ export function DashboardClient({ rooms, tenants, billings, expenses, unpaidBill
                   </tbody>
                 </table>
               </TableScroll>
+              </div>
             </CardContent>
           </Card>
         </motion.div>
@@ -414,6 +448,40 @@ export function DashboardClient({ rooms, tenants, billings, expenses, unpaidBill
               </Link>
             </CardHeader>
             <CardContent className="p-0">
+              {/* Mobile card list */}
+              <div className="md:hidden p-3 space-y-3">
+                {filteredNotices.slice(0, 10).map((n) => (
+                  <div key={n.id} className="p-3 rounded-lg border border-border">
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <div className="min-w-0">
+                        <p className="font-medium truncate">
+                          {n.tenant?.room ? `${t('room')} ${roomLabel(n.tenant.room)}` : '—'}
+                        </p>
+                        <Link href={`/tenants/${n.tenant?.id}`} className="text-sm text-muted-foreground truncate hover:text-primary block">
+                          {n.tenant?.fullName ?? '—'}
+                        </Link>
+                        {n.tenant?.room?.branch && (
+                          <span className={cn('inline-block mt-1 text-xs px-2 py-0.5 rounded-full font-medium', branchChipColor(n.tenant.room.branch))}>
+                            {n.tenant.room.branch}
+                          </span>
+                        )}
+                      </div>
+                      <Badge variant={n.type === 'move_out' ? 'error' : n.type === 'general' ? 'secondary' : 'warning'} className="shrink-0">
+                        {t(`notice_type_${n.type}` as Parameters<typeof t>[0])}
+                      </Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground whitespace-pre-wrap break-words">{n.message}</p>
+                    {n.expectedDate && (
+                      <p className="text-xs text-amber-700 dark:text-amber-500 mt-2 tabular-nums">
+                        {t('notice_expected')}: {formatDate(n.expectedDate)}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop table */}
+              <div className="hidden md:block">
               <TableScroll>
                 <table className="w-full min-w-[640px] text-sm">
                   <thead>
@@ -461,6 +529,7 @@ export function DashboardClient({ rooms, tenants, billings, expenses, unpaidBill
                   </tbody>
                 </table>
               </TableScroll>
+              </div>
             </CardContent>
           </Card>
         </motion.div>

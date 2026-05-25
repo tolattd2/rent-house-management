@@ -213,8 +213,96 @@ export function InvoicesClient({ invoices: initial }: Props) {
           onChange={(f, to) => { setMonthFrom(f); setMonthTo(to); if (f || to) setMonthFilter('all') }} />
       </div>
 
-      {/* Table */}
-      <Card>
+      {/* Mobile card list */}
+      <div className="md:hidden space-y-3">
+        {filtered.length === 0 && (
+          <div className="text-center py-16 text-muted-foreground">
+            <FileText className="w-12 h-12 mx-auto mb-3 opacity-30" />
+            <p>{t('invoices_empty')}</p>
+          </div>
+        )}
+        {filtered.map((inv) => {
+          const status = inv.billing?.paymentStatus
+          return (
+            <Card key={inv.id} className="p-4">
+              <div className="flex items-start justify-between gap-2 mb-3">
+                <div className="min-w-0">
+                  <p className="font-bold leading-tight truncate">
+                    {inv.billing?.room ? `${t('room')} ${roomLabel(inv.billing.room)}` : '—'}
+                  </p>
+                  <Link href={`/tenants/${inv.tenant?.id}`} className="text-sm text-muted-foreground hover:text-primary block truncate mt-1">
+                    {inv.tenant?.fullName ?? '—'}
+                  </Link>
+                  <p className="text-xs text-muted-foreground mt-0.5 font-mono">{inv.invoiceNumber}</p>
+                </div>
+                <Badge
+                  variant={status === 'paid' ? 'success' : status === 'partial' ? 'warning' : 'error'}
+                  className="shrink-0 capitalize"
+                >
+                  {status === 'paid' ? t('status_paid') : status === 'partial' ? t('status_partial') : t('status_unpaid')}
+                </Badge>
+              </div>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm mb-3">
+                <div>
+                  <p className="text-xs text-muted-foreground">{t('billing_col_month')}</p>
+                  <p>{inv.billing?.billingMonth ?? '—'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">{t('amount')}</p>
+                  <p className="font-semibold">{formatCurrency(inv.billing?.totalUsd ?? 0)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">{t('branch')}</p>
+                  <p className="truncate">{inv.billing?.room?.branch ?? '—'}</p>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
+                <Link href={`/invoices/${inv.billingId}`} className="flex-1 min-w-[5rem]">
+                  <Button variant="outline" size="sm" className="w-full h-10">{t('view')}</Button>
+                </Link>
+                <Button
+                  variant="outline" size="sm" className="h-10 px-3 shrink-0"
+                  onClick={() => window.open(`/invoices/${inv.billingId}`, '_blank')}
+                >
+                  <Printer className="w-4 h-4" />
+                </Button>
+                {isAdmin && (
+                  <Button
+                    variant="outline" size="sm"
+                    className="h-10 px-3 shrink-0 text-blue-600 border-blue-200 hover:bg-blue-500/10"
+                    title={t('promise_to_pay')}
+                    onClick={() => setPromiseBillingId(inv.billingId)}
+                  >
+                    <CalendarClock className="w-4 h-4" />
+                  </Button>
+                )}
+                {isAdmin && inv.tenant && (
+                  <Button
+                    variant="outline" size="sm"
+                    className="h-10 px-3 shrink-0 text-amber-600 border-amber-200 hover:bg-amber-500/10"
+                    title={t('notice_add')}
+                    onClick={() => setNoticeTenantId(inv.tenant!.id)}
+                  >
+                    <Bell className="w-4 h-4" />
+                  </Button>
+                )}
+                {isAdmin && (
+                  <Button
+                    variant="outline" size="sm"
+                    className="h-10 px-3 shrink-0 text-destructive border-destructive/30 hover:bg-destructive/10"
+                    onClick={() => handleDelete(inv)}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                )}
+              </div>
+            </Card>
+          )
+        })}
+      </div>
+
+      {/* Desktop table */}
+      <Card className="hidden md:block">
         <TableScroll>
           <table className="w-full min-w-[820px] text-sm">
             <thead>
