@@ -70,6 +70,81 @@ export async function sendTelegramTo(chatId: string, message: string): Promise<{
 }
 
 /**
+ * Send a base64 data-URL image as a Telegram photo via multipart upload.
+ * Used for the per-branch payment QR codes stored in settings (qr_<slug>_<slot>).
+ */
+async function sendTelegramPhotoDataUrl(
+  chatId: string,
+  dataUrl: string,
+  caption?: string,
+): Promise<{ ok: boolean; error?: string }> {
+  if (!chatId) return { ok: false, error: 'No chat id' }
+  const settings = await getSettingsMap()
+  const token = settings.telegram_token || process.env.TELEGRAM_BOT_TOKEN
+  if (!token) return { ok: false, error: 'Telegram not configured.' }
+
+  const match = /^data:([^;]+);base64,(.+)$/.exec(dataUrl)
+  if (!match) return { ok: false, error: 'Invalid QR data URL' }
+  const mime = match[1]
+  const buffer = Buffer.from(match[2], 'base64')
+  const ext = (mime.split('/')[1] || 'png').replace(/\+.*/, '')
+
+  const form = new FormData()
+  form.append('chat_id', chatId)
+  form.append('photo', new Blob([new Uint8Array(buffer)], { type: mime }), `qr.${ext}`)
+  if (caption) {
+    form.append('caption', caption)
+    form.append('parse_mode', 'HTML')
+  }
+
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
+      method: 'POST',
+      body: form,
+    })
+    const data = await res.json()
+    return data.ok ? { ok: true } : { ok: false, error: data.description }
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : 'Unknown error' }
+  }
+}
+
+/**
+ * Send all configured payment QR codes for the tenant's branch (up to 2 slots,
+ * keys `qr_<slug>_1` / `qr_<slug>_2`) to the given Telegram chat. Silently
+ * skips slots that are unset, and ignores per-QR errors so a missing QR never
+ * breaks the main reminder flow. Returns the count actually sent.
+ */
+export async function sendBranchQrCodes(
+  chatId: string,
+  branchName: string | null | undefined,
+): Promise<{ sent: number }> {
+  if (!chatId) return { sent: 0 }
+  const settings = await getSettingsMap()
+  const branches = parseBranches(settings.branches)
+  const slug = branchSlug(branches, branchName)
+
+  let sent = 0
+  for (const slot of [1, 2] as const) {
+    const dataUrl = settings[`qr_${slug}_${slot}`]
+    if (!dataUrl) continue
+    const label = settings[`qr_${slug}_label_${slot}`]?.trim()
+    const r = await sendTelegramPhotoDataUrl(chatId, dataUrl, label || undefined)
+    if (r.ok) sent++
+  }
+  return { sent }
+}
+
+/** Same as sendBranchQrCodes, but targets the shared admin chat from settings. */
+export async function sendBranchQrCodesToAdmin(
+  branchName: string | null | undefined,
+): Promise<{ sent: number }> {
+  const settings = await getSettingsMap()
+  const adminChatId = settings.telegram_chat_id || process.env.TELEGRAM_CHAT_ID || ''
+  return sendBranchQrCodes(adminChatId, branchName)
+}
+
+/**
  * Send a photo or video (referenced by a public URL) to a Telegram chat, with an
  * optional caption. Telegram fetches the media itself from the URL.
  */
@@ -121,6 +196,7 @@ export async function buildReminderMessage(params: {
   billingMonth: string
   totalUsd: number
   totalRiel: number
+  roomRentUsd: number
   waterUsage: number
   waterCostRiel: number
   electricUsage: number
@@ -134,6 +210,7 @@ export async function buildReminderMessage(params: {
   const branch = await resolvePropertyName(params.branchName)
   const rielFormatted = Math.round(params.totalRiel).toLocaleString()
   const usd = params.totalUsd.toFixed(2)
+  const roomRent = params.roomRentUsd.toFixed(2)
   const waterRiel = Math.round(params.waterCostRiel).toLocaleString()
   const electricRiel = Math.round(params.electricCostRiel).toLocaleString()
   const penalty = params.latePenaltyUsd.toFixed(2)
@@ -155,6 +232,7 @@ export async function buildReminderMessage(params: {
     `ទឹក / Water៖ ${params.waterUsage} m³ — ${waterRiel} ៛\n` +
     `អគ្គិសនី / Electric៖ ${params.electricUsage} kWh — ${electricRiel} ៛\n\n` +
     `💰 <b>ការគិតថ្លៃ / Charges</b>\n` +
+    `ថ្លៃជួលបន្ទប់ / Room Price៖ $${roomRent}\n` +
     `ការពិន័យយឺត / Late (${params.lateDays} ថ្ងៃ / days)៖ $${penalty}\n` +
     `បញ្ចុះតម្លៃ / Discount៖ -$${discount}\n\n` +
     `ត្រូវបង់សរុប / Total Due៖ $${usd} / ${rielFormatted} ៛\n\n` +
@@ -209,6 +287,7 @@ export async function buildLateReminderMessage(params: {
   billingMonth: string
   totalUsd: number
   totalRiel: number
+  roomRentUsd: number
   waterUsage: number
   waterCostRiel: number
   electricUsage: number
@@ -222,6 +301,7 @@ export async function buildLateReminderMessage(params: {
   const branch = await resolvePropertyName(params.branchName)
   const riel = Math.round(params.totalRiel).toLocaleString()
   const usd = params.totalUsd.toFixed(2)
+  const roomRent = params.roomRentUsd.toFixed(2)
   const waterRiel = Math.round(params.waterCostRiel).toLocaleString()
   const electricRiel = Math.round(params.electricCostRiel).toLocaleString()
   const penalty = params.penaltyUsd.toFixed(2)
@@ -240,6 +320,7 @@ export async function buildLateReminderMessage(params: {
     `ទឹក / Water៖ ${params.waterUsage} m³ — ${waterRiel} ៛\n` +
     `អគ្គិសនី / Electric៖ ${params.electricUsage} kWh — ${electricRiel} ៛\n\n` +
     `💰 <b>ការគិតថ្លៃ / Charges</b>\n` +
+    `ថ្លៃជួលបន្ទប់ / Room Price៖ $${roomRent}\n` +
     `ការពិន័យយឺត / Late (${params.lateDays} ថ្ងៃ / days)៖ $${penalty}\n` +
     `បញ្ចុះតម្លៃ / Discount៖ -$${discount}\n\n` +
     `ត្រូវបង់សរុប / Total Due៖ $${usd} / ${riel} ៛\n\n` +

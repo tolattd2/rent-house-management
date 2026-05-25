@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { sendTelegramMessage, buildReminderMessage } from '@/lib/notifications'
+import { sendTelegramMessage, sendBranchQrCodesToAdmin, buildReminderMessage } from '@/lib/notifications'
 import { invalidate } from '@/lib/revalidate'
 
 export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -22,6 +22,7 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
     billingMonth: billing.billingMonth,
     totalUsd: billing.totalUsd,
     totalRiel: billing.totalRiel,
+    roomRentUsd: billing.roomRentUsd,
     waterUsage: billing.waterUsage,
     waterCostRiel: billing.waterCostRiel,
     electricUsage: billing.electricUsage,
@@ -34,6 +35,9 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
   })
 
   const result = await sendTelegramMessage(msg)
+  if (result.ok) {
+    await sendBranchQrCodesToAdmin(billing.room?.branch)
+  }
 
   const invoice = await db.invoice.findUnique({ where: { billingId: id } })
   if (invoice) {

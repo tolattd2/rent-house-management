@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import {
   sendTelegramTo,
+  sendBranchQrCodes,
   buildReminderMessage,
   buildLateReminderMessage,
 } from '@/lib/notifications'
@@ -64,6 +65,7 @@ export async function POST(req: NextRequest) {
         billingMonth: billing.billingMonth,
         totalUsd: billing.totalUsd,
         totalRiel: billing.totalRiel,
+        roomRentUsd: billing.roomRentUsd,
         waterUsage: billing.waterUsage,
         waterCostRiel: billing.waterCostRiel,
         electricUsage: billing.electricUsage,
@@ -80,6 +82,7 @@ export async function POST(req: NextRequest) {
         billingMonth: billing.billingMonth,
         totalUsd: billing.totalUsd,
         totalRiel: billing.totalRiel,
+        roomRentUsd: billing.roomRentUsd,
         waterUsage: billing.waterUsage,
         waterCostRiel: billing.waterCostRiel,
         electricUsage: billing.electricUsage,
@@ -92,6 +95,9 @@ export async function POST(req: NextRequest) {
       })
 
     const result = await sendTelegramTo(tenant.telegramChatId, msg)
+    if (result.ok) {
+      await sendBranchQrCodes(tenant.telegramChatId, billing.room?.branch)
+    }
 
     await db.notification.create({
       data: {

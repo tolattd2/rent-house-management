@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { sendTelegramTo, buildLateReminderMessage } from '@/lib/notifications'
+import { sendTelegramTo, sendBranchQrCodes, buildLateReminderMessage } from '@/lib/notifications'
 import { parseBranches } from '@/lib/branches'
 import { computeLateFee, daysLate } from '@/lib/late-fees'
 
@@ -100,6 +100,7 @@ export async function GET(req: NextRequest) {
       billingMonth: x.b.billingMonth,
       totalUsd: x.b.totalUsd,
       totalRiel: x.b.totalRiel,
+      roomRentUsd: x.b.roomRentUsd,
       waterUsage: x.b.waterUsage,
       waterCostRiel: x.b.waterCostRiel,
       electricUsage: x.b.electricUsage,
@@ -113,6 +114,7 @@ export async function GET(req: NextRequest) {
 
     const result = await sendTelegramTo(tenant.telegramChatId, msg)
     if (result.ok) {
+      await sendBranchQrCodes(tenant.telegramChatId, x.b.room?.branch)
       alerted++
       successDays[x.b.id] = x.days
     }

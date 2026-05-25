@@ -24,6 +24,7 @@ export async function POST() {
     billingMonth: new Date().toISOString().slice(0, 7),
     totalUsd: 100,
     totalRiel: 410000,
+    roomRentUsd: 80,
     waterUsage: 5,
     waterCostRiel: 10000,
     electricUsage: 80,
