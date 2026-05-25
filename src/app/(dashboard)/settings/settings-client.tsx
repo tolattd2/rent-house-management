@@ -51,6 +51,10 @@ export function SettingsClient({ settings: initial }: Props) {
   const [users, setUsers] = useState<UserRow[]>([])
   const [usersLoading, setUsersLoading] = useState(false)
   const [usersError, setUsersError] = useState<string | null>(null)
+  // Controlled tab — kept in sync with the ?tab= query param so deep links
+  // from elsewhere in the app (e.g. the header chip → /settings?tab=users)
+  // both switch to the right tab AND trigger that tab's data loading.
+  const [currentTab, setCurrentTab] = useState(initialTab)
   const [showAddUser, setShowAddUser] = useState(false)
   const [addingUser, setAddingUser] = useState(false)
   const [newUser, setNewUser] = useState({ name: '', email: '', password: '', role: 'staff' as const, phone: '' })
@@ -165,6 +169,21 @@ export function SettingsClient({ settings: initial }: Props) {
       setUsersLoading(false)
     }
   }
+
+  // Sync the controlled tab from the URL whenever the page re-renders
+  // (covers soft-navigation while already on /settings, e.g. clicking the
+  // header user chip).
+  useEffect(() => {
+    if (initialTab && initialTab !== currentTab) setCurrentTab(initialTab)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialTab])
+
+  // Load Users when the Users tab becomes active, no matter how we got there
+  // (sidebar click → tab click, or direct ?tab=users deep link).
+  useEffect(() => {
+    if (currentTab === 'users') loadUsers()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentTab])
 
   async function handleAddUser() {
     if (!newUser.name || !newUser.email || !newUser.password) return
@@ -386,7 +405,7 @@ export function SettingsClient({ settings: initial }: Props) {
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)}>
-        <Tabs defaultValue={initialTab} onValueChange={(v) => { if (v === 'users') loadUsers() }}>
+        <Tabs value={currentTab} onValueChange={setCurrentTab}>
           <div className="overflow-x-auto">
             <TabsList className="flex-nowrap w-max min-w-full">
               <TabsTrigger value="general"><Palette className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">{t('settings_general')}</span></TabsTrigger>
