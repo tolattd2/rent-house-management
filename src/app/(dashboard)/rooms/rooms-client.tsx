@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { RoomFormDialog } from '@/components/rooms/room-form-dialog'
-import { formatCurrency, formatPhones, sortRoomsByNumber, cn } from '@/lib/utils'
+import { formatCurrency, formatPhones, groupByBranch, cn } from '@/lib/utils'
 import { CARD_STYLES, type CardColor } from '@/lib/card-colors'
 import { toast } from '@/hooks/use-toast'
 import { useRouter } from 'next/navigation'
@@ -64,13 +64,15 @@ export function RoomsClient({ rooms: initialRooms, settings }: Props) {
   const [editRoom, setEditRoom] = useState<Room | null>(null)
   const { triggerDelete, dialogState, closeDialog } = useDeleteWithUndo()
 
-  const filtered = sortRoomsByNumber(rooms.filter((r) => {
+  const filtered = rooms.filter((r) => {
     const matchSearch = r.roomNumber.toLowerCase().includes(search.toLowerCase()) ||
       r.roomType.toLowerCase().includes(search.toLowerCase())
     const matchStatus = statusFilter === 'all' || r.status === statusFilter
     const matchBranch = branchFilter === 'all' || r.branch === branchFilter
     return matchSearch && matchStatus && matchBranch
-  }))
+  })
+
+  const grouped = groupByBranch(filtered)
 
   const handleDelete = (room: Room) => {
     triggerDelete({
@@ -163,9 +165,22 @@ export function RoomsClient({ rooms: initialRooms, settings }: Props) {
         ))}
       </div>
 
-      {/* Room grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        {filtered.map((room, i) => {
+      {/* Room grid — grouped by branch, rooms ascending inside each group */}
+      {filtered.length === 0 && (
+        <div className="text-center py-16 text-muted-foreground">
+          <Home className="w-12 h-12 mx-auto mb-3 opacity-30" />
+          <p>{t('rooms_empty')}</p>
+        </div>
+      )}
+      {grouped.map((group) => (
+        <div key={group.branch} className="space-y-3">
+          <div className="flex items-center gap-3 sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/70 py-2">
+            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">{group.branch}</h2>
+            <span className="text-xs text-muted-foreground tabular-nums">({group.items.length})</span>
+            <div className="flex-1 h-px bg-border" />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        {group.items.map((room, i) => {
           const tenant = room.tenants[0]
           const StatusIcon = statusIcon[room.status] ?? Home
           return (
@@ -226,14 +241,9 @@ export function RoomsClient({ rooms: initialRooms, settings }: Props) {
             </div>
           )
         })}
-
-        {filtered.length === 0 && (
-          <div className="col-span-full text-center py-16 text-muted-foreground">
-            <Home className="w-12 h-12 mx-auto mb-3 opacity-30" />
-            <p>{t('rooms_empty')}</p>
           </div>
-        )}
-      </div>
+        </div>
+      ))}
 
       <DeleteConfirmDialog
         open={dialogState.open}

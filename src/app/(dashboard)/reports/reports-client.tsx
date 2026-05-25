@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { Fragment, useState, useMemo } from 'react'
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis,
   CartesianGrid, Tooltip, Legend
@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { MonthRangePicker, monthRange } from '@/components/ui/month-range-picker'
 import { Badge } from '@/components/ui/badge'
-import { formatCurrency, exportToCSV, sortRoomsByNumber, cn } from '@/lib/utils'
+import { formatCurrency, exportToCSV, groupByBranch, cn } from '@/lib/utils'
 import { CARD_STYLES } from '@/lib/card-colors'
 import { Download, TrendingDown } from 'lucide-react'
 import { useLanguage } from '@/contexts/language-context'
@@ -105,6 +105,21 @@ export function ReportsClient({ billings, expenses }: Props) {
     monthExpenses.forEach((e) => { map[e.category] = (map[e.category] ?? 0) + e.amountUsd })
     return Object.entries(map).sort((a, b) => b[1] - a[1])
   }, [monthExpenses])
+
+  // Group billing-detail rows by branch (rooms inside each branch count up)
+  // and cap at 50 items total to keep the preview light.
+  const detailGroups = useMemo(() => {
+    const all = groupByBranch(monthBillings.map((b) => ({ ...b, roomNumber: b.room?.roomNumber ?? '', branch: b.room?.branch ?? '' })))
+    const out: Array<{ branch: string; items: typeof all[number]['items'] }> = []
+    let count = 0
+    for (const g of all) {
+      if (count >= 50) break
+      const take = Math.min(g.items.length, 50 - count)
+      out.push({ branch: g.branch, items: g.items.slice(0, take) })
+      count += take
+    }
+    return out
+  }, [monthBillings])
 
   const handleExport = () => {
     const headers = ['Month', 'Tenant', 'Room', 'Rent', 'Water', 'Electric', 'Penalty', 'Discount', 'Total USD', 'Total KHR', 'Status', 'Payment Date']
@@ -227,42 +242,47 @@ export function ReportsClient({ billings, expenses }: Props) {
         </Card>
       )}
 
-      {/* Mobile card list */}
-      <div className="md:hidden space-y-3">
+      {/* Mobile card list — grouped by branch */}
+      <div className="md:hidden space-y-5">
         <h3 className="text-base font-semibold">{t('reports_billing_detail')} ({monthBillings.length} {t('billing_records')})</h3>
-        {sortRoomsByNumber(monthBillings.map((b) => ({ ...b, roomNumber: b.room?.roomNumber ?? '' }))).slice(0, 50).map((b) => (
-          <Card key={b.id} className="p-4">
-            <div className="flex items-start justify-between gap-2 mb-2">
-              <div className="min-w-0">
-                <p className="font-semibold leading-tight truncate">
-                  {b.room ? `${t('room')} ${roomLabel(b.room)}` : '—'}
-                </p>
-                <p className="text-sm text-muted-foreground truncate">{b.tenant?.fullName ?? '—'}</p>
-                <p className="text-xs text-muted-foreground font-mono mt-0.5">{b.billingMonth}</p>
-              </div>
-              <Badge
-                variant={b.paymentStatus === 'paid' ? 'success' : b.paymentStatus === 'partial' ? 'warning' : 'error'}
-                className="shrink-0"
-              >
-                {t(b.paymentStatus === 'paid' ? 'status_paid' : b.paymentStatus === 'partial' ? 'status_partial' : 'status_unpaid')}
-              </Badge>
+        {detailGroups.map((group) => (
+          <div key={group.branch} className="space-y-3">
+            <div className="flex items-center gap-3">
+              <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">{group.branch}</h4>
+              <span className="text-xs text-muted-foreground tabular-nums">({group.items.length})</span>
+              <div className="flex-1 h-px bg-border" />
             </div>
-            <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
-              <div>
-                <p className="text-xs text-muted-foreground">{t('branch')}</p>
-                <p className="truncate">{b.room?.branch ?? '—'}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">{t('reports_total_usd')}</p>
-                <p className="font-semibold tabular-nums">{formatCurrency(b.totalUsd)}</p>
-                <p className="text-xs text-muted-foreground tabular-nums">{Math.round(b.totalRiel).toLocaleString()} ៛</p>
-              </div>
-            </div>
-          </Card>
+            {group.items.map((b) => (
+              <Card key={b.id} className="p-4">
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <div className="min-w-0">
+                    <p className="font-semibold leading-tight truncate">
+                      {b.room ? `${t('room')} ${roomLabel(b.room)}` : '—'}
+                    </p>
+                    <p className="text-sm text-muted-foreground truncate">{b.tenant?.fullName ?? '—'}</p>
+                    <p className="text-xs text-muted-foreground font-mono mt-0.5">{b.billingMonth}</p>
+                  </div>
+                  <Badge
+                    variant={b.paymentStatus === 'paid' ? 'success' : b.paymentStatus === 'partial' ? 'warning' : 'error'}
+                    className="shrink-0"
+                  >
+                    {t(b.paymentStatus === 'paid' ? 'status_paid' : b.paymentStatus === 'partial' ? 'status_partial' : 'status_unpaid')}
+                  </Badge>
+                </div>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                  <div>
+                    <p className="text-xs text-muted-foreground">{t('reports_total_usd')}</p>
+                    <p className="font-semibold tabular-nums">{formatCurrency(b.totalUsd)}</p>
+                    <p className="text-xs text-muted-foreground tabular-nums">{Math.round(b.totalRiel).toLocaleString()} ៛</p>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
         ))}
       </div>
 
-      {/* Desktop billing table */}
+      {/* Desktop billing table — branch header rows split each group */}
       <Card className="hidden md:block">
         <CardHeader><CardTitle className="text-base">{t('reports_billing_detail')} ({monthBillings.length} {t('billing_records')})</CardTitle></CardHeader>
         <TableScroll>
@@ -270,7 +290,6 @@ export function ReportsClient({ billings, expenses }: Props) {
             <thead>
               <tr className="border-b border-border bg-muted/30">
                 <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">{t('room')}</th>
-                <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">{t('branch')}</th>
                 <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">{t('tenant')}</th>
                 <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">{t('billing_col_month')}</th>
                 <th className="text-right px-4 py-2.5 text-xs font-medium text-muted-foreground">{t('reports_total_usd')}</th>
@@ -279,20 +298,29 @@ export function ReportsClient({ billings, expenses }: Props) {
               </tr>
             </thead>
             <tbody>
-              {sortRoomsByNumber(monthBillings.map((b) => ({ ...b, roomNumber: b.room?.roomNumber ?? '' }))).slice(0, 50).map((b, i) => (
-                <tr key={b.id} className={`border-b border-border last:border-0 hover:bg-muted/30 ${i % 2 ? 'bg-muted/10' : ''}`}>
-                  <td className="px-4 py-2.5">{b.room ? `${t('room')} ${roomLabel(b.room)}` : '—'}</td>
-                  <td className="px-4 py-2.5 text-muted-foreground">{b.room?.branch ?? '—'}</td>
-                  <td className="px-4 py-2.5">{b.tenant?.fullName ?? '—'}</td>
-                  <td className="px-4 py-2.5 font-mono text-xs">{b.billingMonth}</td>
-                  <td className="px-4 py-2.5 text-right font-semibold">{formatCurrency(b.totalUsd)}</td>
-                  <td className="px-4 py-2.5 text-right text-muted-foreground text-xs">{Math.round(b.totalRiel).toLocaleString()} ៛</td>
-                  <td className="px-4 py-2.5 text-center">
-                    <Badge variant={b.paymentStatus === 'paid' ? 'success' : b.paymentStatus === 'partial' ? 'warning' : 'error'}>
-                      {t(b.paymentStatus === 'paid' ? 'status_paid' : b.paymentStatus === 'partial' ? 'status_partial' : 'status_unpaid')}
-                    </Badge>
-                  </td>
-                </tr>
+              {detailGroups.map((group) => (
+                <Fragment key={group.branch}>
+                  <tr className="bg-muted/40">
+                    <td colSpan={6} className="px-4 py-2">
+                      <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{group.branch}</span>
+                      <span className="ml-2 text-xs text-muted-foreground tabular-nums">({group.items.length})</span>
+                    </td>
+                  </tr>
+                  {group.items.map((b, i) => (
+                    <tr key={b.id} className={`border-b border-border last:border-0 hover:bg-muted/30 ${i % 2 ? 'bg-muted/10' : ''}`}>
+                      <td className="px-4 py-2.5">{b.room ? `${t('room')} ${roomLabel(b.room)}` : '—'}</td>
+                      <td className="px-4 py-2.5">{b.tenant?.fullName ?? '—'}</td>
+                      <td className="px-4 py-2.5 font-mono text-xs">{b.billingMonth}</td>
+                      <td className="px-4 py-2.5 text-right font-semibold">{formatCurrency(b.totalUsd)}</td>
+                      <td className="px-4 py-2.5 text-right text-muted-foreground text-xs">{Math.round(b.totalRiel).toLocaleString()} ៛</td>
+                      <td className="px-4 py-2.5 text-center">
+                        <Badge variant={b.paymentStatus === 'paid' ? 'success' : b.paymentStatus === 'partial' ? 'warning' : 'error'}>
+                          {t(b.paymentStatus === 'paid' ? 'status_paid' : b.paymentStatus === 'partial' ? 'status_partial' : 'status_unpaid')}
+                        </Badge>
+                      </td>
+                    </tr>
+                  ))}
+                </Fragment>
               ))}
             </tbody>
           </table>
