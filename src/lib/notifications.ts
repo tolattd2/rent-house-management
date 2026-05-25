@@ -197,8 +197,12 @@ export async function buildReminderMessage(params: {
   totalUsd: number
   totalRiel: number
   roomRentUsd: number
+  prevWaterReading: number
+  currWaterReading: number
   waterUsage: number
   waterCostRiel: number
+  prevElectricReading: number
+  currElectricReading: number
   electricUsage: number
   electricCostRiel: number
   lateDays: number
@@ -229,8 +233,8 @@ export async function buildReminderMessage(params: {
     `បន្ទប់ / Room៖ ${params.roomNumber}\n` +
     `ខែ / Month៖ ${params.billingMonth}\n\n` +
     `📊 <b>ការប្រើប្រាស់ / Usage</b>\n` +
-    `ទឹក / Water៖ ${params.waterUsage} m³ — ${waterRiel} ៛\n` +
-    `អគ្គិសនី / Electric៖ ${params.electricUsage} kWh — ${electricRiel} ៛\n\n` +
+    `ទឹក / Water៖ ${params.prevWaterReading} → ${params.currWaterReading} (${params.waterUsage} m³) — ${waterRiel} ៛\n` +
+    `អគ្គិសនី / Electric៖ ${params.prevElectricReading} → ${params.currElectricReading} (${params.electricUsage} kWh) — ${electricRiel} ៛\n\n` +
     `💰 <b>ការគិតថ្លៃ / Charges</b>\n` +
     `ថ្លៃជួលបន្ទប់ / Room Price៖ $${roomRent}\n` +
     `ការពិន័យយឺត / Late (${params.lateDays} ថ្ងៃ / days)៖ $${penalty}\n` +
@@ -288,8 +292,12 @@ export async function buildLateReminderMessage(params: {
   totalUsd: number
   totalRiel: number
   roomRentUsd: number
+  prevWaterReading: number
+  currWaterReading: number
   waterUsage: number
   waterCostRiel: number
+  prevElectricReading: number
+  currElectricReading: number
   electricUsage: number
   electricCostRiel: number
   discountUsd: number
@@ -317,8 +325,8 @@ export async function buildLateReminderMessage(params: {
     `ខែ / Month៖ ${params.billingMonth}\n` +
     payDayLine + `\n` +
     `📊 <b>ការប្រើប្រាស់ / Usage</b>\n` +
-    `ទឹក / Water៖ ${params.waterUsage} m³ — ${waterRiel} ៛\n` +
-    `អគ្គិសនី / Electric៖ ${params.electricUsage} kWh — ${electricRiel} ៛\n\n` +
+    `ទឹក / Water៖ ${params.prevWaterReading} → ${params.currWaterReading} (${params.waterUsage} m³) — ${waterRiel} ៛\n` +
+    `អគ្គិសនី / Electric៖ ${params.prevElectricReading} → ${params.currElectricReading} (${params.electricUsage} kWh) — ${electricRiel} ៛\n\n` +
     `💰 <b>ការគិតថ្លៃ / Charges</b>\n` +
     `ថ្លៃជួលបន្ទប់ / Room Price៖ $${roomRent}\n` +
     `ការពិន័យយឺត / Late (${params.lateDays} ថ្ងៃ / days)៖ $${penalty}\n` +
