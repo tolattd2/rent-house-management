@@ -41,6 +41,12 @@ type Actions = {
   duplicateBlock: (id: string) => void
   updateBlock: (id: string, patch: Partial<DraftBlock>) => void
   moveSelected: (dx: number, dy: number) => void
+  // Group-drag helpers. setBlockPositions writes a batch without pushing
+  // history; the caller (onDragStart) calls pushHistorySnapshot once at
+  // the start of the gesture so undo collapses the whole drag into one
+  // entry. This lets the canvas drag every selected block together.
+  setBlockPositions: (updates: Array<{ id: string; x: number; y: number }>) => void
+  pushHistorySnapshot: () => void
   replaceAll: (blocks: DraftBlock[]) => void
   undo: () => void
   redo: () => void
@@ -205,6 +211,27 @@ export const useRoomMapStore = create<State & Actions>((set, get) => ({
       blocks: nextBlocks,
       dirty: true,
     })
+  },
+
+  // Batch position update — no history push. Used during a group drag so
+  // every frame doesn't fatten the undo stack. snapToGrid still applies so
+  // the visual matches a single-block drag.
+  setBlockPositions: (updates) => {
+    const { blocks, snapToGrid, gridSize } = get()
+    const snap = (v: number) => (snapToGrid ? Math.round(v / gridSize) * gridSize : v)
+    const map = new Map(updates.map((u) => [u.id, u]))
+    const nextBlocks = blocks.map((b) => {
+      const u = map.get(b.id)
+      return u ? { ...b, x: snap(u.x), y: snap(u.y) } : b
+    })
+    set({ blocks: nextBlocks, dirty: true })
+  },
+
+  // Save the current blocks to the undo stack without changing them. The
+  // start of a group drag uses this so undo restores the pre-drag layout.
+  pushHistorySnapshot: () => {
+    const { blocks, past } = get()
+    set({ past: pushHistory(past, blocks), future: [] })
   },
 
   // Nudge every selected block by the same delta. Used by arrow-key navigation

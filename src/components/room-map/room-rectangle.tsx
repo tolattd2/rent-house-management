@@ -1,6 +1,6 @@
 'use client'
 
-import { memo, type MouseEvent } from 'react'
+import { memo, useRef, type MouseEvent } from 'react'
 import { Rnd } from 'react-rnd'
 import { cn } from '@/lib/utils'
 import { useRoomMapStore, type DraftBlock } from '@/store/use-room-map-store'
@@ -25,11 +25,69 @@ function statusClasses(room: RoomMapRoom | undefined): string {
 
 function RoomRectangleInner({ block, room, selected, editable, zoom, onSelect }: Props) {
   const updateBlock = useRoomMapStore((s) => s.updateBlock)
+  const setBlockPositions = useRoomMapStore((s) => s.setBlockPositions)
+  const pushHistorySnapshot = useRoomMapStore((s) => s.pushHistorySnapshot)
+
+  // Snapshot of every selected block's position taken on drag start. Used to
+  // translate the whole group by the same delta during the gesture. null = a
+  // plain single-block drag (no group).
+  const groupRef = useRef<{
+    basis: { x: number; y: number }
+    others: Array<{ id: string; x: number; y: number }>
+  } | null>(null)
+
   const label = room?.roomNumber ?? '?'
   const tenantName = room?.tenant?.fullName ?? ''
 
   const handleClick = (e: MouseEvent) => {
     onSelect(e.shiftKey || e.metaKey || e.ctrlKey)
+  }
+
+  const handleDragStart = () => {
+    const state = useRoomMapStore.getState()
+    const inGroup = state.selectedIds.includes(block.id) && state.selectedIds.length > 1
+    if (inGroup) {
+      // Drag of a block already in a multi-selection → translate the whole
+      // group. Snapshot positions and push ONE undo entry for the gesture.
+      const others = state.selectedIds
+        .filter((id) => id !== block.id)
+        .map((id) => state.blocks.find((b) => b.id === id))
+        .filter((b): b is DraftBlock => !!b)
+        .map((b) => ({ id: b.id, x: b.x, y: b.y }))
+      groupRef.current = { basis: { x: block.x, y: block.y }, others }
+      pushHistorySnapshot()
+    } else {
+      // Single drag → replace selection with just this block (existing UX).
+      groupRef.current = null
+      onSelect(false)
+    }
+  }
+
+  const handleDrag = (_: unknown, d: { x: number; y: number }) => {
+    const g = groupRef.current
+    if (!g) return
+    const dx = d.x - g.basis.x
+    const dy = d.y - g.basis.y
+    // Move every OTHER selected block by the same delta. react-rnd already
+    // owns the visual position of the basis block during the drag.
+    setBlockPositions(g.others.map((o) => ({ id: o.id, x: o.x + dx, y: o.y + dy })))
+  }
+
+  const handleDragStop = (_: unknown, d: { x: number; y: number }) => {
+    const g = groupRef.current
+    if (g) {
+      const dx = d.x - g.basis.x
+      const dy = d.y - g.basis.y
+      // Final commit — includes the basis so its store position matches the
+      // drop point. History was already snapshotted at drag start.
+      setBlockPositions([
+        { id: block.id, x: d.x, y: d.y },
+        ...g.others.map((o) => ({ id: o.id, x: o.x + dx, y: o.y + dy })),
+      ])
+      groupRef.current = null
+    } else {
+      updateBlock(block.id, { x: d.x, y: d.y })
+    }
   }
 
   return (
@@ -40,8 +98,9 @@ function RoomRectangleInner({ block, room, selected, editable, zoom, onSelect }:
       scale={zoom}
       enableResizing={editable}
       disableDragging={!editable}
-      onDragStart={() => onSelect(false)}
-      onDragStop={(_, d) => updateBlock(block.id, { x: d.x, y: d.y })}
+      onDragStart={handleDragStart}
+      onDrag={handleDrag}
+      onDragStop={handleDragStop}
       onResizeStop={(_, __, ref, ___, position) => {
         updateBlock(block.id, {
           width: parseFloat(ref.style.width),
