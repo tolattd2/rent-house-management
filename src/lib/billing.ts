@@ -18,11 +18,6 @@ interface RateSettings {
   late_penalty_usd?: string
 }
 
-interface RoomRates {
-  waterRateRiel?: number
-  electricRateRiel?: number
-}
-
 /**
  * Coerce a value of unknown runtime type into a finite number.
  *
@@ -37,15 +32,21 @@ function num(value: unknown, fallback = 0): number {
   return Number.isFinite(n) ? n : fallback
 }
 
+/**
+ * Compute a single billing row from inputs + the BRANCH rates. Per-room
+ * rate overrides were removed: callers must resolve the branch rates via
+ * `resolveBranchRates(settings, branches, room.branch)` and pass them as
+ * `settings` here. This keeps every room in a branch consistent with the
+ * configured water/electric/exchange rates.
+ */
 export function calculateBilling(
   input: BillingInput,
   settings: RateSettings,
-  roomRates?: RoomRates | null
 ): BillingCalculation {
   // A zero or invalid exchange rate would break the USD ⇄ KHR conversion.
   const exchangeRate = num(settings.exchange_rate, 4100) || 4100
-  const waterRate = roomRates?.waterRateRiel ?? num(settings.water_rate_riel, 2000)
-  const electricRate = roomRates?.electricRateRiel ?? num(settings.electric_rate_riel, 720)
+  const waterRate = num(settings.water_rate_riel, 2000)
+  const electricRate = num(settings.electric_rate_riel, 720)
   const penaltyRate = num(settings.late_penalty_usd, 1)
 
   const waterUsage = Math.max(0, num(input.currWaterReading) - num(input.prevWaterReading))

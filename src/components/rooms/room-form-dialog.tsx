@@ -81,7 +81,7 @@ export function RoomFormDialog({ room, settings, rooms, onClose, onSave }: Props
   const isEdit = !!room?.id
 
   const defaultBranch = room?.branch ?? branches[0]?.name ?? ''
-  const branchRates = resolveBranchRates(settings, branches, defaultBranch)
+  const defaultBranchRates = resolveBranchRates(settings, branches, defaultBranch)
 
   const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -92,8 +92,8 @@ export function RoomFormDialog({ room, settings, rooms, onClose, onSave }: Props
       roomType: room?.roomType ?? 'Standard',
       rentPriceUsd: room?.rentPriceUsd ?? 0,
       status: (room?.status as FormData['status']) ?? 'vacant',
-      waterRateRiel: room?.waterRateRiel ?? Number(branchRates.water_rate_riel),
-      electricRateRiel: room?.electricRateRiel ?? Number(branchRates.electric_rate_riel),
+      waterRateRiel: room?.waterRateRiel ?? Number(defaultBranchRates.water_rate_riel),
+      electricRateRiel: room?.electricRateRiel ?? Number(defaultBranchRates.electric_rate_riel),
       notes: room?.notes ?? '',
     },
   })
@@ -105,6 +105,12 @@ export function RoomFormDialog({ room, settings, rooms, onClose, onSave }: Props
   const hasFloors = branchHasFloors(currentBranchObj)
   const floorCount = currentBranchObj?.floorCount ?? 1
   const currentFloor = watch('floor')
+  // Rates always come from the selected branch's settings — recompute when
+  // the branch dropdown changes so the displayed numbers stay accurate.
+  const branchRates = useMemo(
+    () => resolveBranchRates(settings, branches, currentBranch),
+    [settings, branches, currentBranch],
+  )
   // Floor options: 1..floorCount, plus the room's existing floor when
   // editing if it falls outside that range (so we never silently lose it).
   const floorOptions = useMemo(() => {
@@ -241,14 +247,11 @@ export function RoomFormDialog({ room, settings, rooms, onClose, onSave }: Props
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label>{t('room_form_water_rate')}</Label>
-              <Input type="number" {...register('waterRateRiel')} placeholder="2000" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>{t('room_form_electric_rate')}</Label>
-              <Input type="number" {...register('electricRateRiel')} placeholder="720" />
+          <div className="rounded-lg border border-dashed border-border bg-muted/30 px-3 py-2.5 text-xs text-muted-foreground">
+            {t('room_form_rates_branch_hint')}
+            <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-0.5 tabular-nums">
+              <span>{t('room_form_water_rate')}: {parseFloat(branchRates.water_rate_riel).toLocaleString()} ៛</span>
+              <span>{t('room_form_electric_rate')}: {parseFloat(branchRates.electric_rate_riel).toLocaleString()} ៛</span>
             </div>
           </div>
 

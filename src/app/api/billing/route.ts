@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
 
     // Calculate using the rates configured for this room's branch
     const rates = resolveBranchRates(settingsMap, parseBranches(settingsMap.branches), tenant.room?.branch)
-    const calc = calculateBilling(data, rates, tenant.room)
+    const calc = calculateBilling(data, rates)
 
     const billing = await db.billing.create({
       data: {

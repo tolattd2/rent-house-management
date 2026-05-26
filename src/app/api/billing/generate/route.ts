@@ -90,7 +90,7 @@ export async function POST(req: NextRequest) {
           discountUsd: 0,
         }
         const rates = resolveBranchRates(settingsMap, branchList, tenant.room!.branch)
-        const calc = calculateBilling(input, rates, tenant.room!)
+        const calc = calculateBilling(input, rates)
         return db.billing.create({
           data: {
             tenantId: tenant.id,

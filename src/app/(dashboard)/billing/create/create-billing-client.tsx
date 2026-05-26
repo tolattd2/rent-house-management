@@ -161,7 +161,6 @@ export function CreateBillingClient({ tenants, settings, preselectedTenantId, ed
         discountUsd: formValues.discountUsd,
       },
       resolveBranchRates(settings, branches, selectedTenant.room.branch),
-      selectedTenant.room
     )
     setPreview(calc)
   }, [
@@ -332,7 +331,7 @@ export function CreateBillingClient({ tenants, settings, preselectedTenantId, ed
                   </div>
                 </div>
                 <div className="col-span-3 text-xs text-muted-foreground">
-                  Rate: {(selectedTenant?.room?.waterRateRiel ?? parseFloat(rates.water_rate_riel)).toLocaleString()} ៛/Kib
+                  Rate: {parseFloat(rates.water_rate_riel).toLocaleString()} ៛/Kib
                 </div>
               </CardContent>
             </Card>
@@ -362,7 +361,7 @@ export function CreateBillingClient({ tenants, settings, preselectedTenantId, ed
                   </div>
                 </div>
                 <div className="col-span-3 text-xs text-muted-foreground">
-                  Rate: {(selectedTenant?.room?.electricRateRiel ?? parseFloat(rates.electric_rate_riel)).toLocaleString()} ៛/{t('unit_kw')}
+                  Rate: {parseFloat(rates.electric_rate_riel).toLocaleString()} ៛/{t('unit_kw')}
                 </div>
               </CardContent>
             </Card>

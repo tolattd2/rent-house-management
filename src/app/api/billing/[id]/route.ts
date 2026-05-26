@@ -53,7 +53,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
           discountUsd: merged.discountUsd,
         },
         rates,
-        existing.room
       )
       Object.assign(body, {
         waterUsage: calc.waterUsage,
