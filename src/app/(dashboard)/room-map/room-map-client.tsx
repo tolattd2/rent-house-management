@@ -298,19 +298,21 @@ export function RoomMapClient({ isAdmin, initialBranch, initialFloor, initialFlo
         <div className="flex-1 flex flex-col min-w-0">
           <RoomSidebar editable={isAdmin} />
           <div className="flex-1 relative min-h-0">
-            {/* Mobile-only "open toolbar" button */}
-            <div className="md:hidden absolute top-3 left-3 z-20">
+            {/* Floating canvas chrome — the wrappers are pointer-events-none so
+              taps between/around the buttons pass through to the canvas. The
+              controls themselves are pointer-events-auto. */}
+            <div className="md:hidden absolute top-3 left-3 z-20 pointer-events-none">
               <Button
                 size="sm"
                 variant="outline"
                 onClick={() => setMobileToolbarOpen(true)}
-                className="h-9 w-9 p-0 bg-background/90 shadow-sm"
+                className="h-9 w-9 p-0 bg-background/90 shadow-sm pointer-events-auto"
                 aria-label={t('room_map_tools')}
               >
                 <Menu className="w-4 h-4" />
               </Button>
             </div>
-            <div className="absolute top-3 right-3 z-20 flex items-center gap-1.5 sm:gap-2 flex-wrap justify-end">
+            <div className="absolute top-3 right-3 z-20 flex items-center gap-1.5 sm:gap-2 flex-wrap justify-end pointer-events-none [&>*]:pointer-events-auto">
               <CanvasSizeSelector />
               <ZoomControls />
             </div>
