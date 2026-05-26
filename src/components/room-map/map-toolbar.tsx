@@ -137,8 +137,8 @@ export function MapToolbar({ editable, fullscreen, onToggleFullscreen, onSave }:
   }
 
   return (
-    <aside className="w-60 shrink-0 flex flex-col gap-3 border-r border-border bg-background/60 p-3 min-h-0 overflow-hidden">
-      <div className="space-y-2 shrink-0">
+    <aside className="w-60 shrink-0 flex flex-col border-r border-border bg-background/60 min-h-0 overflow-y-auto">
+      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 p-3 border-b border-border space-y-2">
         <Button
           size="sm"
           className="w-full"
@@ -230,17 +230,17 @@ export function MapToolbar({ editable, fullscreen, onToggleFullscreen, onSave }:
         </label>
       </div>
 
-      <div className="flex-1 flex flex-col min-h-0">
-        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
+      <div className="p-3 space-y-2">
+        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
           {t('room_map_rooms')}
         </p>
         <Input
           placeholder={t('rooms_search')}
-          className="h-8 mb-2"
+          className="h-8"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
-        <div className="flex-1 overflow-y-auto -mx-1 px-1 space-y-1">
+        <div className="space-y-1">
           {filtered.length === 0 && (
             <p className="text-xs text-muted-foreground text-center py-6">{t('room_map_no_rooms')}</p>
           )}
