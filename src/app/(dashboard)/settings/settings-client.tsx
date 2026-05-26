@@ -64,6 +64,10 @@ export function SettingsClient({ settings: initial }: Props) {
   const { triggerDelete, dialogState, closeDialog } = useDeleteWithUndo()
   const [newPassword, setNewPassword] = useState('')
   const [changingPw, setChangingPw] = useState(false)
+  // Branch deletion goes through a typed-name confirmation dialog and a
+  // dedicated cascade API — see handleDeleteBranch below.
+  const [branchToDelete, setBranchToDelete] = useState<Branch | null>(null)
+  const [deletingBranch, setDeletingBranch] = useState(false)
 
   // Branches — name/prefix and the slug used to key company info + QR settings.
   const [branches, setBranches] = useState<Branch[]>(() => parseBranches(initial.branches))
@@ -119,10 +123,65 @@ export function SettingsClient({ settings: initial }: Props) {
         floorCount: 1,
       },
     ])
-  const removeBranch = (index: number) =>
-    setBranches((prev) => prev.filter((_, i) => i !== index))
   const setBranchField = (key: string, value: string) =>
     setBranchInfo((prev) => ({ ...prev, [key]: value }))
+
+  async function handleDeleteBranch() {
+    if (!branchToDelete) return
+    setDeletingBranch(true)
+    try {
+      const res = await fetch(`/api/settings/branches/${branchToDelete.slug}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: branchToDelete.name }),
+      })
+      const data = await res.json()
+      if (data.ok) {
+        toast({
+          title: 'Branch deleted',
+          description: `${branchToDelete.name} and all related rooms, tenants, and records were removed.`,
+        })
+        const slug = branchToDelete.slug
+        setBranches((prev) => prev.filter((b) => b.slug !== slug))
+        setBranchInfo((prev) => {
+          const next: Record<string, string> = {}
+          for (const [k, v] of Object.entries(prev)) {
+            if (
+              k.startsWith(`company_${slug}_`) ||
+              k.startsWith(`qr_${slug}_`) ||
+              k === `qr_${slug}_1` ||
+              k === `qr_${slug}_2`
+            ) continue
+            next[k] = v
+          }
+          return next
+        })
+        setQrImages((prev) => {
+          const next = { ...prev }
+          delete next[`${slug}_1`]
+          delete next[`${slug}_2`]
+          return next
+        })
+        setBranchRates((prev) => {
+          const next = { ...prev }
+          for (const key of RATE_KEYS) delete next[branchRateKey(key, slug)]
+          return next
+        })
+        setBranchToDelete(null)
+        router.refresh()
+      } else {
+        toast({ title: 'Failed to delete branch', description: data.error, variant: 'destructive' })
+      }
+    } catch (e) {
+      toast({
+        title: 'Failed to delete branch',
+        description: e instanceof Error ? e.message : 'Network error',
+        variant: 'destructive',
+      })
+    } finally {
+      setDeletingBranch(false)
+    }
+  }
 
   const handleQrUpload = useCallback(async (slug: string, slot: 1 | 2, file: File) => {
     const key = `${slug}_${slot}`
@@ -576,7 +635,7 @@ export function SettingsClient({ settings: initial }: Props) {
                       variant="outline"
                       size="sm"
                       className="text-destructive hover:bg-destructive/10"
-                      onClick={() => removeBranch(i)}
+                      onClick={() => setBranchToDelete(br)}
                     >
                       <Trash2 className="w-3.5 h-3.5 mr-1" />{t('settings_remove_branch')}
                     </Button>
@@ -1132,6 +1191,18 @@ export function SettingsClient({ settings: initial }: Props) {
         itemName={dialogState.itemName}
         onClose={closeDialog}
         onConfirm={dialogState.onConfirm}
+      />
+
+      <DeleteConfirmDialog
+        open={!!branchToDelete}
+        itemName={branchToDelete?.name}
+        confirmPhrase={branchToDelete?.name}
+        confirmLoading={deletingBranch}
+        description={branchToDelete
+          ? `Delete branch "${branchToDelete.name}"? This permanently removes the branch and every room, tenant, contract, billing, invoice, payment, and maintenance record tied to it.`
+          : undefined}
+        onClose={() => { if (!deletingBranch) setBranchToDelete(null) }}
+        onConfirm={handleDeleteBranch}
       />
 
       {logoCropPending && (
