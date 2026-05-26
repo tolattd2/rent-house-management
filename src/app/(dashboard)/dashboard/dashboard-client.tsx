@@ -5,7 +5,7 @@ import { useSession } from 'next-auth/react'
 import { motion } from 'framer-motion'
 import {
   Building2, Users, DollarSign, AlertTriangle,
-  Home, Wrench, CheckCircle2, TrendingDown, TrendingUp, Bell,
+  Home, Wrench, CheckCircle2, TrendingDown, TrendingUp, Bell, BookmarkCheck,
 } from 'lucide-react'
 import { StatsCard } from '@/components/dashboard/stats-card'
 import { RevenueChart } from '@/components/dashboard/revenue-chart'
@@ -142,13 +142,14 @@ export function DashboardClient({ rooms, tenants, billings, expenses, unpaidBill
 
     const occupied    = filteredRooms.filter(r => r.status === 'occupied').length
     const vacant      = filteredRooms.filter(r => r.status === 'vacant').length
+    const reserved    = filteredRooms.filter(r => r.status === 'reserved').length
     const maintenance = filteredRooms.filter(r => r.status === 'maintenance').length
     const total       = filteredRooms.length
     const active      = filteredTenants.filter(t => t.status === 'active').length
     const occupancyRate = total > 0 ? Math.round((occupied / total) * 100) : 0
 
     return {
-      totalRooms: total, occupied, vacant, maintenance,
+      totalRooms: total, occupied, vacant, reserved, maintenance,
       activeTenants: active, occupancyRate,
       monthlyRevenue: revenue,
       prevRevenue,
@@ -291,14 +292,15 @@ export function DashboardClient({ rooms, tenants, billings, expenses, unpaidBill
       </div>
 
       {/* ── Room status strip ── */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <StatsCard title={t('dashboard_occupied')}    value={stats.occupied}    icon={Home}   color="green"  index={6} compact />
-        <StatsCard title={t('dashboard_vacant')}      value={stats.vacant}      icon={Home}   color="indigo" index={7} compact />
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+        <StatsCard title={t('dashboard_occupied')}    value={stats.occupied}    icon={Home}          color="green"  index={6} compact />
+        <StatsCard title={t('dashboard_vacant')}      value={stats.vacant}      icon={Home}          color="indigo" index={7} compact />
+        <StatsCard title={t('status_reserved')}       value={stats.reserved}    icon={BookmarkCheck} color="orange" index={8} compact />
         <Link href="/maintenance" className="block">
-          <StatsCard title={t('status_maintenance')}    value={stats.maintenance} icon={Wrench} color="yellow" index={8} compact />
+          <StatsCard title={t('status_maintenance')}    value={stats.maintenance} icon={Wrench}      color="yellow" index={9} compact />
         </Link>
         <Link href="/notices" className="block">
-          <StatsCard title={t('notices_title')}         value={filteredNotices.length} icon={Bell}   color="orange" index={9} compact />
+          <StatsCard title={t('notices_title')}         value={filteredNotices.length} icon={Bell}   color="amber"  index={10} compact />
         </Link>
       </div>
 

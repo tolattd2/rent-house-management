@@ -17,7 +17,7 @@ interface Props {
 
 function statusClasses(room: RoomMapRoom | undefined): string {
   if (!room) return 'bg-muted/60 border-muted-foreground/30 text-muted-foreground'
-  if (room.hasReservation) return 'bg-yellow-500/15 border-yellow-500 text-yellow-900 dark:text-yellow-100'
+  if (room.status === 'reserved' || room.hasReservation) return 'bg-yellow-500/15 border-yellow-500 text-yellow-900 dark:text-yellow-100'
   if (room.status === 'maintenance') return 'bg-slate-500/15 border-slate-500 text-slate-900 dark:text-slate-100'
   if (room.status === 'occupied') return 'bg-red-500/15 border-red-500 text-red-900 dark:text-red-100'
   return 'bg-green-500/15 border-green-500 text-green-900 dark:text-green-100'

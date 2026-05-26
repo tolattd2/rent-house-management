@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Plus, Search, Home, Users, DollarSign, Wrench, Edit, Trash2, Building2 } from 'lucide-react'
+import { Plus, Search, Home, Users, DollarSign, Wrench, Edit, Trash2, Building2, BookmarkCheck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -27,7 +27,7 @@ type Room = {
   roomType: string
   rentPriceUsd: number
   depositAmount: number
-  status: 'occupied' | 'vacant' | 'maintenance'
+  status: 'occupied' | 'vacant' | 'reserved' | 'maintenance'
   waterRateRiel: number
   electricRateRiel: number
   notes: string
@@ -38,12 +38,14 @@ type Room = {
 const statusVariant: Record<string, 'success' | 'warning' | 'error' | 'secondary'> = {
   occupied: 'success',
   vacant: 'secondary',
+  reserved: 'warning',
   maintenance: 'warning',
 }
 
 const statusIcon: Record<string, React.ElementType> = {
   occupied: Users,
   vacant: Home,
+  reserved: BookmarkCheck,
   maintenance: Wrench,
 }
 
@@ -95,12 +97,14 @@ export function RoomsClient({ rooms: initialRooms, settings }: Props) {
     total: branchRooms.length,
     occupied: branchRooms.filter((r) => r.status === 'occupied').length,
     vacant: branchRooms.filter((r) => r.status === 'vacant').length,
+    reserved: branchRooms.filter((r) => r.status === 'reserved').length,
     maintenance: branchRooms.filter((r) => r.status === 'maintenance').length,
   }
 
   const statusLabels: Record<string, string> = {
     occupied: t('status_occupied'),
     vacant: t('status_vacant'),
+    reserved: t('status_reserved'),
     maintenance: t('status_maintenance'),
   }
 
@@ -120,12 +124,13 @@ export function RoomsClient({ rooms: initialRooms, settings }: Props) {
       </div>
 
       {/* Status summary */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-4">
         {([
-          { key: 'all',         icon: Building2, label: t('rooms_total_card'),  count: stats.total,       color: 'blue'   as CardColor },
-          { key: 'occupied',    icon: Users,     label: statusLabels.occupied,    count: stats.occupied,    color: 'green'  as CardColor },
-          { key: 'vacant',      icon: Home,      label: statusLabels.vacant,      count: stats.vacant,      color: 'slate'  as CardColor },
-          { key: 'maintenance', icon: Wrench,    label: statusLabels.maintenance, count: stats.maintenance, color: 'yellow' as CardColor },
+          { key: 'all',         icon: Building2,     label: t('rooms_total_card'),    count: stats.total,       color: 'blue'   as CardColor },
+          { key: 'occupied',    icon: Users,         label: statusLabels.occupied,    count: stats.occupied,    color: 'green'  as CardColor },
+          { key: 'vacant',      icon: Home,          label: statusLabels.vacant,      count: stats.vacant,      color: 'slate'  as CardColor },
+          { key: 'reserved',    icon: BookmarkCheck, label: statusLabels.reserved,    count: stats.reserved,    color: 'orange' as CardColor },
+          { key: 'maintenance', icon: Wrench,        label: statusLabels.maintenance, count: stats.maintenance, color: 'yellow' as CardColor },
         ]).map(({ key, icon: Icon, label, count, color }) => {
           const cs = CARD_STYLES[color]
           const active = statusFilter === key

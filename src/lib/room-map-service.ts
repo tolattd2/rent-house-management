@@ -21,7 +21,7 @@ export type RoomMapRoom = {
   roomNumber: string
   branch: string
   floor: string
-  status: 'occupied' | 'vacant' | 'maintenance'
+  status: 'occupied' | 'vacant' | 'reserved' | 'maintenance'
   rentPriceUsd: number
   tenant: {
     id: string

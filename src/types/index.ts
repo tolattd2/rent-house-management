@@ -1,5 +1,5 @@
 export type UserRole = 'admin' | 'manager' | 'staff'
-export type RoomStatus = 'occupied' | 'vacant' | 'maintenance'
+export type RoomStatus = 'occupied' | 'vacant' | 'reserved' | 'maintenance'
 export type TenantStatus = 'active' | 'inactive'
 export type PaymentStatus = 'unpaid' | 'partial' | 'paid'
 export type ContractStatus = 'active' | 'expired' | 'terminated'

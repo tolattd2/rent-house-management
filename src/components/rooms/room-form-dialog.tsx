@@ -21,7 +21,7 @@ const schema = z.object({
   floor: z.string().default('1'),
   roomType: z.string().default('Standard'),
   rentPriceUsd: z.coerce.number().min(0),
-  status: z.enum(['occupied', 'vacant', 'maintenance']).default('vacant'),
+  status: z.enum(['occupied', 'vacant', 'reserved', 'maintenance']).default('vacant'),
   waterRateRiel: z.coerce.number().min(0).default(2000),
   electricRateRiel: z.coerce.number().min(0).default(720),
   notes: z.string().default(''),
@@ -236,6 +236,7 @@ export function RoomFormDialog({ room, settings, rooms, onClose, onSave }: Props
                 <SelectContent>
                   <SelectItem value="vacant">{t('status_vacant')}</SelectItem>
                   <SelectItem value="occupied">{t('status_occupied')}</SelectItem>
+                  <SelectItem value="reserved">{t('status_reserved')}</SelectItem>
                   <SelectItem value="maintenance">{t('status_maintenance')}</SelectItem>
                 </SelectContent>
               </Select>

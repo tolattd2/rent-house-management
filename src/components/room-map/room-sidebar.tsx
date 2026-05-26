@@ -15,7 +15,7 @@ interface Props {
 }
 
 function statusBadge(room: RoomMapRoom) {
-  if (room.hasReservation) return { variant: 'warning' as const, key: 'room_map_status_reserved' as const }
+  if (room.status === 'reserved' || room.hasReservation) return { variant: 'warning' as const, key: 'status_reserved' as const }
   if (room.status === 'occupied') return { variant: 'error' as const, key: 'status_occupied' as const }
   if (room.status === 'maintenance') return { variant: 'secondary' as const, key: 'status_maintenance' as const }
   return { variant: 'success' as const, key: 'status_vacant' as const }

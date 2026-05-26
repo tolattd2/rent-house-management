@@ -5,7 +5,7 @@ import { useLanguage } from '@/contexts/language-context'
 const SWATCHES = [
   { color: 'bg-green-500/15 border-green-500', key: 'status_vacant' as const },
   { color: 'bg-red-500/15 border-red-500', key: 'status_occupied' as const },
-  { color: 'bg-yellow-500/15 border-yellow-500', key: 'room_map_status_reserved' as const },
+  { color: 'bg-yellow-500/15 border-yellow-500', key: 'status_reserved' as const },
   { color: 'bg-slate-500/15 border-slate-500', key: 'status_maintenance' as const },
 ]
 

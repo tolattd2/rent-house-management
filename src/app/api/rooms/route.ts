@@ -11,7 +11,7 @@ const roomSchema = z.object({
   roomType: z.string().default('Standard'),
   rentPriceUsd: z.coerce.number().min(0),
   depositAmount: z.coerce.number().min(0).default(0),
-  status: z.enum(['occupied', 'vacant', 'maintenance']).default('vacant'),
+  status: z.enum(['occupied', 'vacant', 'reserved', 'maintenance']).default('vacant'),
   waterRateRiel: z.coerce.number().min(0).default(2000),
   electricRateRiel: z.coerce.number().min(0).default(720),
   notes: z.string().default(''),

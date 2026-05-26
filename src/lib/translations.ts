@@ -108,6 +108,7 @@ export const translations = {
     status_unpaid_partial: 'Outstanding',
     status_occupied: 'Occupied',
     status_vacant: 'Vacant',
+    status_reserved: 'Reserved',
     status_maintenance: 'Maintenance',
     // Tenants page
     tenants_title: 'Tenants',
@@ -841,6 +842,7 @@ export const translations = {
     status_unpaid_partial: 'ជំពាក់',
     status_occupied: 'មានអ្នករស់នៅ',
     status_vacant: 'ទំនេរ',
+    status_reserved: 'បានកក់',
     status_maintenance: 'ការថែទាំ',
     // Tenants page
     tenants_title: 'អ្នករស់នៅ',
