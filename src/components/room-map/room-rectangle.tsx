@@ -97,10 +97,13 @@ function RoomRectangleInner({ block, room, selected, editable, zoom, onSelect }:
 
   const handleDragStop = (_: unknown, d: { x: number; y: number }) => {
     const g = dragGroupRef.current
-    // Pure clicks (mousedown without movement) report the same position
-    // back to us — skip the update entirely so snap-to-grid doesn't shove
-    // an off-grid room to the nearest cell on a tap.
-    const moved = d.x !== block.x || d.y !== block.y
+    // Pure clicks (mousedown without movement) report essentially the same
+    // position back to us — react-rnd can still drift a fraction of a pixel
+    // when zoom != 1. Treat anything under a few canvas units as a click so
+    // snap-to-grid doesn't shove an off-grid room to the nearest cell on a
+    // tap.
+    const CLICK_EPS = 3
+    const moved = Math.abs(d.x - block.x) > CLICK_EPS || Math.abs(d.y - block.y) > CLICK_EPS
     if (g) {
       if (moved) {
         if (!g.snapshotted) pushHistorySnapshot()
@@ -171,9 +174,12 @@ function RoomRectangleInner({ block, room, selected, editable, zoom, onSelect }:
     const g = resizeGroupRef.current
     const newW = parseFloat(ref.style.width)
     const newH = parseFloat(ref.style.height)
+    const CLICK_EPS = 3
     const changed =
-      newW !== block.width || newH !== block.height ||
-      position.x !== block.x || position.y !== block.y
+      Math.abs(newW - block.width) > CLICK_EPS ||
+      Math.abs(newH - block.height) > CLICK_EPS ||
+      Math.abs(position.x - block.x) > CLICK_EPS ||
+      Math.abs(position.y - block.y) > CLICK_EPS
     if (g) {
       if (changed) {
         if (!g.snapshotted) pushHistorySnapshot()

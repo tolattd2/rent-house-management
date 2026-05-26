@@ -80,9 +80,9 @@ export function SelectionTransform({ innerRef, zoom, editable }: Props) {
   } | null>(null)
 
   const bbox = useMemo(() => {
-    if (selectedIds.length < 2) return null
+    if (selectedIds.length === 0) return null
     const selected = blocks.filter((b) => selectedIds.includes(b.id))
-    if (selected.length < 2) return null
+    if (selected.length === 0) return null
     let x1 = Infinity
     let y1 = Infinity
     let x2 = -Infinity
