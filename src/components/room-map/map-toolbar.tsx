@@ -10,6 +10,7 @@ import { useRoomLabel } from '@/contexts/branches-context'
 import { useLanguage } from '@/contexts/language-context'
 import { sortRoomsByNumber, cn } from '@/lib/utils'
 import { toast } from '@/hooks/use-toast'
+import { ExportDialog } from './export-dialog'
 
 interface Props {
   editable: boolean
@@ -24,6 +25,7 @@ export function MapToolbar({ editable, fullscreen, onToggleFullscreen, onSave }:
   const { t } = useLanguage()
   const roomLabel = useRoomLabel()
   const [search, setSearch] = useState('')
+  const [showExport, setShowExport] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const rooms = useRoomMapStore((s) => s.rooms)
@@ -45,6 +47,8 @@ export function MapToolbar({ editable, fullscreen, onToggleFullscreen, onSave }:
   const canRedo = useRoomMapStore((s) => s.future.length > 0)
   const branch = useRoomMapStore((s) => s.branch)
   const floor = useRoomMapStore((s) => s.floor)
+  // branch + floor are read by the import handler below; the export
+  // dialog reads them straight from the store.
 
   const onCanvas = useMemo(() => new Set(blocks.map((b) => b.roomId)), [blocks])
   const filtered = useMemo(() => {
@@ -58,31 +62,6 @@ export function MapToolbar({ editable, fullscreen, onToggleFullscreen, onSave }:
     })
     return sortRoomsByNumber(list)
   }, [rooms, search])
-
-  const handleExport = () => {
-    const payload = {
-      version: 1,
-      branch,
-      floor,
-      exportedAt: new Date().toISOString(),
-      blocks: blocks.map((b) => ({
-        roomId: b.roomId,
-        x: b.x,
-        y: b.y,
-        width: b.width,
-        height: b.height,
-        rotation: b.rotation,
-        zIndex: b.zIndex,
-      })),
-    }
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `room-map-${branch}-floor-${floor}.json`
-    link.click()
-    URL.revokeObjectURL(url)
-  }
 
   const handleImportClick = () => fileInputRef.current?.click()
 
@@ -187,7 +166,7 @@ export function MapToolbar({ editable, fullscreen, onToggleFullscreen, onSave }:
         </div>
 
         <div className="grid grid-cols-2 gap-2">
-          <Button size="sm" variant="outline" onClick={handleExport} disabled={blocks.length === 0}>
+          <Button size="sm" variant="outline" onClick={() => setShowExport(true)} disabled={blocks.length === 0}>
             <Download className="w-3.5 h-3.5 mr-1" />
             <span className="truncate">{t('room_map_export')}</span>
           </Button>
@@ -275,6 +254,7 @@ export function MapToolbar({ editable, fullscreen, onToggleFullscreen, onSave }:
           })}
         </div>
       </div>
+      <ExportDialog open={showExport} onClose={() => setShowExport(false)} />
     </aside>
   )
 }

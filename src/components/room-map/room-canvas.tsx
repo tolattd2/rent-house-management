@@ -73,7 +73,8 @@ export function RoomCanvas({ editable }: Props) {
       className="relative w-full h-full overflow-auto bg-muted/30 rounded-lg border border-border"
     >
       <div
-        className="relative origin-top-left"
+        data-room-map-canvas-inner
+        className="relative origin-top-left bg-background"
         style={{
           width: CANVAS_W,
           height: CANVAS_H,
