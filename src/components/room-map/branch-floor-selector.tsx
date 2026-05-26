@@ -8,12 +8,13 @@ interface Props {
   branch: string
   floor: string
   floors: string[]
+  hasFloors: boolean
   dirty: boolean
   onChange: (branch: string, floor: string) => void
 }
 
 // Prompts before discarding unsaved edits when the user jumps branches/floors.
-export function BranchFloorSelector({ branch, floor, floors, dirty, onChange }: Props) {
+export function BranchFloorSelector({ branch, floor, floors, hasFloors, dirty, onChange }: Props) {
   const branches = useBranches()
   const { t } = useLanguage()
 
@@ -41,23 +42,25 @@ export function BranchFloorSelector({ branch, floor, floors, dirty, onChange }: 
           </SelectContent>
         </Select>
       </div>
-      <div className="flex items-center gap-2">
-        <span className="text-xs uppercase tracking-wider text-muted-foreground">{t('room_map_floor')}</span>
-        <Select
-          value={floor}
-          onValueChange={(v) => {
-            if (v === floor) return
-            if (confirmIfDirty()) onChange(branch, v)
-          }}
-        >
-          <SelectTrigger className="h-9 w-28"><SelectValue placeholder={floor} /></SelectTrigger>
-          <SelectContent>
-            {floors.map((f) => (
-              <SelectItem key={f} value={f}>{f}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      {hasFloors && (
+        <div className="flex items-center gap-2">
+          <span className="text-xs uppercase tracking-wider text-muted-foreground">{t('room_map_floor')}</span>
+          <Select
+            value={floor}
+            onValueChange={(v) => {
+              if (v === floor) return
+              if (confirmIfDirty()) onChange(branch, v)
+            }}
+          >
+            <SelectTrigger className="h-9 w-28"><SelectValue placeholder={floor} /></SelectTrigger>
+            <SelectContent>
+              {floors.map((f) => (
+                <SelectItem key={f} value={f}>{f}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
     </div>
   )
 }

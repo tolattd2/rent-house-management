@@ -13,11 +13,12 @@ import { Textarea } from '@/components/ui/textarea'
 import { toast } from '@/hooks/use-toast'
 import { useLanguage } from '@/contexts/language-context'
 import { useBranches } from '@/contexts/branches-context'
-import { resolveBranchRates } from '@/lib/branches'
+import { branchHasFloors, findBranch, resolveBranchRates } from '@/lib/branches'
 
 const schema = z.object({
   roomNumber: z.string().min(1, 'Room number required'),
   branch: z.string().min(1, 'Branch required'),
+  floor: z.string().default('1'),
   roomType: z.string().default('Standard'),
   rentPriceUsd: z.coerce.number().min(0),
   status: z.enum(['occupied', 'vacant', 'maintenance']).default('vacant'),
@@ -87,6 +88,7 @@ export function RoomFormDialog({ room, settings, rooms, onClose, onSave }: Props
     defaultValues: {
       roomNumber: room?.roomNumber ?? '',
       branch: defaultBranch,
+      floor: room?.floor ?? '1',
       roomType: room?.roomType ?? 'Standard',
       rentPriceUsd: room?.rentPriceUsd ?? 0,
       status: (room?.status as FormData['status']) ?? 'vacant',
@@ -99,6 +101,7 @@ export function RoomFormDialog({ room, settings, rooms, onClose, onSave }: Props
   // Room-number suggestions, learned from the numbers already used in the
   // currently selected branch. Shown for new rooms only.
   const currentBranch = watch('branch')
+  const hasFloors = branchHasFloors(findBranch(branches, currentBranch))
   const roomNumberSuggestions = useMemo(
     () => suggestRoomNumbers(rooms.filter((r) => r.branch === currentBranch).map((r) => r.roomNumber)),
     [rooms, currentBranch],
@@ -117,9 +120,12 @@ export function RoomFormDialog({ room, settings, rooms, onClose, onSave }: Props
 
   const onSubmit = async (data: FormData) => {
     setLoading(true)
+    // Houses have no floors — coerce floor to '1' on submit so the row is
+    // still well-formed in the DB regardless of which branch it ends up on.
+    const payload = hasFloors ? data : { ...data, floor: '1' }
     const url = isEdit ? `/api/rooms/${room.id}` : '/api/rooms'
     const method = isEdit ? 'PATCH' : 'POST'
-    const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
+    const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
     const result = await res.json()
     if (result.ok) {
       toast({ title: isEdit ? t('room_updated') : t('room_created') })
@@ -173,18 +179,27 @@ export function RoomFormDialog({ room, settings, rooms, onClose, onSave }: Props
             </div>
           </div>
 
-          <div className="space-y-1.5">
-            <Label>{t('room_form_type')}</Label>
-            <Select onValueChange={(v) => setValue('roomType', v)} defaultValue={room?.roomType ?? 'Standard'}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Standard">Standard</SelectItem>
-                <SelectItem value="Deluxe">Deluxe</SelectItem>
-                <SelectItem value="Studio">Studio</SelectItem>
-                <SelectItem value="Suite">Suite</SelectItem>
-                <SelectItem value="Penthouse">Penthouse</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className={hasFloors ? 'grid grid-cols-2 gap-4' : ''}>
+            <div className="space-y-1.5">
+              <Label>{t('room_form_type')}</Label>
+              <Select onValueChange={(v) => setValue('roomType', v)} defaultValue={room?.roomType ?? 'Standard'}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Standard">Standard</SelectItem>
+                  <SelectItem value="Deluxe">Deluxe</SelectItem>
+                  <SelectItem value="Studio">Studio</SelectItem>
+                  <SelectItem value="Suite">Suite</SelectItem>
+                  <SelectItem value="Penthouse">Penthouse</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {hasFloors && (
+              <div className="space-y-1.5">
+                <Label>{t('room_map_floor')}</Label>
+                <Input {...register('floor')} placeholder="1" />
+                <p className="text-xs text-muted-foreground">{t('room_form_floor_hint')}</p>
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-4">

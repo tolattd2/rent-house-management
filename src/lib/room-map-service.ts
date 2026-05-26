@@ -37,6 +37,7 @@ export type RoomMapRoom = {
 export type RoomMapView = {
   branch: string
   floor: string
+  hasFloors: boolean
   layouts: RoomMapBlock[]
   rooms: RoomMapRoom[]
 }
@@ -59,13 +60,18 @@ export function sanitizeLayout(input: Partial<RoomMapBlock>): Omit<RoomMapBlock,
   }
 }
 
-// Load layouts + room status/tenant info for a given branch+floor in one round-trip.
-// Used by the page loader and the on-focus refetch.
-export async function loadRoomMapView(branch: string, floor: string): Promise<RoomMapView> {
+// Load layouts + room status/tenant info in one round-trip.
+// - For houses (hasFloors=false): one big map for the whole branch, all
+//   rooms and all layouts loaded together.
+// - For apartments (hasFloors=true): the canvas is per floor — only that
+//   floor's layouts load, but the picker still shows every room in the
+//   branch so you can place rooms from any floor onto the current map.
+export async function loadRoomMapView(branch: string, floor: string, hasFloors: boolean): Promise<RoomMapView> {
+  const layoutWhere = hasFloors ? { branch, floor } : { branch }
   const [layouts, rooms] = await Promise.all([
-    db.roomMapLayout.findMany({ where: { branch, floor } }),
+    db.roomMapLayout.findMany({ where: layoutWhere }),
     db.room.findMany({
-      where: { branch, floor },
+      where: { branch },
       include: {
         tenants: {
           where: { status: 'active' },
@@ -122,6 +128,7 @@ export async function loadRoomMapView(branch: string, floor: string): Promise<Ro
   return {
     branch,
     floor,
+    hasFloors,
     layouts: layouts.map((l) => ({
       id: l.id,
       roomId: l.roomId,
@@ -138,19 +145,27 @@ export async function loadRoomMapView(branch: string, floor: string): Promise<Ro
   }
 }
 
-// Persist a full set of layouts for a branch+floor in one transaction.
-// We upsert each block by roomId (1:1) and then delete any layout that
-// belongs to this branch+floor and isn't in the incoming set.
+// Persist a full set of layouts in one transaction, scoped to match what
+// the caller loaded:
+// - hasFloors=true: scope is branch+floor. Other floors are untouched.
+// - hasFloors=false: scope is the whole branch (houses have one big map),
+//   so missing rooms are removed branch-wide and incoming blocks are
+//   pinned to floor '1' regardless of what the client sent.
 export async function saveRoomMapLayout(
   branch: string,
   floor: string,
+  hasFloors: boolean,
   blocks: Array<Partial<RoomMapBlock>>,
 ) {
+  const normalizedFloor = hasFloors ? floor : '1'
   const safe = blocks
-    .map(sanitizeLayout)
-    .filter((b) => b.roomId && b.branch === branch && b.floor === floor)
+    .map((b) => sanitizeLayout({ ...b, branch, floor: normalizedFloor }))
+    .filter((b) => b.roomId)
 
   const keepRoomIds = new Set(safe.map((b) => b.roomId))
+  const deleteWhere = hasFloors
+    ? { branch, floor, NOT: { roomId: { in: Array.from(keepRoomIds) } } }
+    : { branch, NOT: { roomId: { in: Array.from(keepRoomIds) } } }
 
   await db.$transaction([
     ...safe.map((b) =>
@@ -169,13 +184,7 @@ export async function saveRoomMapLayout(
         },
       }),
     ),
-    db.roomMapLayout.deleteMany({
-      where: {
-        branch,
-        floor,
-        NOT: { roomId: { in: Array.from(keepRoomIds) } },
-      },
-    }),
+    db.roomMapLayout.deleteMany({ where: deleteWhere }),
   ])
 }
 

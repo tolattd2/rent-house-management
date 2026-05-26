@@ -27,6 +27,7 @@ export function RoomMapClient({ isAdmin, initialBranch, initialFloor, initialFlo
   const { t } = useLanguage()
   const router = useRouter()
   const [floors, setFloors] = useState(initialFloors)
+  const [hasFloors, setHasFloors] = useState(initialView.hasFloors)
   const [reloading, setReloading] = useState(false)
   const [fullscreen, setFullscreen] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -67,6 +68,7 @@ export function RoomMapClient({ isAdmin, initialBranch, initialFloor, initialFlo
       const data: { ok: boolean; view?: RoomMapView; error?: string } = await res.json()
       if (data.ok && data.view) {
         hydratedKey.current = ''
+        setHasFloors(data.view.hasFloors)
         hydrate({
           branch: data.view.branch,
           floor: data.view.floor,
@@ -115,6 +117,13 @@ export function RoomMapClient({ isAdmin, initialBranch, initialFloor, initialFlo
       const data: { ok: boolean; view?: RoomMapView } = await res.json()
       if (data.ok && data.view) {
         hydratedKey.current = ''
+        setHasFloors(data.view.hasFloors)
+        // Building a floor list from the room data we just received so the
+        // dropdown reflects the new branch immediately.
+        const nextFloors = data.view.hasFloors
+          ? Array.from(new Set(data.view.rooms.map((r) => r.floor || '1'))).sort()
+          : ['1']
+        setFloors(nextFloors.length > 0 ? nextFloors : ['1'])
         hydrate({
           branch: data.view.branch,
           floor: data.view.floor,
@@ -122,9 +131,6 @@ export function RoomMapClient({ isAdmin, initialBranch, initialFloor, initialFlo
           blocks: data.view.layouts,
         })
       }
-      // Refresh floor list for the new branch.
-      const fr = await fetch(`/api/room-map?branch=${encodeURIComponent(nextBranch)}&floor=${encodeURIComponent(nextFloor)}`).catch(() => null)
-      if (fr) setFloors((prev) => Array.from(new Set([...prev, nextFloor])))
     } else {
       await fetchView(nextBranch, nextFloor, false)
     }
@@ -244,6 +250,7 @@ export function RoomMapClient({ isAdmin, initialBranch, initialFloor, initialFlo
             branch={branch || initialBranch}
             floor={floor || initialFloor}
             floors={floorsView}
+            hasFloors={hasFloors}
             dirty={dirty}
             onChange={changeBranchFloor}
           />

@@ -1,8 +1,17 @@
-export type Branch = { slug: string; name: string; prefix: string }
+export type PropertyType = 'house' | 'apartment'
+
+export type Branch = {
+  slug: string
+  name: string
+  prefix: string
+  // Houses are single-storey or treated as one map; apartments have multiple
+  // floors. Defaults to 'house' so legacy data behaves as one big map.
+  propertyType: PropertyType
+}
 
 export const DEFAULT_BRANCHES: Branch[] = [
-  { slug: 'takmoa', name: 'Takmoa', prefix: '' },
-  { slug: 'chamkadong', name: 'Chamkadong', prefix: 'Rckd' },
+  { slug: 'takmoa', name: 'Takmoa', prefix: '', propertyType: 'house' },
+  { slug: 'chamkadong', name: 'Chamkadong', prefix: 'Rckd', propertyType: 'house' },
 ]
 
 /** Parse the `branches` setting JSON, falling back to the original two branches. */
@@ -17,11 +26,16 @@ export function parseBranches(raw: string | undefined | null): Branch[] {
         slug: b.slug,
         name: b.name,
         prefix: typeof b.prefix === 'string' ? b.prefix : '',
+        propertyType: (b.propertyType === 'apartment' ? 'apartment' : 'house') as PropertyType,
       }))
     return valid.length > 0 ? valid : DEFAULT_BRANCHES
   } catch {
     return DEFAULT_BRANCHES
   }
+}
+
+export function branchHasFloors(branch: Branch | undefined | null): boolean {
+  return branch?.propertyType === 'apartment'
 }
 
 export function findBranch(branches: Branch[], name: string | null | undefined): Branch | undefined {

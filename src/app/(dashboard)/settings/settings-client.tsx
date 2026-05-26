@@ -107,7 +107,7 @@ export function SettingsClient({ settings: initial }: Props) {
   const updateBranch = (index: number, patch: Partial<Branch>) =>
     setBranches((prev) => prev.map((b, i) => (i === index ? { ...b, ...patch } : b)))
   const addBranch = () =>
-    setBranches((prev) => [...prev, { slug: `b${Math.random().toString(36).slice(2, 9)}`, name: '', prefix: '' }])
+    setBranches((prev) => [...prev, { slug: `b${Math.random().toString(36).slice(2, 9)}`, name: '', prefix: '', propertyType: 'house' }])
   const removeBranch = (index: number) =>
     setBranches((prev) => prev.filter((_, i) => i !== index))
   const setBranchField = (key: string, value: string) =>
@@ -590,6 +590,20 @@ export function SettingsClient({ settings: initial }: Props) {
                       />
                       <p className="text-xs text-muted-foreground">{t('settings_room_prefix_hint')}</p>
                     </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>{t('settings_property_type')}</Label>
+                    <Select
+                      value={br.propertyType}
+                      onValueChange={(v) => updateBranch(i, { propertyType: v as 'house' | 'apartment' })}
+                    >
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="house">{t('settings_property_type_house')}</SelectItem>
+                        <SelectItem value="apartment">{t('settings_property_type_apartment')}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">{t('settings_property_type_hint')}</p>
                   </div>
                   <div className="space-y-1.5">
                     <Label>{t('settings_company_name')}</Label>
