@@ -54,13 +54,24 @@ export function RoomSidebar({ editable }: Props) {
   const { t } = useLanguage()
   const roomLabel = useRoomLabel()
 
-  const selectedId = useRoomMapStore((s) => s.selectedId)
+  const selectedIds = useRoomMapStore((s) => s.selectedIds)
   const blocks = useRoomMapStore((s) => s.blocks)
   const rooms = useRoomMapStore((s) => s.rooms)
   const updateBlock = useRoomMapStore((s) => s.updateBlock)
 
-  const block = blocks.find((b) => b.id === selectedId) ?? null
+  const primaryId = selectedIds[0] ?? null
+  const block = blocks.find((b) => b.id === primaryId) ?? null
   const room = block ? rooms.find((r) => r.id === block.roomId) ?? null : null
+
+  if (selectedIds.length > 1) {
+    return (
+      <div className="border-b border-border bg-background/60 px-3 py-1.5">
+        <p className="text-xs text-muted-foreground text-center tabular-nums">
+          {selectedIds.length} {t('room_map_selected_count')}
+        </p>
+      </div>
+    )
+  }
 
   if (!block || !room) {
     return (

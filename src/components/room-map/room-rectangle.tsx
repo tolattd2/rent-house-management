@@ -1,6 +1,6 @@
 'use client'
 
-import { memo } from 'react'
+import { memo, type MouseEvent } from 'react'
 import { Rnd } from 'react-rnd'
 import { cn } from '@/lib/utils'
 import { useRoomMapStore, type DraftBlock } from '@/store/use-room-map-store'
@@ -12,7 +12,7 @@ interface Props {
   selected: boolean
   editable: boolean
   zoom: number
-  onSelect: () => void
+  onSelect: (multi: boolean) => void
 }
 
 function statusClasses(room: RoomMapRoom | undefined): string {
@@ -28,6 +28,10 @@ function RoomRectangleInner({ block, room, selected, editable, zoom, onSelect }:
   const label = room?.roomNumber ?? '?'
   const tenantName = room?.tenant?.fullName ?? ''
 
+  const handleClick = (e: MouseEvent) => {
+    onSelect(e.shiftKey || e.metaKey || e.ctrlKey)
+  }
+
   return (
     <Rnd
       bounds="parent"
@@ -36,7 +40,7 @@ function RoomRectangleInner({ block, room, selected, editable, zoom, onSelect }:
       scale={zoom}
       enableResizing={editable}
       disableDragging={!editable}
-      onDragStart={onSelect}
+      onDragStart={() => onSelect(false)}
       onDragStop={(_, d) => updateBlock(block.id, { x: d.x, y: d.y })}
       onResizeStop={(_, __, ref, ___, position) => {
         updateBlock(block.id, {
@@ -46,7 +50,7 @@ function RoomRectangleInner({ block, room, selected, editable, zoom, onSelect }:
           y: position.y,
         })
       }}
-      style={{ zIndex: block.zIndex + (selected ? 1000 : 0) }}
+      style={{ zIndex: block.zIndex + (selected ? 1000 : 0), touchAction: 'none' }}
       className={cn(
         'rounded-md border-2 shadow-sm transition-shadow',
         statusClasses(room),
@@ -56,7 +60,7 @@ function RoomRectangleInner({ block, room, selected, editable, zoom, onSelect }:
     >
       <button
         type="button"
-        onClick={onSelect}
+        onClick={handleClick}
         className="w-full h-full flex flex-col items-center justify-center text-center px-1 leading-tight select-none overflow-hidden"
         style={{ transform: block.rotation ? `rotate(${block.rotation}deg)` : undefined }}
       >

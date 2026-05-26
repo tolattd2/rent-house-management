@@ -10,7 +10,9 @@ type State = {
   floor: string
   rooms: RoomMapRoom[]
   blocks: DraftBlock[]
-  selectedId: string | null
+  // Multi-select. selectedIds[0] is treated as the "primary" selection for
+  // single-room editors; the full array drives bulk operations + visuals.
+  selectedIds: string[]
   dirty: boolean
   saving: boolean
   zoom: number
@@ -30,10 +32,15 @@ type State = {
 type Actions = {
   hydrate: (params: { branch: string; floor: string; rooms: RoomMapRoom[]; blocks: RoomMapBlock[] }) => void
   setSelected: (id: string | null) => void
+  toggleSelected: (id: string) => void
+  selectMany: (ids: string[]) => void
+  clearSelection: () => void
   addBlockForRoom: (roomId: string) => void
   removeBlock: (id: string) => void
+  removeSelected: () => void
   duplicateBlock: (id: string) => void
   updateBlock: (id: string, patch: Partial<DraftBlock>) => void
+  moveSelected: (dx: number, dy: number) => void
   replaceAll: (blocks: DraftBlock[]) => void
   undo: () => void
   redo: () => void
@@ -62,7 +69,7 @@ export const useRoomMapStore = create<State & Actions>((set, get) => ({
   floor: '1',
   rooms: [],
   blocks: [],
-  selectedId: null,
+  selectedIds: [],
   dirty: false,
   saving: false,
   zoom: 1,
@@ -80,13 +87,26 @@ export const useRoomMapStore = create<State & Actions>((set, get) => ({
       floor,
       rooms,
       blocks: blocks.map((b) => ({ ...b })),
-      selectedId: null,
+      selectedIds: [],
       dirty: false,
       past: [],
       future: [],
     }),
 
-  setSelected: (id) => set({ selectedId: id }),
+  setSelected: (id) => set({ selectedIds: id ? [id] : [] }),
+
+  toggleSelected: (id) => {
+    const { selectedIds } = get()
+    set({
+      selectedIds: selectedIds.includes(id)
+        ? selectedIds.filter((x) => x !== id)
+        : [...selectedIds, id],
+    })
+  },
+
+  selectMany: (ids) => set({ selectedIds: [...ids] }),
+
+  clearSelection: () => set({ selectedIds: [] }),
 
   addBlockForRoom: (roomId) => {
     const { blocks, branch, floor, rooms, past } = get()
@@ -110,19 +130,32 @@ export const useRoomMapStore = create<State & Actions>((set, get) => ({
       past: pushHistory(past, blocks),
       future: [],
       blocks: [...blocks.filter((b) => b.roomId !== roomId), draft],
-      selectedId: draft.id,
+      selectedIds: [draft.id],
       dirty: true,
     })
   },
 
   removeBlock: (id) => {
-    const { blocks, selectedId, past } = get()
+    const { blocks, selectedIds, past } = get()
     const next = blocks.filter((b) => b.id !== id)
     set({
       past: pushHistory(past, blocks),
       future: [],
       blocks: next,
-      selectedId: selectedId === id ? null : selectedId,
+      selectedIds: selectedIds.filter((x) => x !== id),
+      dirty: true,
+    })
+  },
+
+  removeSelected: () => {
+    const { blocks, selectedIds, past } = get()
+    if (selectedIds.length === 0) return
+    const ids = new Set(selectedIds)
+    set({
+      past: pushHistory(past, blocks),
+      future: [],
+      blocks: blocks.filter((b) => !ids.has(b.id)),
+      selectedIds: [],
       dirty: true,
     })
   },
@@ -146,7 +179,7 @@ export const useRoomMapStore = create<State & Actions>((set, get) => ({
       past: pushHistory(past, blocks),
       future: [],
       blocks: [...blocks, draft],
-      selectedId: draft.id,
+      selectedIds: [draft.id],
       dirty: true,
     })
   },
@@ -174,6 +207,24 @@ export const useRoomMapStore = create<State & Actions>((set, get) => ({
     })
   },
 
+  // Nudge every selected block by the same delta. Used by arrow-key navigation
+  // and for moving a marquee selection as a group.
+  moveSelected: (dx, dy) => {
+    const { blocks, selectedIds, snapToGrid, gridSize, past } = get()
+    if (selectedIds.length === 0) return
+    const ids = new Set(selectedIds)
+    const snap = (v: number) => (snapToGrid ? Math.round(v / gridSize) * gridSize : v)
+    const nextBlocks = blocks.map((b) =>
+      ids.has(b.id) ? { ...b, x: snap(b.x + dx), y: snap(b.y + dy) } : b,
+    )
+    set({
+      past: pushHistory(past, blocks),
+      future: [],
+      blocks: nextBlocks,
+      dirty: true,
+    })
+  },
+
   // Bulk replace — used by Import JSON. Coordinates and dimensions are
   // already trusted (parsed from the JSON), so we don't re-snap here.
   replaceAll: (next) => {
@@ -182,7 +233,7 @@ export const useRoomMapStore = create<State & Actions>((set, get) => ({
       past: pushHistory(past, blocks),
       future: [],
       blocks: next.map((b) => ({ ...b })),
-      selectedId: null,
+      selectedIds: [],
       dirty: true,
     })
   },
@@ -196,7 +247,7 @@ export const useRoomMapStore = create<State & Actions>((set, get) => ({
       past: nextPast,
       future: [...future, blocks.map((b) => ({ ...b }))],
       blocks: prev.map((b) => ({ ...b })),
-      selectedId: null,
+      selectedIds: [],
       dirty: true,
     })
   },
@@ -210,7 +261,7 @@ export const useRoomMapStore = create<State & Actions>((set, get) => ({
       past: [...past, blocks.map((b) => ({ ...b }))],
       future: nextFuture,
       blocks: next.map((b) => ({ ...b })),
-      selectedId: null,
+      selectedIds: [],
       dirty: true,
     })
   },

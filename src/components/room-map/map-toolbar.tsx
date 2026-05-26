@@ -1,15 +1,14 @@
 'use client'
 
-import { useMemo, useRef, useState } from 'react'
-import { Plus, Save, Trash2, Copy, Grid3x3, Undo2, Redo2, Download, Upload, Maximize, Minimize, Wand2 } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { Plus, Save, Trash2, Copy, Grid3x3, Undo2, Redo2, Download, Maximize, Minimize, Wand2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
-import { useRoomMapStore, type DraftBlock } from '@/store/use-room-map-store'
+import { useRoomMapStore } from '@/store/use-room-map-store'
 import { useRoomLabel } from '@/contexts/branches-context'
 import { useLanguage } from '@/contexts/language-context'
 import { sortRoomsByNumber, cn } from '@/lib/utils'
-import { toast } from '@/hooks/use-toast'
 import { ExportDialog } from './export-dialog'
 
 interface Props {
@@ -20,17 +19,16 @@ interface Props {
 }
 
 // Left rail: room picker + add/duplicate/delete + grid toggle + undo/redo +
-// import/export + auto-save toggle + save.
+// export + auto-save toggle + save.
 export function MapToolbar({ editable, fullscreen, onToggleFullscreen, onSave }: Props) {
   const { t } = useLanguage()
   const roomLabel = useRoomLabel()
   const [search, setSearch] = useState('')
   const [showExport, setShowExport] = useState(false)
-  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const rooms = useRoomMapStore((s) => s.rooms)
   const blocks = useRoomMapStore((s) => s.blocks)
-  const selectedId = useRoomMapStore((s) => s.selectedId)
+  const selectedIds = useRoomMapStore((s) => s.selectedIds)
   const dirty = useRoomMapStore((s) => s.dirty)
   const saving = useRoomMapStore((s) => s.saving)
   const snap = useRoomMapStore((s) => s.snapToGrid)
@@ -38,17 +36,15 @@ export function MapToolbar({ editable, fullscreen, onToggleFullscreen, onSave }:
   const setSnap = useRoomMapStore((s) => s.setSnap)
   const setAutoSave = useRoomMapStore((s) => s.setAutoSave)
   const addBlockForRoom = useRoomMapStore((s) => s.addBlockForRoom)
-  const removeBlock = useRoomMapStore((s) => s.removeBlock)
+  const removeSelected = useRoomMapStore((s) => s.removeSelected)
   const duplicateBlock = useRoomMapStore((s) => s.duplicateBlock)
   const undo = useRoomMapStore((s) => s.undo)
   const redo = useRoomMapStore((s) => s.redo)
-  const replaceAll = useRoomMapStore((s) => s.replaceAll)
   const canUndo = useRoomMapStore((s) => s.past.length > 0)
   const canRedo = useRoomMapStore((s) => s.future.length > 0)
-  const branch = useRoomMapStore((s) => s.branch)
-  const floor = useRoomMapStore((s) => s.floor)
-  // branch + floor are read by the import handler below; the export
-  // dialog reads them straight from the store.
+
+  const primarySelectedId = selectedIds[0] ?? null
+  const hasSelection = selectedIds.length > 0
 
   const onCanvas = useMemo(() => new Set(blocks.map((b) => b.roomId)), [blocks])
   const filtered = useMemo(() => {
@@ -62,58 +58,6 @@ export function MapToolbar({ editable, fullscreen, onToggleFullscreen, onSave }:
     })
     return sortRoomsByNumber(list)
   }, [rooms, search])
-
-  const handleImportClick = () => fileInputRef.current?.click()
-
-  // Accepts the file we just exported, or any JSON of the shape
-  // { blocks: [{ roomId, x, y, width, height, rotation, zIndex }] }.
-  // We map each entry to an existing room (matching by roomId, or by
-  // roomNumber if the export came from a copied DB), skip unknowns, and
-  // replace the canvas — undo restores the prior layout.
-  const handleImportFile = async (file: File) => {
-    try {
-      const text = await file.text()
-      const parsed = JSON.parse(text) as { blocks?: Array<Record<string, unknown>> }
-      if (!parsed || !Array.isArray(parsed.blocks)) throw new Error('Missing "blocks" array')
-
-      const roomById = new Map(rooms.map((r) => [r.id, r]))
-      const roomByNumber = new Map(rooms.map((r) => [r.roomNumber, r]))
-      const next: DraftBlock[] = []
-      let skipped = 0
-      for (const raw of parsed.blocks) {
-        const roomId = typeof raw.roomId === 'string' ? raw.roomId : null
-        const roomNumber = typeof raw.roomNumber === 'string' ? raw.roomNumber : null
-        const room = (roomId && roomById.get(roomId)) || (roomNumber && roomByNumber.get(roomNumber)) || null
-        if (!room) { skipped++; continue }
-        next.push({
-          id: `tmp-${room.id}`,
-          roomId: room.id,
-          branch,
-          floor,
-          x: Number(raw.x) || 0,
-          y: Number(raw.y) || 0,
-          width: Number(raw.width) || 120,
-          height: Number(raw.height) || 80,
-          rotation: Number(raw.rotation) || 0,
-          zIndex: Number(raw.zIndex) || 0,
-        })
-      }
-      if (next.length === 0) throw new Error('No matching rooms')
-      replaceAll(next)
-      toast({
-        title: t('room_map_import_done'),
-        description: skipped > 0 ? `${next.length} placed, ${skipped} skipped` : `${next.length} placed`,
-      })
-    } catch (e) {
-      toast({
-        title: t('room_map_import_failed'),
-        description: e instanceof Error ? e.message : 'Invalid JSON',
-        variant: 'destructive',
-      })
-    } finally {
-      if (fileInputRef.current) fileInputRef.current.value = ''
-    }
-  }
 
   return (
     <aside className="w-60 shrink-0 flex flex-col border-r border-border bg-background/60 min-h-0 overflow-y-auto">
@@ -145,8 +89,8 @@ export function MapToolbar({ editable, fullscreen, onToggleFullscreen, onSave }:
           <Button
             size="sm"
             variant="outline"
-            disabled={!editable || !selectedId}
-            onClick={() => selectedId && duplicateBlock(selectedId)}
+            disabled={!editable || !primarySelectedId}
+            onClick={() => primarySelectedId && duplicateBlock(primarySelectedId)}
             title={t('room_map_duplicate')}
           >
             <Copy className="w-3.5 h-3.5 mr-1" />
@@ -155,36 +99,29 @@ export function MapToolbar({ editable, fullscreen, onToggleFullscreen, onSave }:
           <Button
             size="sm"
             variant="outline"
-            disabled={!editable || !selectedId}
-            onClick={() => selectedId && removeBlock(selectedId)}
+            disabled={!editable || !hasSelection}
+            onClick={removeSelected}
             className="text-destructive border-destructive/30 hover:bg-destructive/10"
             title={t('room_map_delete')}
           >
             <Trash2 className="w-3.5 h-3.5 mr-1" />
             <span className="truncate">{t('room_map_delete')}</span>
+            {selectedIds.length > 1 && (
+              <span className="ml-1 text-[10px] opacity-80 tabular-nums">×{selectedIds.length}</span>
+            )}
           </Button>
         </div>
 
-        <div className="grid grid-cols-2 gap-2">
-          <Button size="sm" variant="outline" onClick={() => setShowExport(true)} disabled={blocks.length === 0}>
-            <Download className="w-3.5 h-3.5 mr-1" />
-            <span className="truncate">{t('room_map_export')}</span>
-          </Button>
-          <Button size="sm" variant="outline" onClick={handleImportClick} disabled={!editable}>
-            <Upload className="w-3.5 h-3.5 mr-1" />
-            <span className="truncate">{t('room_map_import')}</span>
-          </Button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="application/json,.json"
-            className="hidden"
-            onChange={(e) => {
-              const f = e.target.files?.[0]
-              if (f) handleImportFile(f)
-            }}
-          />
-        </div>
+        <Button
+          size="sm"
+          variant="outline"
+          className="w-full"
+          onClick={() => setShowExport(true)}
+          disabled={blocks.length === 0}
+        >
+          <Download className="w-3.5 h-3.5 mr-1.5" />
+          <span className="truncate">{t('room_map_export')}</span>
+        </Button>
 
         <Button size="sm" variant="outline" className="w-full" onClick={onToggleFullscreen}>
           {fullscreen
