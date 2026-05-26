@@ -2,6 +2,7 @@
 
 import { create } from 'zustand'
 import type { RoomMapBlock, RoomMapRoom } from '@/lib/room-map-service'
+import { sortRoomsByNumber } from '@/lib/utils'
 
 export type DraftBlock = Omit<RoomMapBlock, 'id'> & { id: string; pendingDelete?: boolean }
 
@@ -172,15 +173,80 @@ export const useRoomMapStore = create<State & Actions>((set, get) => ({
     const { blocks, rooms, past } = get()
     const source = blocks.find((b) => b.id === id)
     if (!source) return
+
+    // Order rooms in the same branch + floor by room number so the duplicate
+    // picks 102 when you duplicate 101, etc. Search forward first, then
+    // wrap backward so the action still does something if 101 is the last
+    // available room.
+    const siblings = sortRoomsByNumber(
+      rooms.filter((r) => r.branch === source.branch && r.floor === source.floor),
+    )
+    const sourceIdx = siblings.findIndex((r) => r.id === source.roomId)
+    if (sourceIdx === -1) return
+
     const taken = new Set(blocks.map((b) => b.roomId))
-    const candidate = rooms.find((r) => !taken.has(r.id) && r.branch === source.branch && r.floor === source.floor)
-    if (!candidate) return
+    let candidateIdx = -1
+    for (let i = sourceIdx + 1; i < siblings.length; i++) {
+      if (!taken.has(siblings[i].id)) { candidateIdx = i; break }
+    }
+    if (candidateIdx === -1) {
+      for (let i = sourceIdx - 1; i >= 0; i--) {
+        if (!taken.has(siblings[i].id)) { candidateIdx = i; break }
+      }
+    }
+    if (candidateIdx === -1) return
+    const candidate = siblings[candidateIdx]
+
+    // Per-step spacing — try to read it off an already-placed neighbour so
+    // the new block lines up with the existing layout. Forward neighbour
+    // wins; if there isn't one, mirror a backward neighbour. Falls back to
+    // 'just to the right of the source by its width' when nothing's placed.
+    let dx = source.width
+    let dy = 0
+    let foundDelta = false
+    for (let i = sourceIdx + 1; i < siblings.length && !foundDelta; i++) {
+      const ref = blocks.find((b) => b.roomId === siblings[i].id)
+      if (ref) {
+        const steps = i - sourceIdx
+        dx = (ref.x - source.x) / steps
+        dy = (ref.y - source.y) / steps
+        foundDelta = true
+      }
+    }
+    if (!foundDelta) {
+      for (let i = sourceIdx - 1; i >= 0 && !foundDelta; i--) {
+        const ref = blocks.find((b) => b.roomId === siblings[i].id)
+        if (ref) {
+          const steps = sourceIdx - i
+          dx = (source.x - ref.x) / steps
+          dy = (source.y - ref.y) / steps
+          foundDelta = true
+        }
+      }
+    }
+
+    // Anchor = the latest placed block at or before the candidate in the
+    // sequence (we start from source and walk forward). Lets us extend the
+    // pattern even when the candidate is several slots past source.
+    let anchorIdx = sourceIdx
+    let anchorBlock: DraftBlock = source
+    for (let i = sourceIdx + 1; i < candidateIdx; i++) {
+      const ref = blocks.find((b) => b.roomId === siblings[i].id)
+      if (ref) {
+        anchorIdx = i
+        anchorBlock = ref
+      }
+    }
+    const steps = candidateIdx - anchorIdx
+    const newX = anchorBlock.x + dx * steps
+    const newY = anchorBlock.y + dy * steps
+
     const draft: DraftBlock = {
       ...source,
       id: `tmp-${candidate.id}`,
       roomId: candidate.id,
-      x: source.x + 20,
-      y: source.y + 20,
+      x: newX,
+      y: newY,
       zIndex: nextZIndex(blocks),
     }
     set({
