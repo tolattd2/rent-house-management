@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointer
 import { cn } from '@/lib/utils'
 import { useRoomMapStore } from '@/store/use-room-map-store'
 import { RoomRectangle } from './room-rectangle'
+import { SelectionTransform } from './selection-transform'
 
 interface Props {
   editable: boolean
@@ -249,6 +250,7 @@ export function RoomCanvas({ editable }: Props) {
             }}
           />
         )}
+        <SelectionTransform innerRef={innerRef} zoom={zoom} editable={editable} />
         {blocks.length === 0 && (
           <div className="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground pointer-events-none">
             {editable
