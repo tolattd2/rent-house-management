@@ -32,6 +32,14 @@ type GroupSnapshot = {
   snapshotted: boolean
 }
 
+// Roughly 5 screen pixels in canvas units. react-rnd reports a pure tap as
+// onDragStart + onDragStop with no onDrag in between, but on touch a finger
+// can still drift several pixels during a tap. We refuse to commit anything
+// until the user's pointer crosses this threshold.
+function dragThreshold(zoom: number): number {
+  return 5 / Math.max(zoom, 0.1)
+}
+
 function RoomRectangleInner({ block, room, selected, editable, zoom, onSelect }: Props) {
   const updateBlock = useRoomMapStore((s) => s.updateBlock)
   const setBlockGeoms = useRoomMapStore((s) => s.setBlockGeoms)
@@ -39,6 +47,11 @@ function RoomRectangleInner({ block, room, selected, editable, zoom, onSelect }:
 
   const dragGroupRef = useRef<GroupSnapshot | null>(null)
   const resizeGroupRef = useRef<GroupSnapshot | null>(null)
+  // Flips to true the first time the user's drag/resize moves the pointer
+  // past the threshold. handleDragStop / handleResizeStop bail when false,
+  // so a tap never writes back to the store.
+  const dragMovedRef = useRef(false)
+  const resizeMovedRef = useRef(false)
 
   const label = room?.roomNumber ?? '?'
   const tenantName = room?.tenant?.fullName ?? ''
@@ -74,6 +87,7 @@ function RoomRectangleInner({ block, room, selected, editable, zoom, onSelect }:
   }
 
   const handleDragStart = () => {
+    dragMovedRef.current = false
     const g = snapshotGroup()
     if (g) {
       dragGroupRef.current = g
@@ -84,6 +98,14 @@ function RoomRectangleInner({ block, room, selected, editable, zoom, onSelect }:
   }
 
   const handleDrag = (_: unknown, d: { x: number; y: number }) => {
+    // Until the pointer crosses the threshold, treat the gesture as a tap
+    // and don't write anything to the store. Without this, a multi-selection
+    // would nudge every OTHER block on a stationary tap.
+    if (!dragMovedRef.current) {
+      const eps = dragThreshold(zoom)
+      if (Math.abs(d.x - block.x) <= eps && Math.abs(d.y - block.y) <= eps) return
+      dragMovedRef.current = true
+    }
     const g = dragGroupRef.current
     if (!g) return
     if (!g.snapshotted) {
@@ -97,30 +119,27 @@ function RoomRectangleInner({ block, room, selected, editable, zoom, onSelect }:
 
   const handleDragStop = (_: unknown, d: { x: number; y: number }) => {
     const g = dragGroupRef.current
-    // Pure clicks (mousedown without movement) report essentially the same
-    // position back to us — react-rnd can still drift a fraction of a pixel
-    // when zoom != 1. Treat anything under a few canvas units as a click so
-    // snap-to-grid doesn't shove an off-grid room to the nearest cell on a
-    // tap.
-    const CLICK_EPS = 3
-    const moved = Math.abs(d.x - block.x) > CLICK_EPS || Math.abs(d.y - block.y) > CLICK_EPS
-    if (g) {
-      if (moved) {
-        if (!g.snapshotted) pushHistorySnapshot()
-        const dx = d.x - g.basis.x
-        const dy = d.y - g.basis.y
-        setBlockGeoms([
-          { id: block.id, x: d.x, y: d.y },
-          ...g.others.map((o) => ({ id: o.id, x: o.x + dx, y: o.y + dy })),
-        ])
-      }
+    if (!dragMovedRef.current) {
+      // Pure tap — nothing to commit. Clear refs and bail.
       dragGroupRef.current = null
-    } else if (moved) {
+      return
+    }
+    if (g) {
+      if (!g.snapshotted) pushHistorySnapshot()
+      const dx = d.x - g.basis.x
+      const dy = d.y - g.basis.y
+      setBlockGeoms([
+        { id: block.id, x: d.x, y: d.y },
+        ...g.others.map((o) => ({ id: o.id, x: o.x + dx, y: o.y + dy })),
+      ])
+      dragGroupRef.current = null
+    } else {
       updateBlock(block.id, { x: d.x, y: d.y })
     }
   }
 
   const handleResizeStart = () => {
+    resizeMovedRef.current = false
     resizeGroupRef.current = snapshotGroup()
   }
 
@@ -153,14 +172,24 @@ function RoomRectangleInner({ block, room, selected, editable, zoom, onSelect }:
     ___: unknown,
     position: { x: number; y: number },
   ) => {
+    const newW = parseFloat(ref.style.width)
+    const newH = parseFloat(ref.style.height)
+    if (!resizeMovedRef.current) {
+      const eps = dragThreshold(zoom)
+      if (
+        Math.abs(newW - block.width) <= eps &&
+        Math.abs(newH - block.height) <= eps &&
+        Math.abs(position.x - block.x) <= eps &&
+        Math.abs(position.y - block.y) <= eps
+      ) return
+      resizeMovedRef.current = true
+    }
     const g = resizeGroupRef.current
     if (!g) return
     if (!g.snapshotted) {
       pushHistorySnapshot()
       g.snapshotted = true
     }
-    const newW = parseFloat(ref.style.width)
-    const newH = parseFloat(ref.style.height)
     setBlockGeoms(computeGroupResize(g, newW, newH, position))
   }
 
@@ -172,24 +201,20 @@ function RoomRectangleInner({ block, room, selected, editable, zoom, onSelect }:
     position: { x: number; y: number },
   ) => {
     const g = resizeGroupRef.current
+    if (!resizeMovedRef.current) {
+      resizeGroupRef.current = null
+      return
+    }
     const newW = parseFloat(ref.style.width)
     const newH = parseFloat(ref.style.height)
-    const CLICK_EPS = 3
-    const changed =
-      Math.abs(newW - block.width) > CLICK_EPS ||
-      Math.abs(newH - block.height) > CLICK_EPS ||
-      Math.abs(position.x - block.x) > CLICK_EPS ||
-      Math.abs(position.y - block.y) > CLICK_EPS
     if (g) {
-      if (changed) {
-        if (!g.snapshotted) pushHistorySnapshot()
-        setBlockGeoms([
-          { id: block.id, x: position.x, y: position.y, width: newW, height: newH },
-          ...computeGroupResize(g, newW, newH, position),
-        ])
-      }
+      if (!g.snapshotted) pushHistorySnapshot()
+      setBlockGeoms([
+        { id: block.id, x: position.x, y: position.y, width: newW, height: newH },
+        ...computeGroupResize(g, newW, newH, position),
+      ])
       resizeGroupRef.current = null
-    } else if (changed) {
+    } else {
       updateBlock(block.id, { width: newW, height: newH, x: position.x, y: position.y })
     }
   }
