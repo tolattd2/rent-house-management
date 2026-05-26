@@ -71,25 +71,10 @@ export function MapToolbar({ editable, fullscreen, onToggleFullscreen, onSave, m
     return sortRoomsByNumber(list)
   }, [rooms, search])
 
-  return (
+  // Shared toolbar content — rendered into either the desktop aside or the
+  // mobile drawer below. Extracted into a variable so we don't duplicate JSX.
+  const content = (
     <>
-      {/* Mobile backdrop */}
-      {mobileOpen && (
-        <div
-          className="md:hidden fixed inset-0 bg-black/40 z-40 animate-fade-in"
-          onClick={onMobileClose}
-          aria-hidden
-        />
-      )}
-    <aside
-      className={cn(
-        // Desktop: static left rail
-        'md:relative md:translate-x-0 md:w-60 md:shrink-0 md:flex md:flex-col md:border-r md:border-border md:bg-background/60 md:min-h-0 md:overflow-y-auto',
-        // Mobile: fixed slide-in drawer
-        'fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] flex flex-col border-r border-border bg-background shadow-xl overflow-y-auto transition-transform duration-200',
-        mobileOpen ? 'translate-x-0' : '-translate-x-full',
-      )}
-    >
       <div className="md:hidden flex items-center justify-between px-3 py-2 border-b border-border sticky top-0 bg-background z-10">
         <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           {t('room_map_tools')}
@@ -229,7 +214,29 @@ export function MapToolbar({ editable, fullscreen, onToggleFullscreen, onSave, m
         </div>
       </div>
       <ExportDialog open={showExport} onClose={() => setShowExport(false)} />
-    </aside>
+    </>
+  )
+
+  return (
+    <>
+      {/* Desktop sidebar — always rendered at md+ */}
+      <aside className="hidden md:flex w-60 shrink-0 flex-col border-r border-border bg-background/60 min-h-0 overflow-y-auto">
+        {content}
+      </aside>
+
+      {/* Mobile drawer — only mounts when open; full backdrop dims the canvas */}
+      {mobileOpen && (
+        <>
+          <div
+            className="md:hidden fixed inset-0 bg-black/40 z-40"
+            onClick={onMobileClose}
+            aria-hidden
+          />
+          <aside className="md:hidden fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] flex flex-col border-r border-border bg-background shadow-xl overflow-y-auto">
+            {content}
+          </aside>
+        </>
+      )}
     </>
   )
 }
