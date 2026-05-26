@@ -638,8 +638,8 @@ export function SettingsClient({ settings: initial }: Props) {
                       </Select>
                     </div>
                   </div>
-                  <div className="space-y-2">
-                    <label className="flex items-center justify-between gap-2 px-3 py-2 rounded border border-border text-sm">
+                  <div className="flex flex-wrap items-stretch gap-3">
+                    <label className="flex flex-1 min-w-[220px] items-center justify-between gap-2 px-3 py-2 rounded border border-border text-sm">
                       <span className="space-y-0.5">
                         <span className="block font-medium">{t('settings_property_has_floors')}</span>
                         <span className="block text-xs text-muted-foreground">{t('settings_property_has_floors_hint')}</span>
@@ -652,7 +652,7 @@ export function SettingsClient({ settings: initial }: Props) {
                       />
                     </label>
                     {br.hasFloors && (
-                      <div className="space-y-1.5">
+                      <div className="w-40 space-y-1.5">
                         <Label>{t('settings_property_floor_count')}</Label>
                         <Input
                           type="number"
@@ -663,7 +663,6 @@ export function SettingsClient({ settings: initial }: Props) {
                             updateBranch(i, { floorCount: n })
                           }}
                         />
-                        <p className="text-xs text-muted-foreground">{t('settings_property_floor_count_hint')}</p>
                       </div>
                     )}
                   </div>
