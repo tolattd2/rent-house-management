@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { RefreshCw } from 'lucide-react'
+import { RefreshCw, Menu } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { MapToolbar } from '@/components/room-map/map-toolbar'
 import { RoomCanvas } from '@/components/room-map/room-canvas'
@@ -31,6 +31,7 @@ export function RoomMapClient({ isAdmin, initialBranch, initialFloor, initialFlo
   const [hasFloors, setHasFloors] = useState(initialView.hasFloors)
   const [reloading, setReloading] = useState(false)
   const [fullscreen, setFullscreen] = useState(false)
+  const [mobileToolbarOpen, setMobileToolbarOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
 
   const hydrate = useRoomMapStore((s) => s.hydrate)
@@ -248,11 +249,11 @@ export function RoomMapClient({ isAdmin, initialBranch, initialFloor, initialFlo
   const floorsView = useMemo(() => Array.from(new Set([...floors, floor].filter(Boolean))), [floors, floor])
 
   return (
-    <div className="flex flex-col h-[calc(100vh-8rem)] animate-fade-in">
-      <div className="flex flex-wrap items-center justify-between gap-3 pb-3">
-        <div>
-          <h1 className="text-2xl font-bold">{t('nav_room_map')}</h1>
-          <p className="text-muted-foreground text-sm">{t('room_map_subtitle')}</p>
+    <div className="flex flex-col h-[calc(100vh-7rem)] sm:h-[calc(100vh-8rem)] animate-fade-in">
+      <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-3 pb-2 sm:pb-3">
+        <div className="min-w-0">
+          <h1 className="text-lg sm:text-2xl font-bold truncate">{t('nav_room_map')}</h1>
+          <p className="hidden sm:block text-muted-foreground text-sm">{t('room_map_subtitle')}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <BranchFloorSelector
@@ -270,29 +271,46 @@ export function RoomMapClient({ isAdmin, initialBranch, initialFloor, initialFlo
             loading={reloading}
             disabled={dirty}
             title={dirty ? t('room_map_reload_disabled') : t('room_map_reload')}
+            className="h-9 px-2 sm:px-3"
           >
-            <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
-            {t('room_map_reload')}
+            <RefreshCw className="w-3.5 h-3.5 sm:mr-1.5" />
+            <span className="hidden sm:inline">{t('room_map_reload')}</span>
           </Button>
         </div>
       </div>
 
-      <StatusLegend />
+      <div className="hidden sm:block">
+        <StatusLegend />
+      </div>
 
       <div
         ref={containerRef}
-        className="mt-3 flex flex-1 min-h-0 rounded-lg border border-border overflow-hidden bg-card fullscreen:bg-background fullscreen:rounded-none"
+        className="mt-2 sm:mt-3 relative flex flex-1 min-h-0 rounded-lg border border-border overflow-hidden bg-card fullscreen:bg-background fullscreen:rounded-none"
       >
         <MapToolbar
           editable={isAdmin}
           fullscreen={fullscreen}
           onToggleFullscreen={toggleFullscreen}
           onSave={() => handleSave(false)}
+          mobileOpen={mobileToolbarOpen}
+          onMobileClose={() => setMobileToolbarOpen(false)}
         />
         <div className="flex-1 flex flex-col min-w-0">
           <RoomSidebar editable={isAdmin} />
           <div className="flex-1 relative min-h-0">
-            <div className="absolute top-3 right-3 z-20 flex items-center gap-2 flex-wrap justify-end">
+            {/* Mobile-only "open toolbar" button */}
+            <div className="md:hidden absolute top-3 left-3 z-20">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setMobileToolbarOpen(true)}
+                className="h-9 w-9 p-0 bg-background/90 shadow-sm"
+                aria-label={t('room_map_tools')}
+              >
+                <Menu className="w-4 h-4" />
+              </Button>
+            </div>
+            <div className="absolute top-3 right-3 z-20 flex items-center gap-1.5 sm:gap-2 flex-wrap justify-end">
               <CanvasSizeSelector />
               <ZoomControls />
             </div>

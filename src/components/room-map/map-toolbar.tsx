@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { Plus, Save, Trash2, Copy, Grid3x3, Undo2, Redo2, Download, Maximize, Minimize, Wand2 } from 'lucide-react'
+import { Plus, Save, Trash2, Copy, Grid3x3, Undo2, Redo2, Download, Maximize, Minimize, Wand2, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
@@ -16,11 +16,15 @@ interface Props {
   fullscreen: boolean
   onToggleFullscreen: () => void
   onSave: () => void
+  // Mobile drawer controls — on desktop the toolbar is a static sidebar and
+  // these are ignored.
+  mobileOpen: boolean
+  onMobileClose: () => void
 }
 
 // Left rail: room picker + add/duplicate/delete + grid toggle + undo/redo +
 // export + auto-save toggle + save.
-export function MapToolbar({ editable, fullscreen, onToggleFullscreen, onSave }: Props) {
+export function MapToolbar({ editable, fullscreen, onToggleFullscreen, onSave, mobileOpen, onMobileClose }: Props) {
   const { t } = useLanguage()
   const roomLabel = useRoomLabel()
   const [search, setSearch] = useState('')
@@ -60,7 +64,32 @@ export function MapToolbar({ editable, fullscreen, onToggleFullscreen, onSave }:
   }, [rooms, search])
 
   return (
-    <aside className="w-60 shrink-0 flex flex-col border-r border-border bg-background/60 min-h-0 overflow-y-auto">
+    <>
+      {/* Mobile backdrop */}
+      {mobileOpen && (
+        <div
+          className="md:hidden fixed inset-0 bg-black/40 z-40 animate-fade-in"
+          onClick={onMobileClose}
+          aria-hidden
+        />
+      )}
+    <aside
+      className={cn(
+        // Desktop: static left rail
+        'md:relative md:translate-x-0 md:w-60 md:shrink-0 md:flex md:flex-col md:border-r md:border-border md:bg-background/60 md:min-h-0 md:overflow-y-auto',
+        // Mobile: fixed slide-in drawer
+        'fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] flex flex-col border-r border-border bg-background shadow-xl overflow-y-auto transition-transform duration-200',
+        mobileOpen ? 'translate-x-0' : '-translate-x-full',
+      )}
+    >
+      <div className="md:hidden flex items-center justify-between px-3 py-2 border-b border-border sticky top-0 bg-background z-10">
+        <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          {t('room_map_tools')}
+        </span>
+        <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={onMobileClose} aria-label="Close">
+          <X className="w-4 h-4" />
+        </Button>
+      </div>
       <div className="p-3 border-b border-border space-y-2">
         <Button
           size="sm"
@@ -193,5 +222,6 @@ export function MapToolbar({ editable, fullscreen, onToggleFullscreen, onSave }:
       </div>
       <ExportDialog open={showExport} onClose={() => setShowExport(false)} />
     </aside>
+    </>
   )
 }
