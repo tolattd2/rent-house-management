@@ -1,25 +1,40 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Download, FileJson, FileImage, FileText, Loader2 } from 'lucide-react'
+import { useCallback, useEffect, useState } from 'react'
+import { Download, FileImage, FileText, Loader2 } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 import { useRoomMapStore } from '@/store/use-room-map-store'
 import { useLanguage } from '@/contexts/language-context'
 import { toast } from '@/hooks/use-toast'
 
-export type ExportFormat = 'json' | 'png' | 'pdf'
+export type ExportFormat = 'png' | 'pdf'
 
 interface Props {
   open: boolean
   onClose: () => void
 }
 
+// html2canvas scale multipliers. Higher = sharper PNG / larger file.
+const RESOLUTIONS = [
+  { value: '1', label: '1x', scale: 1 },
+  { value: '2', label: '2x', scale: 2 },
+  { value: '3', label: '3x', scale: 3 },
+  { value: '4', label: '4x', scale: 4 },
+] as const
+type ResolutionValue = (typeof RESOLUTIONS)[number]['value']
+
+// jsPDF page sizes — all native presets so we don't have to maintain mm tables.
+const PAPER_SIZES = ['a4', 'a3', 'a5', 'letter', 'legal'] as const
+type PaperSize = (typeof PAPER_SIZES)[number]
+
 // Snapshot the room-map canvas to PNG via html2canvas. We momentarily set
 // the inner div's transform to scale(1) so the export captures the layout
 // at its natural size regardless of how the user has zoomed.
-async function snapshotCanvas(): Promise<{ dataUrl: string; width: number; height: number } | null> {
+async function snapshotCanvas(scale: number): Promise<{ dataUrl: string; width: number; height: number } | null> {
   if (typeof window === 'undefined') return null
   const el = document.querySelector('[data-room-map-canvas-inner]') as HTMLElement | null
   if (!el) return null
@@ -29,7 +44,7 @@ async function snapshotCanvas(): Promise<{ dataUrl: string; width: number; heigh
     const { default: html2canvas } = await import('html2canvas')
     const canvas = await html2canvas(el, {
       backgroundColor: '#ffffff',
-      scale: 2,
+      scale,
       logging: false,
       useCORS: true,
       windowWidth: el.offsetWidth,
@@ -50,42 +65,22 @@ export function ExportDialog({ open, onClose }: Props) {
   const branch = useRoomMapStore((s) => s.branch)
   const floor = useRoomMapStore((s) => s.floor)
   const blocks = useRoomMapStore((s) => s.blocks)
-  const rooms = useRoomMapStore((s) => s.rooms)
 
   const [format, setFormat] = useState<ExportFormat>('png')
+  const [resolution, setResolution] = useState<ResolutionValue>('2')
+  const [paperSize, setPaperSize] = useState<PaperSize>('a4')
   const [imagePreview, setImagePreview] = useState<{ dataUrl: string; width: number; height: number } | null>(null)
   const [imageError, setImageError] = useState<string | null>(null)
   const [rendering, setRendering] = useState(false)
   const [downloading, setDownloading] = useState(false)
 
-  // Pretty-printed JSON preview is cheap so we compute it inline; the image
-  // snapshot is heavier so we lazy-render it whenever the dialog opens or
-  // the user switches to png/pdf.
-  const jsonText = useMemo(() => {
-    const payload = {
-      version: 1,
-      branch,
-      floor,
-      exportedAt: new Date().toISOString(),
-      blocks: blocks.map((b) => ({
-        roomId: b.roomId,
-        roomNumber: rooms.find((r) => r.id === b.roomId)?.roomNumber,
-        x: b.x,
-        y: b.y,
-        width: b.width,
-        height: b.height,
-        rotation: b.rotation,
-        zIndex: b.zIndex,
-      })),
-    }
-    return JSON.stringify(payload, null, 2)
-  }, [branch, floor, blocks, rooms])
+  const resolutionScale = (RESOLUTIONS.find((r) => r.value === resolution) ?? RESOLUTIONS[1]).scale
 
-  const renderImage = useCallback(async () => {
+  const renderImage = useCallback(async (scale: number) => {
     setRendering(true)
     setImageError(null)
     try {
-      const snapshot = await snapshotCanvas()
+      const snapshot = await snapshotCanvas(scale)
       if (!snapshot) throw new Error('Canvas element not found')
       setImagePreview(snapshot)
     } catch (e) {
@@ -96,32 +91,25 @@ export function ExportDialog({ open, onClose }: Props) {
     }
   }, [])
 
+  // Re-render the preview when the dialog opens or resolution changes. We
+  // key off (open, resolution) so PDF re-uses the same snapshot and only
+  // PNG resolution edits force a re-render. Paper size never re-renders.
   useEffect(() => {
     if (!open) return
-    if ((format === 'png' || format === 'pdf') && !imagePreview && !rendering) {
-      renderImage()
-    }
-  }, [open, format, imagePreview, rendering, renderImage])
+    renderImage(resolutionScale)
+  }, [open, resolutionScale, renderImage])
 
   useEffect(() => {
     if (!open) {
       setImagePreview(null)
       setImageError(null)
       setFormat('png')
+      setResolution('2')
+      setPaperSize('a4')
     }
   }, [open])
 
   const baseName = `room-map-${branch}-floor-${floor}`
-
-  const downloadJson = () => {
-    const blob = new Blob([jsonText], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `${baseName}.json`
-    link.click()
-    URL.revokeObjectURL(url)
-  }
 
   const downloadPng = () => {
     if (!imagePreview) return
@@ -134,11 +122,10 @@ export function ExportDialog({ open, onClose }: Props) {
   const downloadPdf = async () => {
     if (!imagePreview) return
     const { default: JsPdfModule } = await import('jspdf')
-    // jspdf v4 exposes a default export with the constructor.
     const Ctor: typeof import('jspdf').jsPDF = (JsPdfModule as unknown as { jsPDF?: typeof import('jspdf').jsPDF }).jsPDF
       ?? (JsPdfModule as unknown as typeof import('jspdf').jsPDF)
     const orientation = imagePreview.width >= imagePreview.height ? 'landscape' : 'portrait'
-    const pdf = new Ctor({ orientation, unit: 'mm', format: 'a4' })
+    const pdf = new Ctor({ orientation, unit: 'mm', format: paperSize })
     const pageW = pdf.internal.pageSize.getWidth()
     const pageH = pdf.internal.pageSize.getHeight()
     const margin = 8
@@ -154,16 +141,15 @@ export function ExportDialog({ open, onClose }: Props) {
     const x = (pageW - drawW) / 2
     const y = margin + 10
     pdf.setFontSize(11)
-    pdf.text(`${branch}${useRoomMapStore.getState().branch && floor ? ` · Floor ${floor}` : ''}`, margin, margin + 5)
+    pdf.text(`${branch}${floor ? ` · Floor ${floor}` : ''}`, margin, margin + 5)
     pdf.addImage(imagePreview.dataUrl, 'PNG', x, y, drawW, drawH, undefined, 'FAST')
-    pdf.save(`${baseName}.pdf`)
+    pdf.save(`${baseName}-${paperSize}.pdf`)
   }
 
   const handleDownload = async () => {
     setDownloading(true)
     try {
-      if (format === 'json') downloadJson()
-      else if (format === 'png') downloadPng()
+      if (format === 'png') downloadPng()
       else await downloadPdf()
       toast({ title: t('room_map_export_done') })
     } catch (e) {
@@ -177,9 +163,7 @@ export function ExportDialog({ open, onClose }: Props) {
     }
   }
 
-  const canDownload =
-    !downloading &&
-    (format === 'json' ? blocks.length > 0 : !!imagePreview)
+  const canDownload = !downloading && !!imagePreview
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
@@ -188,11 +172,10 @@ export function ExportDialog({ open, onClose }: Props) {
           <DialogTitle>{t('room_map_export_title')}</DialogTitle>
         </DialogHeader>
 
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 gap-2">
           {([
             { value: 'png' as const, icon: FileImage, label: t('room_map_export_png') },
             { value: 'pdf' as const, icon: FileText, label: t('room_map_export_pdf') },
-            { value: 'json' as const, icon: FileJson, label: t('room_map_export_json') },
           ]).map(({ value, icon: Icon, label }) => (
             <button
               key={value}
@@ -210,12 +193,40 @@ export function ExportDialog({ open, onClose }: Props) {
           ))}
         </div>
 
+        {format === 'png' ? (
+          <div className="space-y-1.5">
+            <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+              {t('room_map_export_resolution')}
+            </Label>
+            <Select value={resolution} onValueChange={(v) => setResolution(v as ResolutionValue)}>
+              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {RESOLUTIONS.map((r) => (
+                  <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">{t('room_map_export_resolution_hint')}</p>
+          </div>
+        ) : (
+          <div className="space-y-1.5">
+            <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+              {t('room_map_export_paper_size')}
+            </Label>
+            <Select value={paperSize} onValueChange={(v) => setPaperSize(v as PaperSize)}>
+              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {PAPER_SIZES.map((p) => (
+                  <SelectItem key={p} value={p}>{p.toUpperCase()}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">{t('room_map_export_paper_size_hint')}</p>
+          </div>
+        )}
+
         <div className="rounded-lg border border-border bg-muted/20 overflow-hidden">
-          {format === 'json' ? (
-            <pre className="m-0 max-h-[420px] overflow-auto text-xs p-4 font-mono whitespace-pre-wrap break-words bg-background">
-              {jsonText}
-            </pre>
-          ) : rendering ? (
+          {rendering ? (
             <div className="h-[420px] flex items-center justify-center text-sm text-muted-foreground">
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
               {t('room_map_export_rendering')}
@@ -223,7 +234,9 @@ export function ExportDialog({ open, onClose }: Props) {
           ) : imageError ? (
             <div className="h-[420px] flex flex-col items-center justify-center gap-2 text-sm">
               <p className="text-destructive">{imageError}</p>
-              <Button size="sm" variant="outline" onClick={renderImage}>{t('room_map_export_retry')}</Button>
+              <Button size="sm" variant="outline" onClick={() => renderImage(resolutionScale)}>
+                {t('room_map_export_retry')}
+              </Button>
             </div>
           ) : imagePreview ? (
             <div className="max-h-[420px] overflow-auto bg-background flex items-center justify-center p-3">
@@ -245,9 +258,7 @@ export function ExportDialog({ open, onClose }: Props) {
         <div className="flex flex-wrap items-center justify-end gap-2">
           <p className="text-xs text-muted-foreground mr-auto">
             {blocks.length} {t('room_map_export_blocks')}
-            {format !== 'json' && imagePreview && (
-              <> · {imagePreview.width}×{imagePreview.height}</>
-            )}
+            {imagePreview && <> · {imagePreview.width}×{imagePreview.height}</>}
           </p>
           <Button variant="outline" onClick={onClose}>{t('cancel')}</Button>
           <Button onClick={handleDownload} disabled={!canDownload} loading={downloading}>
