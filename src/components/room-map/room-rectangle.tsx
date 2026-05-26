@@ -24,10 +24,12 @@ function statusClasses(room: RoomMapRoom | undefined): string {
 }
 
 // Initial geometry of every selected block plus the basis, captured on
-// drag/resize start. null means a plain single-block gesture.
+// drag/resize start. `snapshotted` flips to true on the first real move so
+// the undo stack only gets an entry when something actually changed.
 type GroupSnapshot = {
   basis: { x: number; y: number; w: number; h: number }
   others: Array<{ id: string; x: number; y: number; w: number; h: number }>
+  snapshotted: boolean
 }
 
 function RoomRectangleInner({ block, room, selected, editable, zoom, onSelect }: Props) {
@@ -41,8 +43,8 @@ function RoomRectangleInner({ block, room, selected, editable, zoom, onSelect }:
   const label = room?.roomNumber ?? '?'
   const tenantName = room?.tenant?.fullName ?? ''
 
-  // Take a snapshot of every selected block (basis + others) for a group
-  // gesture. Returns null when this block is a lone selection.
+  // Snapshot every selected block (basis + others) for a group gesture.
+  // Returns null when this block isn't part of a multi-selection.
   const snapshotGroup = (): GroupSnapshot | null => {
     const state = useRoomMapStore.getState()
     if (!state.selectedIds.includes(block.id) || state.selectedIds.length < 2) return null
@@ -54,6 +56,7 @@ function RoomRectangleInner({ block, room, selected, editable, zoom, onSelect }:
     return {
       basis: { x: block.x, y: block.y, w: block.width, h: block.height },
       others,
+      snapshotted: false,
     }
   }
 
@@ -63,9 +66,8 @@ function RoomRectangleInner({ block, room, selected, editable, zoom, onSelect }:
       onSelect(true)
       return
     }
-    // Plain click on a block that's already part of a multi-selection keeps
-    // the selection intact — the user has to click empty canvas or press
-    // Escape to clear it.
+    // Plain click on a block already in a multi-selection keeps the selection
+    // intact — only Escape or clicking outside clears it.
     const state = useRoomMapStore.getState()
     if (state.selectedIds.length > 1 && state.selectedIds.includes(block.id)) return
     onSelect(false)
@@ -75,18 +77,19 @@ function RoomRectangleInner({ block, room, selected, editable, zoom, onSelect }:
     const g = snapshotGroup()
     if (g) {
       dragGroupRef.current = g
-      pushHistorySnapshot()
-      return
+    } else {
+      dragGroupRef.current = null
+      onSelect(false)
     }
-    // Single-block drag — promote this block to the sole selection so the
-    // sidebar reflects what we're moving.
-    dragGroupRef.current = null
-    onSelect(false)
   }
 
   const handleDrag = (_: unknown, d: { x: number; y: number }) => {
     const g = dragGroupRef.current
     if (!g) return
+    if (!g.snapshotted) {
+      pushHistorySnapshot()
+      g.snapshotted = true
+    }
     const dx = d.x - g.basis.x
     const dy = d.y - g.basis.y
     setBlockGeoms(g.others.map((o) => ({ id: o.id, x: o.x + dx, y: o.y + dy })))
@@ -94,27 +97,28 @@ function RoomRectangleInner({ block, room, selected, editable, zoom, onSelect }:
 
   const handleDragStop = (_: unknown, d: { x: number; y: number }) => {
     const g = dragGroupRef.current
+    // Pure clicks (mousedown without movement) report the same position
+    // back to us — skip the update entirely so snap-to-grid doesn't shove
+    // an off-grid room to the nearest cell on a tap.
+    const moved = d.x !== block.x || d.y !== block.y
     if (g) {
-      const dx = d.x - g.basis.x
-      const dy = d.y - g.basis.y
-      setBlockGeoms([
-        { id: block.id, x: d.x, y: d.y },
-        ...g.others.map((o) => ({ id: o.id, x: o.x + dx, y: o.y + dy })),
-      ])
+      if (moved) {
+        if (!g.snapshotted) pushHistorySnapshot()
+        const dx = d.x - g.basis.x
+        const dy = d.y - g.basis.y
+        setBlockGeoms([
+          { id: block.id, x: d.x, y: d.y },
+          ...g.others.map((o) => ({ id: o.id, x: o.x + dx, y: o.y + dy })),
+        ])
+      }
       dragGroupRef.current = null
-    } else {
+    } else if (moved) {
       updateBlock(block.id, { x: d.x, y: d.y })
     }
   }
 
   const handleResizeStart = () => {
-    const g = snapshotGroup()
-    if (g) {
-      resizeGroupRef.current = g
-      pushHistorySnapshot()
-    } else {
-      resizeGroupRef.current = null
-    }
+    resizeGroupRef.current = snapshotGroup()
   }
 
   // Compute the resize anchor by comparing the new top-left to the initial
@@ -148,6 +152,10 @@ function RoomRectangleInner({ block, room, selected, editable, zoom, onSelect }:
   ) => {
     const g = resizeGroupRef.current
     if (!g) return
+    if (!g.snapshotted) {
+      pushHistorySnapshot()
+      g.snapshotted = true
+    }
     const newW = parseFloat(ref.style.width)
     const newH = parseFloat(ref.style.height)
     setBlockGeoms(computeGroupResize(g, newW, newH, position))
@@ -163,13 +171,19 @@ function RoomRectangleInner({ block, room, selected, editable, zoom, onSelect }:
     const g = resizeGroupRef.current
     const newW = parseFloat(ref.style.width)
     const newH = parseFloat(ref.style.height)
+    const changed =
+      newW !== block.width || newH !== block.height ||
+      position.x !== block.x || position.y !== block.y
     if (g) {
-      setBlockGeoms([
-        { id: block.id, x: position.x, y: position.y, width: newW, height: newH },
-        ...computeGroupResize(g, newW, newH, position),
-      ])
+      if (changed) {
+        if (!g.snapshotted) pushHistorySnapshot()
+        setBlockGeoms([
+          { id: block.id, x: position.x, y: position.y, width: newW, height: newH },
+          ...computeGroupResize(g, newW, newH, position),
+        ])
+      }
       resizeGroupRef.current = null
-    } else {
+    } else if (changed) {
       updateBlock(block.id, { width: newW, height: newH, x: position.x, y: position.y })
     }
   }
