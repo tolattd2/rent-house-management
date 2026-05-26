@@ -41,11 +41,13 @@ type Actions = {
   duplicateBlock: (id: string) => void
   updateBlock: (id: string, patch: Partial<DraftBlock>) => void
   moveSelected: (dx: number, dy: number) => void
-  // Group-drag helpers. setBlockPositions writes a batch without pushing
-  // history; the caller (onDragStart) calls pushHistorySnapshot once at
-  // the start of the gesture so undo collapses the whole drag into one
-  // entry. This lets the canvas drag every selected block together.
-  setBlockPositions: (updates: Array<{ id: string; x: number; y: number }>) => void
+  // Group-drag / group-resize helpers. setBlockGeoms writes a batch without
+  // pushing history; the caller (onDragStart / onResizeStart) calls
+  // pushHistorySnapshot once at the start of the gesture so undo collapses
+  // the whole gesture into one entry.
+  setBlockGeoms: (
+    updates: Array<{ id: string; x?: number; y?: number; width?: number; height?: number }>,
+  ) => void
   pushHistorySnapshot: () => void
   replaceAll: (blocks: DraftBlock[]) => void
   undo: () => void
@@ -213,16 +215,23 @@ export const useRoomMapStore = create<State & Actions>((set, get) => ({
     })
   },
 
-  // Batch position update — no history push. Used during a group drag so
-  // every frame doesn't fatten the undo stack. snapToGrid still applies so
-  // the visual matches a single-block drag.
-  setBlockPositions: (updates) => {
+  // Batch geometry update — no history push. Used during group drag / group
+  // resize so every frame doesn't fatten the undo stack. snapToGrid still
+  // applies so the visual matches a single-block gesture.
+  setBlockGeoms: (updates) => {
     const { blocks, snapToGrid, gridSize } = get()
     const snap = (v: number) => (snapToGrid ? Math.round(v / gridSize) * gridSize : v)
     const map = new Map(updates.map((u) => [u.id, u]))
     const nextBlocks = blocks.map((b) => {
       const u = map.get(b.id)
-      return u ? { ...b, x: snap(u.x), y: snap(u.y) } : b
+      if (!u) return b
+      return {
+        ...b,
+        ...(u.x !== undefined ? { x: snap(u.x) } : {}),
+        ...(u.y !== undefined ? { y: snap(u.y) } : {}),
+        ...(u.width !== undefined ? { width: Math.max(20, snap(u.width)) } : {}),
+        ...(u.height !== undefined ? { height: Math.max(20, snap(u.height)) } : {}),
+      }
     })
     set({ blocks: nextBlocks, dirty: true })
   },

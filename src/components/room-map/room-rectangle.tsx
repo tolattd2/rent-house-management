@@ -23,70 +23,154 @@ function statusClasses(room: RoomMapRoom | undefined): string {
   return 'bg-green-500/15 border-green-500 text-green-900 dark:text-green-100'
 }
 
+// Initial geometry of every selected block plus the basis, captured on
+// drag/resize start. null means a plain single-block gesture.
+type GroupSnapshot = {
+  basis: { x: number; y: number; w: number; h: number }
+  others: Array<{ id: string; x: number; y: number; w: number; h: number }>
+}
+
 function RoomRectangleInner({ block, room, selected, editable, zoom, onSelect }: Props) {
   const updateBlock = useRoomMapStore((s) => s.updateBlock)
-  const setBlockPositions = useRoomMapStore((s) => s.setBlockPositions)
+  const setBlockGeoms = useRoomMapStore((s) => s.setBlockGeoms)
   const pushHistorySnapshot = useRoomMapStore((s) => s.pushHistorySnapshot)
 
-  // Snapshot of every selected block's position taken on drag start. Used to
-  // translate the whole group by the same delta during the gesture. null = a
-  // plain single-block drag (no group).
-  const groupRef = useRef<{
-    basis: { x: number; y: number }
-    others: Array<{ id: string; x: number; y: number }>
-  } | null>(null)
+  const dragGroupRef = useRef<GroupSnapshot | null>(null)
+  const resizeGroupRef = useRef<GroupSnapshot | null>(null)
 
   const label = room?.roomNumber ?? '?'
   const tenantName = room?.tenant?.fullName ?? ''
 
-  const handleClick = (e: MouseEvent) => {
-    onSelect(e.shiftKey || e.metaKey || e.ctrlKey)
-  }
-
-  const handleDragStart = () => {
+  // Take a snapshot of every selected block (basis + others) for a group
+  // gesture. Returns null when this block is a lone selection.
+  const snapshotGroup = (): GroupSnapshot | null => {
     const state = useRoomMapStore.getState()
-    const inGroup = state.selectedIds.includes(block.id) && state.selectedIds.length > 1
-    if (inGroup) {
-      // Drag of a block already in a multi-selection → translate the whole
-      // group. Snapshot positions and push ONE undo entry for the gesture.
-      const others = state.selectedIds
-        .filter((id) => id !== block.id)
-        .map((id) => state.blocks.find((b) => b.id === id))
-        .filter((b): b is DraftBlock => !!b)
-        .map((b) => ({ id: b.id, x: b.x, y: b.y }))
-      groupRef.current = { basis: { x: block.x, y: block.y }, others }
-      pushHistorySnapshot()
-    } else {
-      // Single drag → replace selection with just this block (existing UX).
-      groupRef.current = null
-      onSelect(false)
+    if (!state.selectedIds.includes(block.id) || state.selectedIds.length < 2) return null
+    const others = state.selectedIds
+      .filter((id) => id !== block.id)
+      .map((id) => state.blocks.find((b) => b.id === id))
+      .filter((b): b is DraftBlock => !!b)
+      .map((b) => ({ id: b.id, x: b.x, y: b.y, w: b.width, h: b.height }))
+    return {
+      basis: { x: block.x, y: block.y, w: block.width, h: block.height },
+      others,
     }
   }
 
+  const handleClick = (e: MouseEvent) => {
+    const multi = e.shiftKey || e.metaKey || e.ctrlKey
+    if (multi) {
+      onSelect(true)
+      return
+    }
+    // Plain click on a block that's already part of a multi-selection keeps
+    // the selection intact — the user has to click empty canvas or press
+    // Escape to clear it.
+    const state = useRoomMapStore.getState()
+    if (state.selectedIds.length > 1 && state.selectedIds.includes(block.id)) return
+    onSelect(false)
+  }
+
+  const handleDragStart = () => {
+    const g = snapshotGroup()
+    if (g) {
+      dragGroupRef.current = g
+      pushHistorySnapshot()
+      return
+    }
+    // Single-block drag — promote this block to the sole selection so the
+    // sidebar reflects what we're moving.
+    dragGroupRef.current = null
+    onSelect(false)
+  }
+
   const handleDrag = (_: unknown, d: { x: number; y: number }) => {
-    const g = groupRef.current
+    const g = dragGroupRef.current
     if (!g) return
     const dx = d.x - g.basis.x
     const dy = d.y - g.basis.y
-    // Move every OTHER selected block by the same delta. react-rnd already
-    // owns the visual position of the basis block during the drag.
-    setBlockPositions(g.others.map((o) => ({ id: o.id, x: o.x + dx, y: o.y + dy })))
+    setBlockGeoms(g.others.map((o) => ({ id: o.id, x: o.x + dx, y: o.y + dy })))
   }
 
   const handleDragStop = (_: unknown, d: { x: number; y: number }) => {
-    const g = groupRef.current
+    const g = dragGroupRef.current
     if (g) {
       const dx = d.x - g.basis.x
       const dy = d.y - g.basis.y
-      // Final commit — includes the basis so its store position matches the
-      // drop point. History was already snapshotted at drag start.
-      setBlockPositions([
+      setBlockGeoms([
         { id: block.id, x: d.x, y: d.y },
         ...g.others.map((o) => ({ id: o.id, x: o.x + dx, y: o.y + dy })),
       ])
-      groupRef.current = null
+      dragGroupRef.current = null
     } else {
       updateBlock(block.id, { x: d.x, y: d.y })
+    }
+  }
+
+  const handleResizeStart = () => {
+    const g = snapshotGroup()
+    if (g) {
+      resizeGroupRef.current = g
+      pushHistorySnapshot()
+    } else {
+      resizeGroupRef.current = null
+    }
+  }
+
+  // Compute the resize anchor by comparing the new top-left to the initial
+  // top-left of the basis. If x stayed put, the left edge is the anchor;
+  // if x moved, the right edge stayed put and is the anchor (same for y).
+  const computeGroupResize = (
+    g: GroupSnapshot,
+    newW: number,
+    newH: number,
+    position: { x: number; y: number },
+  ) => {
+    const sx = g.basis.w === 0 ? 1 : newW / g.basis.w
+    const sy = g.basis.h === 0 ? 1 : newH / g.basis.h
+    const anchorX = position.x !== g.basis.x ? g.basis.x + g.basis.w : g.basis.x
+    const anchorY = position.y !== g.basis.y ? g.basis.y + g.basis.h : g.basis.y
+    return g.others.map((o) => ({
+      id: o.id,
+      x: anchorX + (o.x - anchorX) * sx,
+      y: anchorY + (o.y - anchorY) * sy,
+      width: o.w * sx,
+      height: o.h * sy,
+    }))
+  }
+
+  const handleResize = (
+    _: unknown,
+    __: unknown,
+    ref: HTMLElement,
+    ___: unknown,
+    position: { x: number; y: number },
+  ) => {
+    const g = resizeGroupRef.current
+    if (!g) return
+    const newW = parseFloat(ref.style.width)
+    const newH = parseFloat(ref.style.height)
+    setBlockGeoms(computeGroupResize(g, newW, newH, position))
+  }
+
+  const handleResizeStop = (
+    _: unknown,
+    __: unknown,
+    ref: HTMLElement,
+    ___: unknown,
+    position: { x: number; y: number },
+  ) => {
+    const g = resizeGroupRef.current
+    const newW = parseFloat(ref.style.width)
+    const newH = parseFloat(ref.style.height)
+    if (g) {
+      setBlockGeoms([
+        { id: block.id, x: position.x, y: position.y, width: newW, height: newH },
+        ...computeGroupResize(g, newW, newH, position),
+      ])
+      resizeGroupRef.current = null
+    } else {
+      updateBlock(block.id, { width: newW, height: newH, x: position.x, y: position.y })
     }
   }
 
@@ -101,14 +185,9 @@ function RoomRectangleInner({ block, room, selected, editable, zoom, onSelect }:
       onDragStart={handleDragStart}
       onDrag={handleDrag}
       onDragStop={handleDragStop}
-      onResizeStop={(_, __, ref, ___, position) => {
-        updateBlock(block.id, {
-          width: parseFloat(ref.style.width),
-          height: parseFloat(ref.style.height),
-          x: position.x,
-          y: position.y,
-        })
-      }}
+      onResizeStart={handleResizeStart}
+      onResize={handleResize}
+      onResizeStop={handleResizeStop}
       style={{ zIndex: block.zIndex + (selected ? 1000 : 0), touchAction: 'none' }}
       className={cn(
         'rounded-md border-2 shadow-sm transition-shadow',
