@@ -138,7 +138,7 @@ export function MapToolbar({ editable, fullscreen, onToggleFullscreen, onSave }:
 
   return (
     <aside className="w-60 shrink-0 flex flex-col border-r border-border bg-background/60 min-h-0 overflow-y-auto">
-      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 p-3 border-b border-border space-y-2">
+      <div className="p-3 border-b border-border space-y-2">
         <Button
           size="sm"
           className="w-full"
