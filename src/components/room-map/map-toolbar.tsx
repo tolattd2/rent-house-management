@@ -232,7 +232,7 @@ export function MapToolbar({ editable, fullscreen, onToggleFullscreen, onSave, m
             onClick={onMobileClose}
             aria-hidden
           />
-          <aside className="md:hidden fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] flex flex-col border-r border-border bg-background shadow-xl overflow-y-auto">
+          <aside className="md:hidden fixed inset-y-0 left-0 z-50 w-1/3 min-w-[180px] flex flex-col border-r border-border bg-background shadow-xl overflow-y-auto">
             {content}
           </aside>
         </>
