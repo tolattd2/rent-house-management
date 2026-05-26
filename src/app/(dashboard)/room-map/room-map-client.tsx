@@ -9,6 +9,7 @@ import { RoomCanvas } from '@/components/room-map/room-canvas'
 import { RoomSidebar } from '@/components/room-map/room-sidebar'
 import { BranchFloorSelector } from '@/components/room-map/branch-floor-selector'
 import { ZoomControls } from '@/components/room-map/zoom-controls'
+import { CanvasSizeSelector } from '@/components/room-map/canvas-size-selector'
 import { StatusLegend } from '@/components/room-map/status-legend'
 import { useRoomMapStore } from '@/store/use-room-map-store'
 import { useLanguage } from '@/contexts/language-context'
@@ -291,7 +292,8 @@ export function RoomMapClient({ isAdmin, initialBranch, initialFloor, initialFlo
         <div className="flex-1 flex flex-col min-w-0">
           <RoomSidebar editable={isAdmin} />
           <div className="flex-1 relative min-h-0">
-            <div className="absolute top-3 right-3 z-20">
+            <div className="absolute top-3 right-3 z-20 flex items-center gap-2 flex-wrap justify-end">
+              <CanvasSizeSelector />
               <ZoomControls />
             </div>
             <RoomCanvas editable={isAdmin} />

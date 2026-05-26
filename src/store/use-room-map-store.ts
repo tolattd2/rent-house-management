@@ -17,6 +17,10 @@ type State = {
   snapToGrid: boolean
   gridSize: number
   autoSave: boolean
+  // Design-time canvas size — the user picks a screen / paper template so the
+  // layout is composed at the target output resolution. Defaults to Full HD.
+  canvasWidth: number
+  canvasHeight: number
   // History snapshots taken BEFORE each block-mutating action so undo
   // restores the previous state. Capped at HISTORY_LIMIT to bound memory.
   past: DraftBlock[][]
@@ -36,6 +40,7 @@ type Actions = {
   setZoom: (z: number) => void
   setSnap: (snap: boolean) => void
   setAutoSave: (on: boolean) => void
+  setCanvasSize: (w: number, h: number) => void
   markSaving: (saving: boolean) => void
   markClean: () => void
 }
@@ -64,6 +69,8 @@ export const useRoomMapStore = create<State & Actions>((set, get) => ({
   snapToGrid: true,
   gridSize: GRID,
   autoSave: false,
+  canvasWidth: 1920,
+  canvasHeight: 1080,
   past: [],
   future: [],
 
@@ -211,6 +218,11 @@ export const useRoomMapStore = create<State & Actions>((set, get) => ({
   setZoom: (z) => set({ zoom: Math.min(2.5, Math.max(0.25, z)) }),
   setSnap: (snap) => set({ snapToGrid: snap }),
   setAutoSave: (on) => set({ autoSave: on }),
+  setCanvasSize: (w, h) =>
+    set({
+      canvasWidth: Math.min(8000, Math.max(400, Math.round(w))),
+      canvasHeight: Math.min(8000, Math.max(300, Math.round(h))),
+    }),
   markSaving: (saving) => set({ saving }),
   markClean: () => set({ dirty: false, saving: false }),
 }))

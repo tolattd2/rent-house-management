@@ -9,11 +9,6 @@ interface Props {
   editable: boolean
 }
 
-// Generous canvas — easier to live with a too-big canvas than a clipped
-// rectangle. We let users pan via the parent's overflow-auto.
-const CANVAS_W = 2000
-const CANVAS_H = 1400
-
 export function RoomCanvas({ editable }: Props) {
   const blocks = useRoomMapStore((s) => s.blocks)
   const rooms = useRoomMapStore((s) => s.rooms)
@@ -22,6 +17,8 @@ export function RoomCanvas({ editable }: Props) {
   const zoom = useRoomMapStore((s) => s.zoom)
   const gridSize = useRoomMapStore((s) => s.gridSize)
   const snap = useRoomMapStore((s) => s.snapToGrid)
+  const canvasWidth = useRoomMapStore((s) => s.canvasWidth)
+  const canvasHeight = useRoomMapStore((s) => s.canvasHeight)
   const containerRef = useRef<HTMLDivElement | null>(null)
 
   const roomsById = useMemo(() => {
@@ -74,10 +71,10 @@ export function RoomCanvas({ editable }: Props) {
     >
       <div
         data-room-map-canvas-inner
-        className="relative origin-top-left bg-background"
+        className="relative origin-top-left bg-background shadow-md"
         style={{
-          width: CANVAS_W,
-          height: CANVAS_H,
+          width: canvasWidth,
+          height: canvasHeight,
           transform: `scale(${zoom})`,
         }}
       >
