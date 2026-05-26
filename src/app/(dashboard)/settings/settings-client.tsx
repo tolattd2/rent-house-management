@@ -107,7 +107,18 @@ export function SettingsClient({ settings: initial }: Props) {
   const updateBranch = (index: number, patch: Partial<Branch>) =>
     setBranches((prev) => prev.map((b, i) => (i === index ? { ...b, ...patch } : b)))
   const addBranch = () =>
-    setBranches((prev) => [...prev, { slug: `b${Math.random().toString(36).slice(2, 9)}`, name: '', prefix: '', propertyType: 'house' }])
+    setBranches((prev) => [
+      ...prev,
+      {
+        slug: `b${Math.random().toString(36).slice(2, 9)}`,
+        name: '',
+        prefix: '',
+        propertyType: 'house',
+        structure: 'single',
+        buildingCount: 1,
+        hasFloors: false,
+      },
+    ])
   const removeBranch = (index: number) =>
     setBranches((prev) => prev.filter((_, i) => i !== index))
   const setBranchField = (key: string, value: string) =>
@@ -591,20 +602,66 @@ export function SettingsClient({ settings: initial }: Props) {
                       <p className="text-xs text-muted-foreground">{t('settings_room_prefix_hint')}</p>
                     </div>
                   </div>
-                  <div className="space-y-1.5">
-                    <Label>{t('settings_property_type')}</Label>
-                    <Select
-                      value={br.propertyType}
-                      onValueChange={(v) => updateBranch(i, { propertyType: v as 'house' | 'apartment' })}
-                    >
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="house">{t('settings_property_type_house')}</SelectItem>
-                        <SelectItem value="apartment">{t('settings_property_type_apartment')}</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <p className="text-xs text-muted-foreground">{t('settings_property_type_hint')}</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="space-y-1.5">
+                      <Label>{t('settings_property_type')}</Label>
+                      <Select
+                        value={br.propertyType}
+                        onValueChange={(v) => {
+                          const nextType = v as 'house' | 'apartment'
+                          // Suggest a hasFloors default that matches the new
+                          // type — user can flip the switch below if needed.
+                          updateBranch(i, {
+                            propertyType: nextType,
+                            hasFloors: nextType === 'apartment',
+                          })
+                        }}
+                      >
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="house">{t('settings_property_type_house')}</SelectItem>
+                          <SelectItem value="apartment">{t('settings_property_type_apartment')}</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>{t('settings_property_structure')}</Label>
+                      <Select
+                        value={br.structure}
+                        onValueChange={(v) => updateBranch(i, { structure: v as 'single' | 'complex' })}
+                      >
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="single">{t('settings_property_structure_single')}</SelectItem>
+                          <SelectItem value="complex">{t('settings_property_structure_complex')}</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {br.structure === 'complex' && (
+                      <div className="space-y-1.5">
+                        <Label>{t('settings_property_buildings')}</Label>
+                        <Input
+                          type="number"
+                          min={1}
+                          value={br.buildingCount}
+                          onChange={(e) => {
+                            const n = Math.max(1, Math.floor(Number(e.target.value) || 1))
+                            updateBranch(i, { buildingCount: n })
+                          }}
+                        />
+                      </div>
+                    )}
                   </div>
+                  <label className="flex items-center justify-between gap-2 px-3 py-2 rounded border border-border text-sm">
+                    <span className="space-y-0.5">
+                      <span className="block font-medium">{t('settings_property_has_floors')}</span>
+                      <span className="block text-xs text-muted-foreground">{t('settings_property_has_floors_hint')}</span>
+                    </span>
+                    <Switch
+                      checked={br.hasFloors}
+                      onCheckedChange={(v) => updateBranch(i, { hasFloors: v })}
+                    />
+                  </label>
                   <div className="space-y-1.5">
                     <Label>{t('settings_company_name')}</Label>
                     <Input
