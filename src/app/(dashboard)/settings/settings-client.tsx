@@ -409,7 +409,7 @@ export function SettingsClient({ settings: initial }: Props) {
   }
 
   return (
-    <div className="space-y-6 animate-fade-in max-w-3xl">
+    <div className="space-y-6 animate-fade-in max-w-5xl">
       <div>
         <h1 className="text-2xl font-bold">{t('settings_title')}</h1>
         <p className="text-muted-foreground text-sm">{t('settings_subtitle')}</p>
