@@ -288,13 +288,15 @@ export function RoomMapClient({ isAdmin, initialBranch, initialFloor, initialFlo
           onToggleFullscreen={toggleFullscreen}
           onSave={() => handleSave(false)}
         />
-        <div className="flex-1 relative min-w-0">
-          <div className="absolute top-3 right-3 z-20">
-            <ZoomControls />
+        <div className="flex-1 flex flex-col min-w-0">
+          <RoomSidebar editable={isAdmin} />
+          <div className="flex-1 relative min-h-0">
+            <div className="absolute top-3 right-3 z-20">
+              <ZoomControls />
+            </div>
+            <RoomCanvas editable={isAdmin} />
           </div>
-          <RoomCanvas editable={isAdmin} />
         </div>
-        <RoomSidebar editable={isAdmin} />
       </div>
     </div>
   )

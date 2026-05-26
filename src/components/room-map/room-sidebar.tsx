@@ -3,9 +3,7 @@
 import Link from 'next/link'
 import { ExternalLink } from 'lucide-react'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
-import { Separator } from '@/components/ui/separator'
 import { useRoomMapStore } from '@/store/use-room-map-store'
 import { useRoomLabel } from '@/contexts/branches-context'
 import { useLanguage } from '@/contexts/language-context'
@@ -23,7 +21,7 @@ function statusBadge(room: RoomMapRoom) {
   return { variant: 'success' as const, key: 'status_vacant' as const }
 }
 
-function NumberField({
+function MiniField({
   label, value, min, max, onChange, disabled,
 }: {
   label: string
@@ -34,8 +32,8 @@ function NumberField({
   disabled: boolean
 }) {
   return (
-    <div className="space-y-1">
-      <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">{label}</Label>
+    <label className="flex items-center gap-1 text-[11px] text-muted-foreground">
+      <span className="uppercase tracking-wider font-semibold">{label}</span>
       <Input
         type="number"
         value={Math.round(value)}
@@ -46,9 +44,9 @@ function NumberField({
           if (Number.isFinite(next)) onChange(next)
         }}
         disabled={disabled}
-        className="h-8"
+        className="h-7 w-16 px-1.5 text-xs tabular-nums"
       />
-    </div>
+    </label>
   )
 }
 
@@ -66,104 +64,80 @@ export function RoomSidebar({ editable }: Props) {
 
   if (!block || !room) {
     return (
-      <aside className="w-72 shrink-0 border-l border-border bg-background/60 p-4 hidden lg:block">
-        <p className="text-sm text-muted-foreground text-center py-10">
+      <div className="border-b border-border bg-background/60 px-3 py-1.5">
+        <p className="text-xs text-muted-foreground text-center">
           {t('room_map_select_hint')}
         </p>
-      </aside>
+      </div>
     )
   }
 
   const badge = statusBadge(room)
 
   return (
-    <aside className="w-72 shrink-0 border-l border-border bg-background/60 p-4 hidden lg:flex lg:flex-col gap-4 overflow-y-auto">
-      <div>
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0">
-            <p className="text-xs uppercase tracking-wider text-muted-foreground">{t('room')}</p>
-            <h2 className="text-xl font-bold leading-tight truncate">{roomLabel(room)}</h2>
-          </div>
+    <div className="border-b border-border bg-background/60 px-3 py-2">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        {/* Room + status + view link */}
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{t('room')}</span>
+          <span className="text-sm font-bold truncate">{roomLabel(room)}</span>
           <Badge variant={badge.variant}>{t(badge.key)}</Badge>
+          <Link
+            href={`/rooms?search=${encodeURIComponent(room.roomNumber)}`}
+            className="inline-flex items-center text-xs text-primary hover:underline"
+            title={t('view')}
+          >
+            <ExternalLink className="w-3 h-3" />
+          </Link>
         </div>
-        <Link
-          href={`/rooms?search=${encodeURIComponent(room.roomNumber)}`}
-          className="inline-flex items-center gap-1 text-xs text-primary hover:underline mt-1"
-        >
-          {t('view')} <ExternalLink className="w-3 h-3" />
-        </Link>
-      </div>
 
-      <Separator />
+        <div className="h-5 w-px bg-border hidden sm:block" />
 
-      <div className="space-y-3">
-        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-          {t('room_map_tenant')}
-        </p>
-        {room.tenant ? (
-          <div className="space-y-1 text-sm">
-            <Link href={`/tenants/${room.tenant.id}`} className="font-medium hover:text-primary block truncate">
+        {/* Tenant */}
+        <div className="flex items-center gap-1.5 text-xs min-w-0">
+          <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{t('room_map_tenant')}</span>
+          {room.tenant ? (
+            <Link href={`/tenants/${room.tenant.id}`} className="font-medium hover:text-primary truncate">
               {room.tenant.fullName}
             </Link>
-            <p className="text-xs text-muted-foreground tabular-nums">{room.tenant.phone || '—'}</p>
-            {room.tenant.moveInDate && (
-              <p className="text-xs text-muted-foreground">{t('since')} {room.tenant.moveInDate}</p>
-            )}
-          </div>
-        ) : (
-          <p className="text-xs text-muted-foreground">{t('no_tenant')}</p>
-        )}
-      </div>
-
-      <div className="grid grid-cols-2 gap-3 text-sm">
-        <div>
-          <p className="text-[11px] uppercase tracking-wider text-muted-foreground">{t('tenants_col_monthly_rent')}</p>
-          <p className="font-semibold tabular-nums">{formatCurrency(room.rentPriceUsd)}</p>
-        </div>
-        <div>
-          <p className="text-[11px] uppercase tracking-wider text-muted-foreground">{t('tenants_col_outstanding')}</p>
-          <p className={cn('font-semibold tabular-nums', room.outstandingUsd > 0 ? 'text-red-600' : 'text-green-600')}>
-            {formatCurrency(room.outstandingUsd)}
-          </p>
-          {room.paymentStatus && (
-            <p className="text-[10px] text-muted-foreground capitalize">
-              {t(room.paymentStatus === 'paid'
-                ? 'status_paid'
-                : room.paymentStatus === 'partial'
-                  ? 'status_partial'
-                  : 'status_unpaid')}
-            </p>
+          ) : (
+            <span className="text-muted-foreground">{t('no_tenant')}</span>
           )}
+          {room.tenant?.phone && <span className="text-muted-foreground tabular-nums">· {room.tenant.phone}</span>}
         </div>
-      </div>
 
-      <Separator />
+        <div className="h-5 w-px bg-border hidden sm:block" />
 
-      <div className="space-y-2">
-        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-          {t('room_map_position')}
-        </p>
-        <div className="grid grid-cols-2 gap-2">
-          <NumberField label="X" value={block.x} min={0} max={3000} disabled={!editable}
+        {/* Financials */}
+        <div className="flex items-center gap-3 text-xs">
+          <div className="flex items-center gap-1">
+            <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{t('tenants_col_monthly_rent')}</span>
+            <span className="font-semibold tabular-nums">{formatCurrency(room.rentPriceUsd)}</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{t('tenants_col_outstanding')}</span>
+            <span className={cn('font-semibold tabular-nums', room.outstandingUsd > 0 ? 'text-red-600' : 'text-green-600')}>
+              {formatCurrency(room.outstandingUsd)}
+            </span>
+          </div>
+        </div>
+
+        <div className="h-5 w-px bg-border hidden md:block" />
+
+        {/* Position + size editors */}
+        <div className="flex items-center gap-2 ml-auto flex-wrap">
+          <MiniField label="X" value={block.x} min={0} max={3000} disabled={!editable}
             onChange={(v) => updateBlock(block.id, { x: v })} />
-          <NumberField label="Y" value={block.y} min={0} max={3000} disabled={!editable}
+          <MiniField label="Y" value={block.y} min={0} max={3000} disabled={!editable}
             onChange={(v) => updateBlock(block.id, { y: v })} />
-        </div>
-      </div>
-
-      <div className="space-y-2">
-        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-          {t('room_map_size')}
-        </p>
-        <div className="grid grid-cols-2 gap-2">
-          <NumberField label="W" value={block.width} min={ROOM_MAP_MIN.w} max={ROOM_MAP_MAX.w} disabled={!editable}
+          <MiniField label="W" value={block.width} min={ROOM_MAP_MIN.w} max={ROOM_MAP_MAX.w} disabled={!editable}
             onChange={(v) => updateBlock(block.id, { width: v })} />
-          <NumberField label="H" value={block.height} min={ROOM_MAP_MIN.h} max={ROOM_MAP_MAX.h} disabled={!editable}
+          <MiniField label="H" value={block.height} min={ROOM_MAP_MIN.h} max={ROOM_MAP_MAX.h} disabled={!editable}
             onChange={(v) => updateBlock(block.id, { height: v })} />
+          <MiniField label="R°" value={block.rotation} min={-360} max={360} disabled={!editable}
+            onChange={(v) => updateBlock(block.id, { rotation: ((v % 360) + 360) % 360 })} />
         </div>
-        <NumberField label={t('room_map_rotation')} value={block.rotation} min={-360} max={360} disabled={!editable}
-          onChange={(v) => updateBlock(block.id, { rotation: ((v % 360) + 360) % 360 })} />
       </div>
-    </aside>
+    </div>
   )
 }
