@@ -15,6 +15,7 @@ import { useSession } from 'next-auth/react'
 import Link from 'next/link'
 import { useLanguage } from '@/contexts/language-context'
 import { useBranches, useRoomLabel } from '@/contexts/branches-context'
+import { resolveBranchRates } from '@/lib/branches'
 import { useDeleteWithUndo } from '@/hooks/use-delete-with-undo'
 import { usePersistentState } from '@/hooks/use-persistent-state'
 import { DeleteConfirmDialog } from '@/components/ui/delete-confirm-dialog'
@@ -180,9 +181,12 @@ export function RoomsClient({ rooms: initialRooms, settings }: Props) {
             <div className="flex-1 h-px bg-border" />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        {group.items.map((room, i) => {
+        {group.items.map((room) => {
           const tenant = room.tenants[0]
           const StatusIcon = statusIcon[room.status] ?? Home
+          // Always show the rates configured for this room's branch — the
+          // per-room columns are dead data after the branch-rate rollout.
+          const rates = resolveBranchRates(settings, branches, room.branch)
           return (
             <div key={room.id}>
               <Card className="hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 group">
@@ -216,10 +220,10 @@ export function RoomsClient({ rooms: initialRooms, settings }: Props) {
                     </div>
                   )}
 
-                  {/* Rates */}
+                  {/* Rates — sourced from branch settings */}
                   <div className="grid grid-cols-2 gap-1.5 text-xs text-muted-foreground mb-3">
-                    <span>{t('water')}: {room.waterRateRiel.toLocaleString()} ៛</span>
-                    <span>{t('electric')}: {room.electricRateRiel.toLocaleString()} ៛</span>
+                    <span>{t('water')}: {parseFloat(rates.water_rate_riel).toLocaleString()} ៛</span>
+                    <span>{t('electric')}: {parseFloat(rates.electric_rate_riel).toLocaleString()} ៛</span>
                     <span>{t('tenants_col_deposit')}: {formatCurrency(room.depositAmount)}</span>
                   </div>
 
