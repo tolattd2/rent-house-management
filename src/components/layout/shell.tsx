@@ -33,7 +33,7 @@ export function Shell({ children, title }: ShellProps) {
       {/* Main content */}
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
         <Header onMenuClick={() => setMobileOpen(true)} title={title} />
-        <main className="flex-1 overflow-y-auto overscroll-contain scrollbar-thin">
+        <main className="flex-1 overflow-y-auto overscroll-contain scrollbar-hide">
           <div className="p-3 sm:p-6">
             {children}
           </div>
