@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -28,6 +28,8 @@ export function RoomMapClient({ isAdmin, initialBranch, initialFloor, initialFlo
   const router = useRouter()
   const [floors, setFloors] = useState(initialFloors)
   const [reloading, setReloading] = useState(false)
+  const [fullscreen, setFullscreen] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
 
   const hydrate = useRoomMapStore((s) => s.hydrate)
   const markSaving = useRoomMapStore((s) => s.markSaving)
@@ -36,6 +38,9 @@ export function RoomMapClient({ isAdmin, initialBranch, initialFloor, initialFlo
   const floor = useRoomMapStore((s) => s.floor)
   const blocks = useRoomMapStore((s) => s.blocks)
   const dirty = useRoomMapStore((s) => s.dirty)
+  const autoSave = useRoomMapStore((s) => s.autoSave)
+  const undo = useRoomMapStore((s) => s.undo)
+  const redo = useRoomMapStore((s) => s.redo)
 
   // Seed the store once on mount, then again whenever the server view changes.
   // The selector kept a ref so we don't loop on every render.
@@ -125,14 +130,18 @@ export function RoomMapClient({ isAdmin, initialBranch, initialFloor, initialFlo
     }
   }
 
-  const handleSave = async () => {
+  // Save is stable so the auto-save effect can call it without re-arming
+  // the debounce every keystroke.
+  const handleSave = useCallback(async (silent = false) => {
     if (!isAdmin) return
+    const state = useRoomMapStore.getState()
+    if (!state.dirty || state.saving) return
     markSaving(true)
     try {
       const payload = {
-        branch,
-        floor,
-        blocks: blocks.map((b) => ({
+        branch: state.branch,
+        floor: state.floor,
+        blocks: state.blocks.map((b) => ({
           roomId: b.roomId,
           branch: b.branch,
           floor: b.floor,
@@ -152,7 +161,7 @@ export function RoomMapClient({ isAdmin, initialBranch, initialFloor, initialFlo
       const data: { ok: boolean; error?: string } = await res.json()
       if (data.ok) {
         markClean()
-        toast({ title: t('room_map_saved') })
+        if (!silent) toast({ title: t('room_map_saved') })
         router.refresh()
       } else {
         toast({ title: t('room_map_save_failed'), description: data.error, variant: 'destructive' })
@@ -162,7 +171,66 @@ export function RoomMapClient({ isAdmin, initialBranch, initialFloor, initialFlo
       toast({ title: t('room_map_save_failed'), description: e instanceof Error ? e.message : 'Error', variant: 'destructive' })
       markSaving(false)
     }
-  }
+  }, [isAdmin, markSaving, markClean, router, t])
+
+  // Auto-save: debounce 1.5s after the user stops editing. The timer resets
+  // whenever blocks change while in autoSave mode, so a burst of edits
+  // collapses into one save.
+  useEffect(() => {
+    if (!autoSave || !isAdmin || !dirty) return
+    const timer = setTimeout(() => {
+      handleSave(true)
+    }, 1500)
+    return () => clearTimeout(timer)
+  }, [autoSave, isAdmin, dirty, blocks, handleSave])
+
+  // Fullscreen toggle for the map container. We listen for the native
+  // fullscreenchange event so the toolbar icon flips correctly when the
+  // user hits Esc to exit.
+  const toggleFullscreen = useCallback(() => {
+    const el = containerRef.current
+    if (!el) return
+    if (!document.fullscreenElement) {
+      el.requestFullscreen().catch(() => undefined)
+    } else {
+      document.exitFullscreen().catch(() => undefined)
+    }
+  }, [])
+
+  useEffect(() => {
+    const onChange = () => setFullscreen(Boolean(document.fullscreenElement))
+    document.addEventListener('fullscreenchange', onChange)
+    return () => document.removeEventListener('fullscreenchange', onChange)
+  }, [])
+
+  // Keyboard shortcuts: Ctrl/Cmd+S save, Ctrl/Cmd+Z undo, Ctrl/Cmd+Shift+Z
+  // or Ctrl+Y redo. We ignore them while typing in an input.
+  useEffect(() => {
+    if (!isAdmin) return
+    const handler = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null
+      if (target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return
+      const mod = e.ctrlKey || e.metaKey
+      if (!mod) return
+      const k = e.key.toLowerCase()
+      if (k === 's') {
+        e.preventDefault()
+        handleSave(false)
+      } else if (k === 'z' && !e.shiftKey) {
+        e.preventDefault()
+        undo()
+      } else if ((k === 'z' && e.shiftKey) || k === 'y') {
+        e.preventDefault()
+        redo()
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [isAdmin, handleSave, undo, redo])
+
+  // Pinned floors list: when we switch branches we union the server result
+  // with the previous list so the dropdown doesn't churn.
+  const floorsView = useMemo(() => Array.from(new Set([...floors, floor].filter(Boolean))), [floors, floor])
 
   return (
     <div className="flex flex-col h-[calc(100vh-8rem)] animate-fade-in">
@@ -175,7 +243,7 @@ export function RoomMapClient({ isAdmin, initialBranch, initialFloor, initialFlo
           <BranchFloorSelector
             branch={branch || initialBranch}
             floor={floor || initialFloor}
-            floors={floors}
+            floors={floorsView}
             dirty={dirty}
             onChange={changeBranchFloor}
           />
@@ -195,8 +263,16 @@ export function RoomMapClient({ isAdmin, initialBranch, initialFloor, initialFlo
 
       <StatusLegend />
 
-      <div className="mt-3 flex flex-1 min-h-0 rounded-lg border border-border overflow-hidden bg-card">
-        <MapToolbar editable={isAdmin} onSave={handleSave} />
+      <div
+        ref={containerRef}
+        className="mt-3 flex flex-1 min-h-0 rounded-lg border border-border overflow-hidden bg-card fullscreen:bg-background fullscreen:rounded-none"
+      >
+        <MapToolbar
+          editable={isAdmin}
+          fullscreen={fullscreen}
+          onToggleFullscreen={toggleFullscreen}
+          onSave={() => handleSave(false)}
+        />
         <div className="flex-1 relative min-w-0">
           <div className="absolute top-3 right-3 z-20">
             <ZoomControls />

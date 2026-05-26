@@ -16,6 +16,11 @@ type State = {
   zoom: number
   snapToGrid: boolean
   gridSize: number
+  autoSave: boolean
+  // History snapshots taken BEFORE each block-mutating action so undo
+  // restores the previous state. Capped at HISTORY_LIMIT to bound memory.
+  past: DraftBlock[][]
+  future: DraftBlock[][]
 }
 
 type Actions = {
@@ -25,16 +30,26 @@ type Actions = {
   removeBlock: (id: string) => void
   duplicateBlock: (id: string) => void
   updateBlock: (id: string, patch: Partial<DraftBlock>) => void
+  replaceAll: (blocks: DraftBlock[]) => void
+  undo: () => void
+  redo: () => void
   setZoom: (z: number) => void
   setSnap: (snap: boolean) => void
+  setAutoSave: (on: boolean) => void
   markSaving: (saving: boolean) => void
   markClean: () => void
 }
 
 const GRID = 10
+const HISTORY_LIMIT = 50
 
 function nextZIndex(blocks: DraftBlock[]): number {
   return blocks.length === 0 ? 1 : Math.max(...blocks.map((b) => b.zIndex)) + 1
+}
+
+function pushHistory(past: DraftBlock[][], snapshot: DraftBlock[]): DraftBlock[][] {
+  const next = [...past, snapshot.map((b) => ({ ...b }))]
+  return next.length > HISTORY_LIMIT ? next.slice(next.length - HISTORY_LIMIT) : next
 }
 
 export const useRoomMapStore = create<State & Actions>((set, get) => ({
@@ -48,6 +63,9 @@ export const useRoomMapStore = create<State & Actions>((set, get) => ({
   zoom: 1,
   snapToGrid: true,
   gridSize: GRID,
+  autoSave: false,
+  past: [],
+  future: [],
 
   hydrate: ({ branch, floor, rooms, blocks }) =>
     set({
@@ -57,16 +75,17 @@ export const useRoomMapStore = create<State & Actions>((set, get) => ({
       blocks: blocks.map((b) => ({ ...b })),
       selectedId: null,
       dirty: false,
+      past: [],
+      future: [],
     }),
 
   setSelected: (id) => set({ selectedId: id }),
 
   addBlockForRoom: (roomId) => {
-    const { blocks, branch, floor, rooms } = get()
+    const { blocks, branch, floor, rooms, past } = get()
     if (blocks.some((b) => b.roomId === roomId && !b.pendingDelete)) return
     const room = rooms.find((r) => r.id === roomId)
     if (!room) return
-    // Stagger new blocks so duplicates don't stack into one spot.
     const offset = blocks.length * 16
     const draft: DraftBlock = {
       id: `tmp-${roomId}`,
@@ -80,21 +99,31 @@ export const useRoomMapStore = create<State & Actions>((set, get) => ({
       rotation: 0,
       zIndex: nextZIndex(blocks),
     }
-    set({ blocks: [...blocks.filter((b) => b.roomId !== roomId), draft], selectedId: draft.id, dirty: true })
+    set({
+      past: pushHistory(past, blocks),
+      future: [],
+      blocks: [...blocks.filter((b) => b.roomId !== roomId), draft],
+      selectedId: draft.id,
+      dirty: true,
+    })
   },
 
   removeBlock: (id) => {
-    const { blocks, selectedId } = get()
+    const { blocks, selectedId, past } = get()
     const next = blocks.filter((b) => b.id !== id)
-    set({ blocks: next, selectedId: selectedId === id ? null : selectedId, dirty: true })
+    set({
+      past: pushHistory(past, blocks),
+      future: [],
+      blocks: next,
+      selectedId: selectedId === id ? null : selectedId,
+      dirty: true,
+    })
   },
 
   duplicateBlock: (id) => {
-    const { blocks, rooms } = get()
+    const { blocks, rooms, past } = get()
     const source = blocks.find((b) => b.id === id)
     if (!source) return
-    // A room only ever has one rectangle on a floor — pick the next
-    // un-mapped room in the same branch+floor for the duplicate.
     const taken = new Set(blocks.map((b) => b.roomId))
     const candidate = rooms.find((r) => !taken.has(r.id) && r.branch === source.branch && r.floor === source.floor)
     if (!candidate) return
@@ -106,31 +135,82 @@ export const useRoomMapStore = create<State & Actions>((set, get) => ({
       y: source.y + 20,
       zIndex: nextZIndex(blocks),
     }
-    set({ blocks: [...blocks, draft], selectedId: draft.id, dirty: true })
+    set({
+      past: pushHistory(past, blocks),
+      future: [],
+      blocks: [...blocks, draft],
+      selectedId: draft.id,
+      dirty: true,
+    })
   },
 
   updateBlock: (id, patch) => {
-    const { blocks, snapToGrid, gridSize } = get()
+    const { blocks, snapToGrid, gridSize, past } = get()
     const snap = (v: number) => (snapToGrid ? Math.round(v / gridSize) * gridSize : v)
+    const nextBlocks = blocks.map((b) =>
+      b.id === id
+        ? {
+            ...b,
+            ...patch,
+            ...(patch.x !== undefined ? { x: snap(patch.x) } : {}),
+            ...(patch.y !== undefined ? { y: snap(patch.y) } : {}),
+            ...(patch.width !== undefined ? { width: snap(patch.width) } : {}),
+            ...(patch.height !== undefined ? { height: snap(patch.height) } : {}),
+          }
+        : b,
+    )
     set({
-      blocks: blocks.map((b) =>
-        b.id === id
-          ? {
-              ...b,
-              ...patch,
-              ...(patch.x !== undefined ? { x: snap(patch.x) } : {}),
-              ...(patch.y !== undefined ? { y: snap(patch.y) } : {}),
-              ...(patch.width !== undefined ? { width: snap(patch.width) } : {}),
-              ...(patch.height !== undefined ? { height: snap(patch.height) } : {}),
-            }
-          : b,
-      ),
+      past: pushHistory(past, blocks),
+      future: [],
+      blocks: nextBlocks,
+      dirty: true,
+    })
+  },
+
+  // Bulk replace — used by Import JSON. Coordinates and dimensions are
+  // already trusted (parsed from the JSON), so we don't re-snap here.
+  replaceAll: (next) => {
+    const { blocks, past } = get()
+    set({
+      past: pushHistory(past, blocks),
+      future: [],
+      blocks: next.map((b) => ({ ...b })),
+      selectedId: null,
+      dirty: true,
+    })
+  },
+
+  undo: () => {
+    const { past, future, blocks } = get()
+    if (past.length === 0) return
+    const prev = past[past.length - 1]
+    const nextPast = past.slice(0, -1)
+    set({
+      past: nextPast,
+      future: [...future, blocks.map((b) => ({ ...b }))],
+      blocks: prev.map((b) => ({ ...b })),
+      selectedId: null,
+      dirty: true,
+    })
+  },
+
+  redo: () => {
+    const { past, future, blocks } = get()
+    if (future.length === 0) return
+    const next = future[future.length - 1]
+    const nextFuture = future.slice(0, -1)
+    set({
+      past: [...past, blocks.map((b) => ({ ...b }))],
+      future: nextFuture,
+      blocks: next.map((b) => ({ ...b })),
+      selectedId: null,
       dirty: true,
     })
   },
 
   setZoom: (z) => set({ zoom: Math.min(2.5, Math.max(0.25, z)) }),
   setSnap: (snap) => set({ snapToGrid: snap }),
+  setAutoSave: (on) => set({ autoSave: on }),
   markSaving: (saving) => set({ saving }),
   markClean: () => set({ dirty: false, saving: false }),
 }))
