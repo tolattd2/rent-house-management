@@ -50,6 +50,14 @@ export function MapToolbar({ editable, fullscreen, onToggleFullscreen, onSave, m
   const primarySelectedId = selectedIds[0] ?? null
   const hasSelection = selectedIds.length > 0
 
+  // On mobile we want the drawer to step out of the way as soon as the user
+  // taps an action so they can see the canvas. `withClose` wraps a callback
+  // to dismiss the drawer first.
+  const withClose = <A extends unknown[]>(fn: (...args: A) => void) => (...args: A) => {
+    onMobileClose()
+    fn(...args)
+  }
+
   const onCanvas = useMemo(() => new Set(blocks.map((b) => b.roomId)), [blocks])
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -94,7 +102,7 @@ export function MapToolbar({ editable, fullscreen, onToggleFullscreen, onSave, m
         <Button
           size="sm"
           className="w-full"
-          onClick={onSave}
+          onClick={withClose(onSave)}
           disabled={!editable || !dirty}
           loading={saving}
         >
@@ -104,11 +112,11 @@ export function MapToolbar({ editable, fullscreen, onToggleFullscreen, onSave, m
         </Button>
 
         <div className="grid grid-cols-2 gap-2">
-          <Button size="sm" variant="outline" disabled={!editable || !canUndo} onClick={undo} title="Ctrl+Z">
+          <Button size="sm" variant="outline" disabled={!editable || !canUndo} onClick={withClose(undo)} title="Ctrl+Z">
             <Undo2 className="w-3.5 h-3.5 mr-1" />
             <span className="truncate">{t('room_map_undo')}</span>
           </Button>
-          <Button size="sm" variant="outline" disabled={!editable || !canRedo} onClick={redo} title="Ctrl+Y">
+          <Button size="sm" variant="outline" disabled={!editable || !canRedo} onClick={withClose(redo)} title="Ctrl+Y">
             <Redo2 className="w-3.5 h-3.5 mr-1" />
             <span className="truncate">{t('room_map_redo')}</span>
           </Button>
@@ -119,7 +127,7 @@ export function MapToolbar({ editable, fullscreen, onToggleFullscreen, onSave, m
             size="sm"
             variant="outline"
             disabled={!editable || !primarySelectedId}
-            onClick={() => primarySelectedId && duplicateBlock(primarySelectedId)}
+            onClick={withClose(() => primarySelectedId && duplicateBlock(primarySelectedId))}
             title={t('room_map_duplicate')}
           >
             <Copy className="w-3.5 h-3.5 mr-1" />
@@ -129,7 +137,7 @@ export function MapToolbar({ editable, fullscreen, onToggleFullscreen, onSave, m
             size="sm"
             variant="outline"
             disabled={!editable || !hasSelection}
-            onClick={removeSelected}
+            onClick={withClose(removeSelected)}
             className="text-destructive border-destructive/30 hover:bg-destructive/10"
             title={t('room_map_delete')}
           >
@@ -145,14 +153,14 @@ export function MapToolbar({ editable, fullscreen, onToggleFullscreen, onSave, m
           size="sm"
           variant="outline"
           className="w-full"
-          onClick={() => setShowExport(true)}
+          onClick={withClose(() => setShowExport(true))}
           disabled={blocks.length === 0}
         >
           <Download className="w-3.5 h-3.5 mr-1.5" />
           <span className="truncate">{t('room_map_export')}</span>
         </Button>
 
-        <Button size="sm" variant="outline" className="w-full" onClick={onToggleFullscreen}>
+        <Button size="sm" variant="outline" className="w-full" onClick={withClose(onToggleFullscreen)}>
           {fullscreen
             ? <><Minimize className="w-3.5 h-3.5 mr-1.5" />{t('room_map_exit_fullscreen')}</>
             : <><Maximize className="w-3.5 h-3.5 mr-1.5" />{t('room_map_fullscreen')}</>}
@@ -196,7 +204,7 @@ export function MapToolbar({ editable, fullscreen, onToggleFullscreen, onSave, m
                 key={r.id}
                 type="button"
                 disabled={!editable || placed}
-                onClick={() => addBlockForRoom(r.id)}
+                onClick={withClose(() => addBlockForRoom(r.id))}
                 className={cn(
                   'w-full flex items-center justify-between gap-2 text-left px-2 py-1.5 rounded border border-border text-xs transition',
                   placed
