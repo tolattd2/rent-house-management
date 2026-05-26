@@ -101,7 +101,17 @@ export function RoomFormDialog({ room, settings, rooms, onClose, onSave }: Props
   // Room-number suggestions, learned from the numbers already used in the
   // currently selected branch. Shown for new rooms only.
   const currentBranch = watch('branch')
-  const hasFloors = branchHasFloors(findBranch(branches, currentBranch))
+  const currentBranchObj = findBranch(branches, currentBranch)
+  const hasFloors = branchHasFloors(currentBranchObj)
+  const floorCount = currentBranchObj?.floorCount ?? 1
+  const currentFloor = watch('floor')
+  // Floor options: 1..floorCount, plus the room's existing floor when
+  // editing if it falls outside that range (so we never silently lose it).
+  const floorOptions = useMemo(() => {
+    const list = Array.from({ length: Math.max(1, floorCount) }, (_, i) => String(i + 1))
+    if (currentFloor && !list.includes(currentFloor)) list.push(currentFloor)
+    return list
+  }, [floorCount, currentFloor])
   const roomNumberSuggestions = useMemo(
     () => suggestRoomNumbers(rooms.filter((r) => r.branch === currentBranch).map((r) => r.roomNumber)),
     [rooms, currentBranch],
@@ -196,7 +206,17 @@ export function RoomFormDialog({ room, settings, rooms, onClose, onSave }: Props
             {hasFloors && (
               <div className="space-y-1.5">
                 <Label>{t('room_map_floor')}</Label>
-                <Input {...register('floor')} placeholder="1" />
+                <Select
+                  value={currentFloor || '1'}
+                  onValueChange={(v) => setValue('floor', v, { shouldValidate: true })}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {floorOptions.map((f) => (
+                      <SelectItem key={f} value={f}>{f}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <p className="text-xs text-muted-foreground">{t('room_form_floor_hint')}</p>
               </div>
             )}

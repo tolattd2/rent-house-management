@@ -115,8 +115,8 @@ export function SettingsClient({ settings: initial }: Props) {
         prefix: '',
         propertyType: 'house',
         structure: 'single',
-        buildingCount: 1,
         hasFloors: false,
+        floorCount: 1,
       },
     ])
   const removeBranch = (index: number) =>
@@ -602,7 +602,7 @@ export function SettingsClient({ settings: initial }: Props) {
                       <p className="text-xs text-muted-foreground">{t('settings_room_prefix_hint')}</p>
                     </div>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-1.5">
                       <Label>{t('settings_property_type')}</Label>
                       <Select
@@ -637,31 +637,36 @@ export function SettingsClient({ settings: initial }: Props) {
                         </SelectContent>
                       </Select>
                     </div>
-                    {br.structure === 'complex' && (
+                  </div>
+                  <div className="space-y-2">
+                    <label className="flex items-center justify-between gap-2 px-3 py-2 rounded border border-border text-sm">
+                      <span className="space-y-0.5">
+                        <span className="block font-medium">{t('settings_property_has_floors')}</span>
+                        <span className="block text-xs text-muted-foreground">{t('settings_property_has_floors_hint')}</span>
+                      </span>
+                      <Switch
+                        checked={br.hasFloors}
+                        onCheckedChange={(v) =>
+                          updateBranch(i, { hasFloors: v, floorCount: v && br.floorCount < 1 ? 1 : br.floorCount })
+                        }
+                      />
+                    </label>
+                    {br.hasFloors && (
                       <div className="space-y-1.5">
-                        <Label>{t('settings_property_buildings')}</Label>
+                        <Label>{t('settings_property_floor_count')}</Label>
                         <Input
                           type="number"
                           min={1}
-                          value={br.buildingCount}
+                          value={br.floorCount}
                           onChange={(e) => {
                             const n = Math.max(1, Math.floor(Number(e.target.value) || 1))
-                            updateBranch(i, { buildingCount: n })
+                            updateBranch(i, { floorCount: n })
                           }}
                         />
+                        <p className="text-xs text-muted-foreground">{t('settings_property_floor_count_hint')}</p>
                       </div>
                     )}
                   </div>
-                  <label className="flex items-center justify-between gap-2 px-3 py-2 rounded border border-border text-sm">
-                    <span className="space-y-0.5">
-                      <span className="block font-medium">{t('settings_property_has_floors')}</span>
-                      <span className="block text-xs text-muted-foreground">{t('settings_property_has_floors_hint')}</span>
-                    </span>
-                    <Switch
-                      checked={br.hasFloors}
-                      onCheckedChange={(v) => updateBranch(i, { hasFloors: v })}
-                    />
-                  </label>
                   <div className="space-y-1.5">
                     <Label>{t('settings_company_name')}</Label>
                     <Input

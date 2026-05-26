@@ -5,10 +5,11 @@ import { getSettingsMap } from '@/lib/cached-queries'
 import { branchHasFloors, findBranch, parseBranches } from '@/lib/branches'
 import { loadRoomMapView, saveRoomMapLayout, type RoomMapBlock } from '@/lib/room-map-service'
 
-async function resolveHasFloors(branchName: string): Promise<boolean> {
+async function resolveBranchConfig(branchName: string): Promise<{ hasFloors: boolean; floorCount: number }> {
   const settings = await getSettingsMap()
   const branches = parseBranches(settings.branches)
-  return branchHasFloors(findBranch(branches, branchName))
+  const b = findBranch(branches, branchName)
+  return { hasFloors: branchHasFloors(b), floorCount: Math.max(1, b?.floorCount ?? 1) }
 }
 
 // GET /api/room-map?branch=Takmoa&floor=1
@@ -20,8 +21,8 @@ export async function GET(req: NextRequest) {
   const branch = searchParams.get('branch')
   const floor = searchParams.get('floor') ?? '1'
   if (!branch) return NextResponse.json({ ok: false, error: 'branch required' }, { status: 400 })
-  const hasFloors = await resolveHasFloors(branch)
-  const view = await loadRoomMapView(branch, hasFloors ? floor : '1', hasFloors)
+  const { hasFloors, floorCount } = await resolveBranchConfig(branch)
+  const view = await loadRoomMapView(branch, hasFloors ? floor : '1', hasFloors, floorCount)
   return NextResponse.json({ ok: true, view })
 }
 
@@ -46,7 +47,7 @@ export async function POST(req: NextRequest) {
   if (!Array.isArray(body.blocks)) {
     return NextResponse.json({ ok: false, error: 'blocks must be an array' }, { status: 400 })
   }
-  const hasFloors = await resolveHasFloors(branch)
+  const { hasFloors } = await resolveBranchConfig(branch)
   await saveRoomMapLayout(branch, hasFloors ? floor : '1', hasFloors, body.blocks)
   invalidate('rooms')
   return NextResponse.json({ ok: true })

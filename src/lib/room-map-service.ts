@@ -38,6 +38,7 @@ export type RoomMapView = {
   branch: string
   floor: string
   hasFloors: boolean
+  floorCount: number
   layouts: RoomMapBlock[]
   rooms: RoomMapRoom[]
 }
@@ -66,7 +67,7 @@ export function sanitizeLayout(input: Partial<RoomMapBlock>): Omit<RoomMapBlock,
 // - For apartments (hasFloors=true): the canvas is per floor — only that
 //   floor's layouts load, but the picker still shows every room in the
 //   branch so you can place rooms from any floor onto the current map.
-export async function loadRoomMapView(branch: string, floor: string, hasFloors: boolean): Promise<RoomMapView> {
+export async function loadRoomMapView(branch: string, floor: string, hasFloors: boolean, floorCount = 1): Promise<RoomMapView> {
   const layoutWhere = hasFloors ? { branch, floor } : { branch }
   const [layouts, rooms] = await Promise.all([
     db.roomMapLayout.findMany({ where: layoutWhere }),
@@ -129,6 +130,7 @@ export async function loadRoomMapView(branch: string, floor: string, hasFloors: 
     branch,
     floor,
     hasFloors,
+    floorCount: Math.max(1, floorCount),
     layouts: layouts.map((l) => ({
       id: l.id,
       roomId: l.roomId,

@@ -118,10 +118,18 @@ export function RoomMapClient({ isAdmin, initialBranch, initialFloor, initialFlo
       if (data.ok && data.view) {
         hydratedKey.current = ''
         setHasFloors(data.view.hasFloors)
-        // Building a floor list from the room data we just received so the
-        // dropdown reflects the new branch immediately.
+        // Union the configured floor count (1..floorCount) with whatever
+        // floors actually have rooms today, so the dropdown reflects both
+        // the Settings value and any legacy data.
+        const configured = Array.from({ length: Math.max(1, data.view.floorCount) }, (_, i) => String(i + 1))
+        const existing = data.view.rooms.map((r) => r.floor || '1')
         const nextFloors = data.view.hasFloors
-          ? Array.from(new Set(data.view.rooms.map((r) => r.floor || '1'))).sort()
+          ? Array.from(new Set([...configured, ...existing])).sort((a, b) => {
+              const na = parseInt(a, 10)
+              const nb = parseInt(b, 10)
+              if (Number.isFinite(na) && Number.isFinite(nb)) return na - nb
+              return a.localeCompare(b)
+            })
           : ['1']
         setFloors(nextFloors.length > 0 ? nextFloors : ['1'])
         hydrate({
