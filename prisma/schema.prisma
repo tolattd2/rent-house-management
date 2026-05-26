@@ -103,9 +103,31 @@ model Room {
   billings     Billing[]
   maintenances Maintenance[]
   expenses     Expense[]
+  mapLayout    RoomMapLayout?
 
   @@unique([roomNumber, branch])
   @@map("rooms")
+}
+
+// Visual position of a room on the branch+floor map canvas.
+// 1:1 with Room — re-saved in place when moved/resized.
+model RoomMapLayout {
+  id        String   @id @default(cuid())
+  roomId    String   @unique
+  room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  branch    String
+  floor     String   @default("1")
+  x         Float    @default(0)
+  y         Float    @default(0)
+  width     Float    @default(120)
+  height    Float    @default(80)
+  rotation  Float    @default(0)
+  zIndex    Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([branch, floor])
+  @@map("room_map_layouts")
 }
 
 model Tenant {

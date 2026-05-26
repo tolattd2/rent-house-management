@@ -52,11 +52,13 @@
     "react-dom": "^19.0.0",
     "react-hook-form": "^7.54.0",
     "react-image-crop": "^11.0.10",
+    "react-rnd": "^10.5.3",
     "recharts": "^2.13.3",
     "tailwind-merge": "^2.5.5",
     "tailwindcss-animate": "^1.0.7",
     "xlsx": "^0.18.5",
-    "zod": "^3.23.8"
+    "zod": "^3.23.8",
+    "zustand": "^5.0.13"
   },
   "prisma": {
     "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"
