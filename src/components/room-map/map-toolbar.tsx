@@ -137,8 +137,8 @@ export function MapToolbar({ editable, fullscreen, onToggleFullscreen, onSave }:
   }
 
   return (
-    <aside className="w-60 shrink-0 flex flex-col gap-3 border-r border-border bg-background/60 p-3">
-      <div className="space-y-2">
+    <aside className="w-60 shrink-0 flex flex-col gap-3 border-r border-border bg-background/60 p-3 min-h-0 overflow-hidden">
+      <div className="space-y-2 shrink-0">
         <Button
           size="sm"
           className="w-full"
