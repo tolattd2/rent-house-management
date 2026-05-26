@@ -57,12 +57,14 @@ function RoomRectangleInner({ block, room, selected, editable, zoom, onSelect }:
       <button
         type="button"
         onClick={onSelect}
-        className="w-full h-full flex flex-col items-center justify-center text-center px-1 leading-tight select-none"
+        className="w-full h-full flex flex-col items-center justify-center text-center px-1 leading-tight select-none overflow-hidden"
         style={{ transform: block.rotation ? `rotate(${block.rotation}deg)` : undefined }}
       >
         <span className="font-bold text-sm sm:text-base tabular-nums">{label}</span>
         {tenantName && (
-          <span className="text-[10px] sm:text-xs opacity-80 truncate max-w-full px-1">{tenantName}</span>
+          <span className="text-[10px] sm:text-xs opacity-80 px-1 leading-tight break-words whitespace-normal max-w-full">
+            {tenantName}
+          </span>
         )}
       </button>
     </Rnd>
