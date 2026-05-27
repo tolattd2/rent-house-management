@@ -12,6 +12,7 @@ import { DateInput } from '@/components/ui/date-input'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { TableScroll } from '@/components/ui/table-scroll'
+import { SortableTh, type SortDir } from '@/components/ui/sortable-th'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -148,6 +149,26 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
     .reduce((s, e) => s + e.amountUsd, 0)
 
   const filteredTotal = filtered.reduce((s, e) => s + e.amountUsd, 0)
+
+  // Column sort. Default: expenseDate descending (newest first).
+  type SortKey = 'expenseDate' | 'title' | 'category' | 'paidTo' | 'room' | 'amountUsd'
+  const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({ key: 'expenseDate', dir: 'desc' })
+  const toggleSort = (key: SortKey) => setSort((s) => s.key === key ? { key, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'asc' })
+  const sorted = useMemo(() => {
+    const arr = [...filtered]
+    const sign = sort.dir === 'asc' ? 1 : -1
+    arr.sort((a, b) => {
+      switch (sort.key) {
+        case 'expenseDate': return sign * a.expenseDate.localeCompare(b.expenseDate)
+        case 'title': return sign * a.title.localeCompare(b.title)
+        case 'category': return sign * a.category.localeCompare(b.category)
+        case 'paidTo': return sign * (a.paidTo ?? '').localeCompare(b.paidTo ?? '')
+        case 'room': return sign * ((a.room?.roomNumber ?? '').localeCompare(b.room?.roomNumber ?? ''))
+        case 'amountUsd': return sign * (a.amountUsd - b.amountUsd)
+      }
+    })
+    return arr
+  }, [filtered, sort])
 
   const byCategory = useMemo(() => {
     const map: Record<string, number> = {}
@@ -539,17 +560,17 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
           <table className="w-full min-w-[780px] text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/30">
-                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{t('expenses_col_date')}</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{t('expenses_col_title')}</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{t('expenses_col_category')}</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{t('expenses_col_paid_to')}</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{t('expenses_col_room')}</th>
-                <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground">{t('expenses_col_amount')}</th>
+                <SortableTh align="left" k="expenseDate" label={t('expenses_col_date')} active={sort.key} dir={sort.dir} onSort={toggleSort} />
+                <SortableTh align="left" k="title" label={t('expenses_col_title')} active={sort.key} dir={sort.dir} onSort={toggleSort} />
+                <SortableTh align="left" k="category" label={t('expenses_col_category')} active={sort.key} dir={sort.dir} onSort={toggleSort} />
+                <SortableTh align="left" k="paidTo" label={t('expenses_col_paid_to')} active={sort.key} dir={sort.dir} onSort={toggleSort} />
+                <SortableTh align="left" k="room" label={t('expenses_col_room')} active={sort.key} dir={sort.dir} onSort={toggleSort} />
+                <SortableTh align="right" k="amountUsd" label={t('expenses_col_amount')} active={sort.key} dir={sort.dir} onSort={toggleSort} />
                 <th className="text-center px-4 py-3 text-xs font-medium text-muted-foreground">{t('actions')}</th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map((expense, i) => {
+              {sorted.map((expense, i) => {
                 const Icon = categoryIcon[expense.category] ?? HelpCircle
                 return (
                   <tr
