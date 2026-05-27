@@ -307,6 +307,7 @@ function Stat({ label, value, tone }: { label: string; value: number; tone: 'pos
 }
 
 function ErrorList({ plan }: { plan: ImportPlan }) {
+  const { t } = useLanguage()
   const errored = plan.sheets.flatMap((s) =>
     s.rows
       .filter((r) => r.outcome === 'error')
@@ -316,13 +317,13 @@ function ErrorList({ plan }: { plan: ImportPlan }) {
   return (
     <div className="border border-destructive/40 bg-destructive/5 rounded-md max-h-48 overflow-y-auto">
       <div className="px-2.5 py-1.5 text-xs font-medium text-destructive border-b border-destructive/30">
-        Errors must be fixed before import
+        {t('data_io_errors_must_fix')}
       </div>
       <ul className="divide-y divide-destructive/20">
         {errored.slice(0, 50).map((e, i) => (
           <li key={i} className="px-2.5 py-1.5 text-xs">
             <span className="font-medium">{e.sheet}</span>
-            <span className="text-muted-foreground"> · row {e.rowIndex + 2}</span>
+            <span className="text-muted-foreground"> · {t('data_io_row')} {e.rowIndex + 2}</span>
             {e.label && <span className="text-muted-foreground"> · {e.label}</span>}
             <ul className="mt-0.5 pl-3 text-destructive">
               {e.errors?.map((err, j) => (
@@ -333,7 +334,7 @@ function ErrorList({ plan }: { plan: ImportPlan }) {
         ))}
         {errored.length > 50 && (
           <li className="px-2.5 py-1.5 text-xs text-muted-foreground italic">
-            … and {errored.length - 50} more
+            {t('data_io_and_more').replace('{n}', String(errored.length - 50))}
           </li>
         )}
       </ul>

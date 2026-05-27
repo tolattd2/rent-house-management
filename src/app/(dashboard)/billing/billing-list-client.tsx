@@ -236,7 +236,7 @@ export function BillingListClient({ billings: initial }: Props) {
           value={monthFilter}
           onValueChange={(v) => { setMonthFilter(v); setMonthFrom(''); setMonthTo('') }}
         >
-          <SelectTrigger className="w-40 h-9"><SelectValue placeholder="All months" /></SelectTrigger>
+          <SelectTrigger className="w-40 h-9"><SelectValue placeholder={t('billing_all_months')} /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">{t('billing_all_months')}</SelectItem>
             {months.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}

@@ -187,7 +187,7 @@ export function InvoicesClient({ invoices: initial }: Props) {
         <div className="relative flex-1 min-w-[200px] max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
-            placeholder="Search tenant, invoice #, room, month…"
+            placeholder={t('invoices_search_ph')}
             className="pl-9 h-9 bg-muted/50 border-0 focus-visible:ring-1"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -214,7 +214,7 @@ export function InvoicesClient({ invoices: initial }: Props) {
           value={monthFilter}
           onValueChange={(v) => { setMonthFilter(v); setMonthFrom(''); setMonthTo('') }}
         >
-          <SelectTrigger className="w-40 h-9"><SelectValue placeholder="All months" /></SelectTrigger>
+          <SelectTrigger className="w-40 h-9"><SelectValue placeholder={t('billing_all_months')} /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">{t('billing_all_months')}</SelectItem>
             {months.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}

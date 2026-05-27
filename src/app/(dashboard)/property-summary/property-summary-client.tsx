@@ -202,7 +202,7 @@ export function PropertySummaryClient({ rooms, tenants, billings, expenses, main
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <Select value={month} onValueChange={setMonth}>
-            <SelectTrigger className="w-40 h-9"><SelectValue placeholder="All months" /></SelectTrigger>
+            <SelectTrigger className="w-40 h-9"><SelectValue placeholder={t('billing_all_months')} /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">{t('billing_all_months')}</SelectItem>
               {months.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}

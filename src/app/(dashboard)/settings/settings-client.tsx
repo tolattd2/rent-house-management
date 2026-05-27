@@ -809,17 +809,16 @@ export function SettingsClient({ settings: initial }: Props) {
                 <div className="pt-3 border-t space-y-3">
                   <div className="flex items-center justify-between gap-4">
                     <div>
-                      <Label>Auto Overdue Alert For Tenant</Label>
+                      <Label>{t('settings_tenant_alert_title')}</Label>
                       <p className="text-xs text-muted-foreground">
-                        Message the tenant directly (Khmer + English) when their invoice is at least
-                        the configured number of days overdue — checked daily. Penalty uses the Late Penalty rate.
+                        {t('settings_tenant_alert_desc')}
                       </p>
                     </div>
                     <Switch checked={lateAlertEnabled} onCheckedChange={setLateAlertEnabled} />
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-1.5">
-                      <Label>Overdue threshold (days)</Label>
+                      <Label>{t('settings_overdue_threshold')}</Label>
                       <Input
                         type="number"
                         min={1}
@@ -830,11 +829,11 @@ export function SettingsClient({ settings: initial }: Props) {
                         placeholder="10"
                       />
                       <p className="text-xs text-muted-foreground">
-                        Tenant is notified once their billing is this many days overdue (e.g. 10 = on day 10).
+                        {t('settings_overdue_threshold_hint')}
                       </p>
                     </div>
                     <div className="space-y-1.5">
-                      <Label>Send mode</Label>
+                      <Label>{t('settings_alert_mode')}</Label>
                       <Select
                         value={lateAlertMode}
                         onValueChange={(v) => setLateAlertMode(v as 'once' | 'repeat')}
@@ -842,12 +841,12 @@ export function SettingsClient({ settings: initial }: Props) {
                       >
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="once">Send once</SelectItem>
-                          <SelectItem value="repeat">Repeat every threshold days</SelectItem>
+                          <SelectItem value="once">{t('settings_alert_mode_once')}</SelectItem>
+                          <SelectItem value="repeat">{t('settings_alert_mode_repeat')}</SelectItem>
                         </SelectContent>
                       </Select>
                       <p className="text-xs text-muted-foreground">
-                        Once: alert a single time when the threshold is reached. Repeat: alert again at each multiple (e.g. day 10, 20, 30…).
+                        {t('settings_alert_mode_hint')}
                       </p>
                     </div>
                   </div>
@@ -858,17 +857,15 @@ export function SettingsClient({ settings: initial }: Props) {
                     loading={testingLateAlert}
                     onClick={handleLateAlertTest}
                   >
-                    <Send className="w-4 h-4 mr-2" />Send test message
+                    <Send className="w-4 h-4 mr-2" />{t('settings_telegram_test')}
                   </Button>
                 </div>
                 <div className="pt-3 border-t space-y-3">
                   <div className="flex items-center justify-between gap-4">
                     <div>
-                      <Label>Overdue Alert For Landlord</Label>
+                      <Label>{t('settings_landlord_alert_title')}</Label>
                       <p className="text-xs text-muted-foreground">
-                        Notify the landlord (this Telegram chat) when a tenant&apos;s recorded
-                        &quot;Promise to pay&quot; date passes without payment — checked daily.
-                        Set the promise date on each invoice from its page.
+                        {t('settings_landlord_alert_desc')}
                       </p>
                     </div>
                     <Switch checked={landlordAlertEnabled} onCheckedChange={setLandlordAlertEnabled} />
@@ -880,16 +877,16 @@ export function SettingsClient({ settings: initial }: Props) {
                     loading={testingLandlordAlert}
                     onClick={handleLandlordAlertTest}
                   >
-                    <Send className="w-4 h-4 mr-2" />Send test message
+                    <Send className="w-4 h-4 mr-2" />{t('settings_telegram_test')}
                   </Button>
                 </div>
                 {isAdmin && (
                   <div className="pt-3 border-t space-y-3">
                     <div className="flex items-center justify-between gap-4">
                       <div>
-                        <Label>Enable tenant linking</Label>
+                        <Label>{t('settings_linking_title')}</Label>
                         <p className="text-xs text-muted-foreground">
-                          Let tenants link their Telegram via the bot&apos;s &quot;Share my phone number&quot; button, so reminders reach them directly.
+                          {t('settings_linking_desc')}
                         </p>
                       </div>
                       <Switch
@@ -1059,14 +1056,14 @@ export function SettingsClient({ settings: initial }: Props) {
               </CardHeader>
               <CardContent>
                 {usersLoading ? (
-                  <p className="text-sm text-muted-foreground py-4 text-center">Loading...</p>
+                  <p className="text-sm text-muted-foreground py-4 text-center">{t('settings_users_loading')}</p>
                 ) : usersError ? (
                   <div className="py-4 text-center space-y-2">
-                    <p className="text-sm text-destructive">Could not load users: {usersError}</p>
-                    <Button type="button" size="sm" variant="outline" onClick={loadUsers}>Retry</Button>
+                    <p className="text-sm text-destructive">{t('settings_users_load_failed')}: {usersError}</p>
+                    <Button type="button" size="sm" variant="outline" onClick={loadUsers}>{t('settings_users_retry')}</Button>
                   </div>
                 ) : users.length === 0 ? (
-                  <p className="text-sm text-muted-foreground py-4 text-center">No users found yet — add one with the button above.</p>
+                  <p className="text-sm text-muted-foreground py-4 text-center">{t('settings_users_empty')}</p>
                 ) : (
                   <div className="space-y-2">
                     {users.map((u) => (

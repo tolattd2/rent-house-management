@@ -386,8 +386,8 @@ export function CreateBillingClient({ tenants, settings, preselectedTenantId, ed
                   <Input type="number" step="0.01" {...register('discountUsd')} />
                 </div>
                 <div className="col-span-2 space-y-1.5">
-                  <Label>Notes</Label>
-                  <Textarea {...register('notes')} rows={2} placeholder="Any notes..." />
+                  <Label>{t('common_notes')}</Label>
+                  <Textarea {...register('notes')} rows={2} placeholder={t('common_any_notes_ph')} />
                 </div>
               </CardContent>
             </Card>
