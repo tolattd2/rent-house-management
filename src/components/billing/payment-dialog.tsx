@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, Controller } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -46,7 +46,7 @@ export function PaymentDialog({ billing, onClose, onSave }: Props) {
   const balance = Math.max(0, billing.totalUsd - totalPaid)
 
   const today = new Date().toISOString().slice(0, 10)
-  const { register, handleSubmit, setValue, formState: { errors } } = useForm<FormData>({
+  const { register, handleSubmit, setValue, control, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: { amountUsd: balance, paymentMethod: 'ABA_Pay', paymentDate: today, transactionRef: '', notes: '' },
   })
@@ -102,7 +102,13 @@ export function PaymentDialog({ billing, onClose, onSave }: Props) {
             </div>
             <div className="space-y-1.5">
               <Label>{t('payment_date_label')} *</Label>
-              <DateInput {...register('paymentDate')} />
+              <Controller
+                control={control}
+                name="paymentDate"
+                render={({ field }) => (
+                  <DateInput value={field.value ?? ''} onChange={(e) => field.onChange(e.target.value)} onBlur={field.onBlur} name={field.name} />
+                )}
+              />
               {errors.paymentDate && <p className="text-xs text-destructive">{errors.paymentDate.message}</p>}
             </div>
           </div>

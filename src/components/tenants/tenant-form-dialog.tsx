@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Plus, X, FileSignature } from 'lucide-react'
@@ -101,7 +101,7 @@ export function TenantFormDialog({ rooms, tenant, onClose, onSave }: Props) {
     : ''
   const [selectedBranch, setSelectedBranch] = useState(initialBranch)
 
-  const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<FormData>({
+  const { register, handleSubmit, setValue, watch, control, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
       fullName: tenant?.fullName ?? '',
@@ -310,7 +310,13 @@ export function TenantFormDialog({ rooms, tenant, onClose, onSave }: Props) {
                 </div>
                 <div className="space-y-1.5">
                   <Label>{t('tenant_form_movein')}</Label>
-                  <DateInput {...register('moveInDate')} />
+                  <Controller
+                    control={control}
+                    name="moveInDate"
+                    render={({ field }) => (
+                      <DateInput value={field.value ?? ''} onChange={(e) => field.onChange(e.target.value)} onBlur={field.onBlur} name={field.name} />
+                    )}
+                  />
                 </div>
                 <div className="space-y-1.5">
                   <Label>{t('tenant_form_rent')}</Label>
@@ -331,7 +337,13 @@ export function TenantFormDialog({ rooms, tenant, onClose, onSave }: Props) {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="space-y-1.5">
                   <Label>{t('tenant_form_contract_start')}</Label>
-                  <DateInput {...register('contractStart')} />
+                  <Controller
+                    control={control}
+                    name="contractStart"
+                    render={({ field }) => (
+                      <DateInput value={field.value ?? ''} onChange={(e) => field.onChange(e.target.value)} onBlur={field.onBlur} name={field.name} />
+                    )}
+                  />
                 </div>
                 <div className="space-y-1.5">
                   <Label>{t('tenant_form_contract_duration')}</Label>
@@ -360,7 +372,13 @@ export function TenantFormDialog({ rooms, tenant, onClose, onSave }: Props) {
                 </div>
                 <div className="space-y-1.5">
                   <Label>{t('tenant_form_contract_end')}</Label>
-                  <DateInput {...register('contractEnd')} />
+                  <Controller
+                    control={control}
+                    name="contractEnd"
+                    render={({ field }) => (
+                      <DateInput value={field.value ?? ''} onChange={(e) => field.onChange(e.target.value)} onBlur={field.onBlur} name={field.name} />
+                    )}
+                  />
                   <p className="text-[10px] text-muted-foreground">{t('tenant_form_contract_end_auto')}</p>
                 </div>
               </div>

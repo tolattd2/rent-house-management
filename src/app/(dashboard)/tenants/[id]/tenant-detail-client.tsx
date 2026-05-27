@@ -21,7 +21,7 @@ import { SortableTh, type SortDir } from '@/components/ui/sortable-th'
 import { TenantFormDialog } from '@/components/tenants/tenant-form-dialog'
 import { GenerateContractDialog } from '@/components/tenants/generate-contract-dialog'
 import { NoticeDialog, type TenantNotice } from '@/components/tenants/notice-dialog'
-import { formatCurrency, formatDate, formatMonth, formatPhones } from '@/lib/utils'
+import { formatCurrency, formatDate, formatGender, formatMonth, formatPhones } from '@/lib/utils'
 import { toast } from '@/hooks/use-toast'
 import { useBack } from '@/hooks/use-back'
 import { useLanguage } from '@/contexts/language-context'
@@ -401,7 +401,7 @@ export function TenantDetailClient({ tenant, rooms }: Props) {
                 </div>
                 <div className="flex items-center gap-2 text-sm">
                   <User className="w-4 h-4 text-muted-foreground" />
-                  <span>{tenant.gender || '—'}</span>
+                  <span>{formatGender(tenant.gender, t)}</span>
                 </div>
                 <div className="flex items-center gap-2 text-sm">
                   <Home className="w-4 h-4 text-muted-foreground" />
@@ -573,7 +573,7 @@ export function TenantDetailClient({ tenant, rooms }: Props) {
             <CardContent className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
               {([
                 [t('tenant_full_name'), tenant.fullName],
-                [t('tenant_gender'), tenant.gender || '—'],
+                [t('tenant_gender'), formatGender(tenant.gender, t)],
                 [t('tenant_age'), tenant.age > 0 ? String(tenant.age) : '—'],
                 [t('tenant_nationality'), tenant.nationality || '—'],
                 [t('settings_phone'), formatPhones(tenant.phone, tenant.phonesExtra) || '—'],

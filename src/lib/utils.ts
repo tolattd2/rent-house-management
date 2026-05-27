@@ -70,6 +70,18 @@ export function formatMonthShort(month: string, lang: FormatLang = 'en'): string
   return date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
 }
 
+/**
+ * Translate a stored gender value (`'Male'` / `'Female'` / `'Other'`) into the
+ * user-facing label via the passed translator. Falls back to the raw value
+ * (or em dash) so non-standard values still render.
+ */
+export function formatGender(gender: string, t: (key: 'tenant_form_male' | 'tenant_form_female' | 'tenant_form_other_gender') => string): string {
+  if (gender === 'Male') return t('tenant_form_male')
+  if (gender === 'Female') return t('tenant_form_female')
+  if (gender === 'Other') return t('tenant_form_other_gender')
+  return gender || '—'
+}
+
 export function currentMonth(): string {
   return new Date().toISOString().slice(0, 7)
 }

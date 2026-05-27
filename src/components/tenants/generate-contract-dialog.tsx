@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button'
 import { RichTextEditor, plainTextToHtml, looksLikeHtml } from '@/components/ui/rich-text-editor'
 import { toast } from '@/hooks/use-toast'
+import { formatGender } from '@/lib/utils'
 import { useLanguage } from '@/contexts/language-context'
 import {
   DEFAULT_AGREEMENT_TEMPLATE,
@@ -242,7 +243,7 @@ export function GenerateContractDialog({ tenantId, vars, onClose, initialText }:
           <div className="font-medium mb-1">{t('contract_gen_autofill_summary')}</div>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-0.5">
             <div>👤 {vars.tenantName || '—'}</div>
-            <div>⚧ {vars.gender || '—'}</div>
+            <div>⚧ {formatGender(vars.gender, t)}</div>
             <div>🎂 {vars.age > 0 ? vars.age : '—'}</div>
             <div>🌐 {vars.nationality || '—'}</div>
             <div>💼 {vars.occupation || '—'}</div>
