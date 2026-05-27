@@ -117,7 +117,11 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
   )
 
   const range = monthRange(monthFrom, monthTo)
-  const filtered = useMemo(() => {
+  // Two filtered views:
+  //  · `filteredNoCategory` — search/month/branch only. Drives the breakdown
+  //    cards so clicking one category doesn't make the other cards disappear.
+  //  · `filtered` — adds the category filter on top, drives the list below.
+  const filteredNoCategory = useMemo(() => {
     return expenses.filter((e) => {
       const q = search.toLowerCase()
       const matchSearch = !q ||
@@ -125,15 +129,19 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
         e.category.toLowerCase().includes(q) ||
         e.paidTo.toLowerCase().includes(q) ||
         (e.room?.roomNumber ?? '').toLowerCase().includes(q)
-      const matchCat = categoryFilter === 'all' || e.category === categoryFilter
       const em = e.expenseDate.slice(0, 7)
       const matchMonth = range
         ? em >= range[0] && em <= range[1]
         : monthFilter === 'all' || e.expenseDate.startsWith(monthFilter)
       const matchBranch = branchFilter === 'all' || e.room?.branch === branchFilter
-      return matchSearch && matchCat && matchMonth && matchBranch
+      return matchSearch && matchMonth && matchBranch
     })
-  }, [expenses, search, categoryFilter, monthFilter, monthFrom, monthTo, range, branchFilter])
+  }, [expenses, search, monthFilter, monthFrom, monthTo, range, branchFilter])
+
+  const filtered = useMemo(() => {
+    if (categoryFilter === 'all') return filteredNoCategory
+    return filteredNoCategory.filter((e) => e.category === categoryFilter)
+  }, [filteredNoCategory, categoryFilter])
 
   const thisMonthTotal = expenses
     .filter((e) => e.expenseDate.startsWith(currentMonth))
@@ -143,9 +151,9 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
 
   const byCategory = useMemo(() => {
     const map: Record<string, number> = {}
-    filtered.forEach((e) => { map[e.category] = (map[e.category] ?? 0) + e.amountUsd })
+    filteredNoCategory.forEach((e) => { map[e.category] = (map[e.category] ?? 0) + e.amountUsd })
     return map
-  }, [filtered])
+  }, [filteredNoCategory])
 
   // Custom categories: user-added via the form's "+ Add" link, persisted to
   // localStorage. Deletes only remove from the dropdown; existing expense
