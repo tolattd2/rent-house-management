@@ -8,6 +8,7 @@ import {
 } from 'recharts'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { TableScroll } from '@/components/ui/table-scroll'
+import { SortableTh, type SortDir } from '@/components/ui/sortable-th'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { MonthRangePicker, monthRange } from '@/components/ui/month-range-picker'
@@ -109,20 +110,39 @@ export function ReportsClient({ billings, expenses }: Props) {
     return Object.entries(map).sort((a, b) => b[1] - a[1])
   }, [monthExpenses])
 
+  // Billing-detail table sort (applied within each branch group).
+  type SortKey = 'room' | 'tenant' | 'month' | 'totalUsd' | 'totalRiel' | 'status'
+  const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({ key: 'room', dir: 'asc' })
+  const toggleSort = (k: SortKey) => setSort((s) => s.key === k ? { key: k, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key: k, dir: 'asc' })
+
   // Group billing-detail rows by branch (rooms inside each branch count up)
   // and cap at 50 items total to keep the preview light.
   const detailGroups = useMemo(() => {
     const all = groupByBranch(monthBillings.map((b) => ({ ...b, roomNumber: b.room?.roomNumber ?? '', branch: b.room?.branch ?? '' })))
-    const out: Array<{ branch: string; items: typeof all[number]['items'] }> = []
+    const sign = sort.dir === 'asc' ? 1 : -1
+    const sortedAll = all.map((g) => ({
+      branch: g.branch,
+      items: [...g.items].sort((a, b) => {
+        switch (sort.key) {
+          case 'room': return sign * a.roomNumber.localeCompare(b.roomNumber)
+          case 'tenant': return sign * (a.tenant?.fullName ?? '').localeCompare(b.tenant?.fullName ?? '')
+          case 'month': return sign * a.billingMonth.localeCompare(b.billingMonth)
+          case 'totalUsd': return sign * (a.totalUsd - b.totalUsd)
+          case 'totalRiel': return sign * (a.totalRiel - b.totalRiel)
+          case 'status': return sign * a.paymentStatus.localeCompare(b.paymentStatus)
+        }
+      }),
+    }))
+    const out: Array<{ branch: string; items: typeof sortedAll[number]['items'] }> = []
     let count = 0
-    for (const g of all) {
+    for (const g of sortedAll) {
       if (count >= 50) break
       const take = Math.min(g.items.length, 50 - count)
       out.push({ branch: g.branch, items: g.items.slice(0, take) })
       count += take
     }
     return out
-  }, [monthBillings])
+  }, [monthBillings, sort])
 
   const handleExport = () => {
     const headers = ['Month', 'Tenant', 'Room', 'Rent', 'Water', 'Electric', 'Penalty', 'Discount', 'Total USD', 'Total KHR', 'Status', 'Payment Date']
@@ -294,12 +314,12 @@ export function ReportsClient({ billings, expenses }: Props) {
           <table className="w-full min-w-[780px] text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/30">
-                <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">{t('room')}</th>
-                <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">{t('tenant')}</th>
-                <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">{t('billing_col_month')}</th>
-                <th className="text-right px-4 py-2.5 text-xs font-medium text-muted-foreground">{t('reports_total_usd')}</th>
-                <th className="text-right px-4 py-2.5 text-xs font-medium text-muted-foreground">{t('reports_total_khr')}</th>
-                <th className="text-center px-4 py-2.5 text-xs font-medium text-muted-foreground">{t('status')}</th>
+                <SortableTh align="left" k="room" label={t('room')} active={sort.key} dir={sort.dir} onSort={toggleSort} />
+                <SortableTh align="left" k="tenant" label={t('tenant')} active={sort.key} dir={sort.dir} onSort={toggleSort} />
+                <SortableTh align="left" k="month" label={t('billing_col_month')} active={sort.key} dir={sort.dir} onSort={toggleSort} />
+                <SortableTh align="right" k="totalUsd" label={t('reports_total_usd')} active={sort.key} dir={sort.dir} onSort={toggleSort} />
+                <SortableTh align="right" k="totalRiel" label={t('reports_total_khr')} active={sort.key} dir={sort.dir} onSort={toggleSort} />
+                <SortableTh align="left" k="status" label={t('status')} active={sort.key} dir={sort.dir} onSort={toggleSort} />
               </tr>
             </thead>
             <tbody>

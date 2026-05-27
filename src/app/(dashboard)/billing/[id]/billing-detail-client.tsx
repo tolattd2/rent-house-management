@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { TableScroll } from '@/components/ui/table-scroll'
+import { SortableTh, type SortDir } from '@/components/ui/sortable-th'
 import { Separator } from '@/components/ui/separator'
 import { PaymentDialog } from '@/components/billing/payment-dialog'
 import { formatCurrency, formatDate } from '@/lib/utils'
@@ -44,6 +45,21 @@ export function BillingDetailClient({ billing }: { billing: Billing }) {
 
   const totalPaid = billing.payments.reduce((s, p) => s + p.amountUsd, 0)
   const balance = Math.max(0, billing.totalUsd - totalPaid)
+
+  // Payment-history sort. Default: createdAt desc (newest first).
+  type SortKey = 'date' | 'method' | 'amountUsd' | 'amountRiel' | 'receivedBy'
+  const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({ key: 'date', dir: 'desc' })
+  const toggleSort = (k: SortKey) => setSort((s) => s.key === k ? { key: k, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key: k, dir: 'asc' })
+  const sortedPayments = [...billing.payments].sort((a, b) => {
+    const sign = sort.dir === 'asc' ? 1 : -1
+    switch (sort.key) {
+      case 'date': return sign * String(a.createdAt).localeCompare(String(b.createdAt))
+      case 'method': return sign * a.paymentMethod.localeCompare(b.paymentMethod)
+      case 'amountUsd': return sign * (a.amountUsd - b.amountUsd)
+      case 'amountRiel': return sign * (a.amountRiel - b.amountRiel)
+      case 'receivedBy': return sign * (a.receivedBy?.name ?? '').localeCompare(b.receivedBy?.name ?? '')
+    }
+  })
 
   const handleDelete = () => {
     triggerDelete({
@@ -164,15 +180,15 @@ export function BillingDetailClient({ billing }: { billing: Billing }) {
             <table className="w-full min-w-[600px] text-sm">
               <thead>
                 <tr className="border-b border-border bg-muted/30">
-                  <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">{t('date')}</th>
-                  <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">{t('method')}</th>
-                  <th className="text-right px-4 py-2.5 text-xs font-medium text-muted-foreground">{t('billing_pay_amount_usd')}</th>
-                  <th className="text-right px-4 py-2.5 text-xs font-medium text-muted-foreground">{t('billing_pay_amount_khr')}</th>
-                  <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">{t('received_by')}</th>
+                  <SortableTh align="left" k="date" label={t('date')} active={sort.key} dir={sort.dir} onSort={toggleSort} />
+                  <SortableTh align="left" k="method" label={t('method')} active={sort.key} dir={sort.dir} onSort={toggleSort} />
+                  <SortableTh align="right" k="amountUsd" label={t('billing_pay_amount_usd')} active={sort.key} dir={sort.dir} onSort={toggleSort} />
+                  <SortableTh align="right" k="amountRiel" label={t('billing_pay_amount_khr')} active={sort.key} dir={sort.dir} onSort={toggleSort} />
+                  <SortableTh align="left" k="receivedBy" label={t('received_by')} active={sort.key} dir={sort.dir} onSort={toggleSort} />
                 </tr>
               </thead>
               <tbody>
-                {billing.payments.map((p) => (
+                {sortedPayments.map((p) => (
                   <tr key={p.id} className="border-b border-border last:border-0 hover:bg-muted/30">
                     <td className="px-4 py-2.5">{new Date(p.createdAt).toLocaleDateString()}</td>
                     <td className="px-4 py-2.5">{p.paymentMethod.replace('_', ' ')}</td>

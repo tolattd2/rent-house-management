@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { toast } from '@/hooks/use-toast'
 import { useLanguage } from '@/contexts/language-context'
 import type { ImportPlan } from '@/lib/data-io/types'
+import { SortableTh, type SortDir } from '@/components/ui/sortable-th'
 
 interface ImportApiResponse {
   ok: boolean
@@ -107,6 +108,19 @@ export function DataIoTab() {
         { create: 0, update: 0, error: 0 },
       )
     : null
+
+  type SortKey = 'sheet' | 'create' | 'update' | 'error'
+  const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({ key: 'sheet', dir: 'asc' })
+  const toggleSort = (k: SortKey) => setSort((s) => s.key === k ? { key: k, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key: k, dir: 'asc' })
+  const sortedSheets = plan ? [...plan.sheets].sort((a, b) => {
+    const sign = sort.dir === 'asc' ? 1 : -1
+    switch (sort.key) {
+      case 'sheet': return sign * a.sheet.localeCompare(b.sheet)
+      case 'create': return sign * (a.create - b.create)
+      case 'update': return sign * (a.update - b.update)
+      case 'error': return sign * (a.error - b.error)
+    }
+  }) : []
 
   return (
     <div className="space-y-4">
@@ -233,18 +247,18 @@ export function DataIoTab() {
               <div className="border border-border rounded-md max-h-72 overflow-y-auto">
                 <table className="w-full text-xs">
                   <thead className="bg-muted/40 sticky top-0">
-                    <tr className="text-left">
-                      <th className="p-2 font-medium">{t('data_io_sheet')}</th>
-                      <th className="p-2 font-medium text-right">{t('data_io_create')}</th>
-                      <th className="p-2 font-medium text-right">{t('data_io_update')}</th>
-                      <th className="p-2 font-medium text-right">{t('data_io_errors')}</th>
+                    <tr>
+                      <SortableTh align="left" k="sheet" label={t('data_io_sheet')} active={sort.key} dir={sort.dir} onSort={toggleSort} />
+                      <SortableTh align="right" k="create" label={t('data_io_create')} active={sort.key} dir={sort.dir} onSort={toggleSort} />
+                      <SortableTh align="right" k="update" label={t('data_io_update')} active={sort.key} dir={sort.dir} onSort={toggleSort} />
+                      <SortableTh align="right" k="error" label={t('data_io_errors')} active={sort.key} dir={sort.dir} onSort={toggleSort} />
                     </tr>
                   </thead>
                   <tbody>
                     {plan.sheets.length === 0 && (
                       <tr><td colSpan={4} className="p-3 text-center text-muted-foreground">{t('data_io_no_rows')}</td></tr>
                     )}
-                    {plan.sheets.map((s) => (
+                    {sortedSheets.map((s) => (
                       <tr key={s.sheet} className="border-t border-border">
                         <td className="p-2">{s.sheet}</td>
                         <td className="p-2 text-right">{s.create}</td>

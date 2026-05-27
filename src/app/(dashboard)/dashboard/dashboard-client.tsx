@@ -11,6 +11,7 @@ import { StatsCard } from '@/components/dashboard/stats-card'
 import { RevenueChart } from '@/components/dashboard/revenue-chart'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { TableScroll } from '@/components/ui/table-scroll'
+import { SortableTh, type SortDir } from '@/components/ui/sortable-th'
 import { Badge } from '@/components/ui/badge'
 import { formatCompact, formatDate, formatMonth, formatMonthShort, formatPhones, groupByBranch, cn } from '@/lib/utils'
 import Link from 'next/link'
@@ -184,15 +185,50 @@ export function DashboardClient({ rooms, tenants, billings, expenses, unpaidBill
     return out
   }
 
-  const unpaidGroups = useMemo(() => limitGroups(
-    groupByBranch(filteredUnpaid.map((b) => ({ ...b, roomNumber: b.room?.roomNumber ?? '', branch: b.room?.branch ?? '' }))),
-    10,
-  ), [filteredUnpaid])
+  // Per-table sort, applied within each branch group.
+  type UnpaidSortKey = 'room' | 'tenant' | 'month' | 'amount' | 'status'
+  const [unpaidSort, setUnpaidSort] = useState<{ key: UnpaidSortKey; dir: SortDir }>({ key: 'room', dir: 'asc' })
+  const toggleUnpaidSort = (k: UnpaidSortKey) => setUnpaidSort((s) => s.key === k ? { key: k, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key: k, dir: 'asc' })
 
-  const noticeGroups = useMemo(() => limitGroups(
-    groupByBranch(filteredNotices.map((n) => ({ ...n, roomNumber: n.tenant?.room?.roomNumber ?? '', branch: n.tenant?.room?.branch ?? '' }))),
-    10,
-  ), [filteredNotices])
+  type NoticeSortKey = 'room' | 'tenant' | 'type' | 'message' | 'expected'
+  const [noticeSort, setNoticeSort] = useState<{ key: NoticeSortKey; dir: SortDir }>({ key: 'expected', dir: 'asc' })
+  const toggleNoticeSort = (k: NoticeSortKey) => setNoticeSort((s) => s.key === k ? { key: k, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key: k, dir: 'asc' })
+
+  const unpaidGroups = useMemo(() => {
+    const sign = unpaidSort.dir === 'asc' ? 1 : -1
+    const groups = groupByBranch(filteredUnpaid.map((b) => ({ ...b, roomNumber: b.room?.roomNumber ?? '', branch: b.room?.branch ?? '' })))
+      .map((g) => ({
+        branch: g.branch,
+        items: [...g.items].sort((a, b) => {
+          switch (unpaidSort.key) {
+            case 'room': return sign * a.roomNumber.localeCompare(b.roomNumber)
+            case 'tenant': return sign * (a.tenant?.fullName ?? '').localeCompare(b.tenant?.fullName ?? '')
+            case 'month': return sign * a.billingMonth.localeCompare(b.billingMonth)
+            case 'amount': return sign * (a.totalUsd - b.totalUsd)
+            case 'status': return sign * a.paymentStatus.localeCompare(b.paymentStatus)
+          }
+        }),
+      }))
+    return limitGroups(groups, 10)
+  }, [filteredUnpaid, unpaidSort])
+
+  const noticeGroups = useMemo(() => {
+    const sign = noticeSort.dir === 'asc' ? 1 : -1
+    const groups = groupByBranch(filteredNotices.map((n) => ({ ...n, roomNumber: n.tenant?.room?.roomNumber ?? '', branch: n.tenant?.room?.branch ?? '' })))
+      .map((g) => ({
+        branch: g.branch,
+        items: [...g.items].sort((a, b) => {
+          switch (noticeSort.key) {
+            case 'room': return sign * a.roomNumber.localeCompare(b.roomNumber)
+            case 'tenant': return sign * (a.tenant?.fullName ?? '').localeCompare(b.tenant?.fullName ?? '')
+            case 'type': return sign * a.type.localeCompare(b.type)
+            case 'message': return sign * a.message.localeCompare(b.message)
+            case 'expected': return sign * (a.expectedDate || '').localeCompare(b.expectedDate || '')
+          }
+        }),
+      }))
+    return limitGroups(groups, 10)
+  }, [filteredNotices, noticeSort])
 
   return (
     <div className="space-y-5 animate-fade-in">
@@ -415,11 +451,11 @@ export function DashboardClient({ rooms, tenants, billings, expenses, unpaidBill
                 <table className="w-full min-w-[600px] text-sm">
                   <thead>
                     <tr className="border-b border-border bg-muted/30">
-                      <th className="text-left px-5 py-2.5 text-xs font-medium text-muted-foreground">{t('room')}</th>
-                      <th className="text-left px-5 py-2.5 text-xs font-medium text-muted-foreground">{t('tenant')}</th>
-                      <th className="text-left px-5 py-2.5 text-xs font-medium text-muted-foreground">{t('billing_col_month')}</th>
-                      <th className="text-right px-5 py-2.5 text-xs font-medium text-muted-foreground">{t('amount')}</th>
-                      <th className="text-right px-5 py-2.5 text-xs font-medium text-muted-foreground">{t('status')}</th>
+                      <SortableTh align="left" k="room" label={t('room')} active={unpaidSort.key} dir={unpaidSort.dir} onSort={toggleUnpaidSort} />
+                      <SortableTh align="left" k="tenant" label={t('tenant')} active={unpaidSort.key} dir={unpaidSort.dir} onSort={toggleUnpaidSort} />
+                      <SortableTh align="left" k="month" label={t('billing_col_month')} active={unpaidSort.key} dir={unpaidSort.dir} onSort={toggleUnpaidSort} />
+                      <SortableTh align="right" k="amount" label={t('amount')} active={unpaidSort.key} dir={unpaidSort.dir} onSort={toggleUnpaidSort} />
+                      <SortableTh align="right" k="status" label={t('status')} active={unpaidSort.key} dir={unpaidSort.dir} onSort={toggleUnpaidSort} />
                     </tr>
                   </thead>
                   <tbody>
@@ -529,11 +565,11 @@ export function DashboardClient({ rooms, tenants, billings, expenses, unpaidBill
                 <table className="w-full min-w-[640px] text-sm">
                   <thead>
                     <tr className="border-b border-border bg-muted/30">
-                      <th className="text-left px-5 py-2.5 text-xs font-medium text-muted-foreground">{t('room')}</th>
-                      <th className="text-left px-5 py-2.5 text-xs font-medium text-muted-foreground">{t('tenant')}</th>
-                      <th className="text-left px-5 py-2.5 text-xs font-medium text-muted-foreground">{t('notice_type')}</th>
-                      <th className="text-left px-5 py-2.5 text-xs font-medium text-muted-foreground">{t('notice_message')}</th>
-                      <th className="text-left px-5 py-2.5 text-xs font-medium text-muted-foreground">{t('notice_expected')}</th>
+                      <SortableTh align="left" k="room" label={t('room')} active={noticeSort.key} dir={noticeSort.dir} onSort={toggleNoticeSort} />
+                      <SortableTh align="left" k="tenant" label={t('tenant')} active={noticeSort.key} dir={noticeSort.dir} onSort={toggleNoticeSort} />
+                      <SortableTh align="left" k="type" label={t('notice_type')} active={noticeSort.key} dir={noticeSort.dir} onSort={toggleNoticeSort} />
+                      <SortableTh align="left" k="message" label={t('notice_message')} active={noticeSort.key} dir={noticeSort.dir} onSort={toggleNoticeSort} />
+                      <SortableTh align="left" k="expected" label={t('notice_expected')} active={noticeSort.key} dir={noticeSort.dir} onSort={toggleNoticeSort} />
                     </tr>
                   </thead>
                   <tbody>
