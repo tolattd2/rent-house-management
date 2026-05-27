@@ -420,26 +420,6 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
         </Card>
       </div>
 
-      {/* Favorites: one-click templates for recurring monthly expenses */}
-      {favorites.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs uppercase font-semibold tracking-wider text-muted-foreground mr-1">
-            ★ {t('expenses_favorites')}
-          </span>
-          {favorites.map((f) => (
-            <div key={f.id} className="inline-flex items-center gap-1 rounded-full border border-border bg-card pl-3 pr-1 py-1 text-xs shadow-sm">
-              <button type="button" onClick={() => applyFavorite(f)} className="font-medium hover:underline">
-                {f.title} <span className="text-muted-foreground">· {formatCurrency(parseFloat(f.amountUsd) || 0)}</span>
-              </button>
-              <button type="button" aria-label="Remove favorite" onClick={() => removeFavorite(f.id)}
-                className="w-5 h-5 inline-flex items-center justify-center rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10">
-                <Trash2 className="w-3 h-3" />
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-
       {/* Category breakdown */}
       {Object.keys(byCategory).length > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
