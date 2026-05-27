@@ -4,7 +4,7 @@ import { X } from 'lucide-react'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { useLanguage } from '@/contexts/language-context'
-import { cn } from '@/lib/utils'
+import { cn, formatMonth } from '@/lib/utils'
 
 interface MonthRangePickerProps {
   months: string[]
@@ -17,7 +17,7 @@ interface MonthRangePickerProps {
 const NONE = '__none__'
 
 export function MonthRangePicker({ months, from, to, onChange, className }: MonthRangePickerProps) {
-  const { t } = useLanguage()
+  const { t, language } = useLanguage()
   return (
     <div className={cn('flex items-center gap-1.5', className)}>
       <Select
@@ -29,7 +29,7 @@ export function MonthRangePicker({ months, from, to, onChange, className }: Mont
         </SelectTrigger>
         <SelectContent>
           <SelectItem value={NONE}>{t('month_from')}</SelectItem>
-          {months.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+          {months.map((m) => <SelectItem key={m} value={m}>{formatMonth(m, language)}</SelectItem>)}
         </SelectContent>
       </Select>
       <span className="text-xs text-muted-foreground select-none">—</span>
@@ -42,7 +42,7 @@ export function MonthRangePicker({ months, from, to, onChange, className }: Mont
         </SelectTrigger>
         <SelectContent>
           <SelectItem value={NONE}>{t('month_to')}</SelectItem>
-          {months.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+          {months.map((m) => <SelectItem key={m} value={m}>{formatMonth(m, language)}</SelectItem>)}
         </SelectContent>
       </Select>
       {(from || to) && (

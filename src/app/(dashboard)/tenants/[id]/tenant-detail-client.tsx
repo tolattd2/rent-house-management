@@ -17,6 +17,7 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { TableScroll } from '@/components/ui/table-scroll'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { SortableTh, type SortDir } from '@/components/ui/sortable-th'
 import { TenantFormDialog } from '@/components/tenants/tenant-form-dialog'
 import { GenerateContractDialog } from '@/components/tenants/generate-contract-dialog'
 import { NoticeDialog, type TenantNotice } from '@/components/tenants/notice-dialog'
@@ -48,7 +49,7 @@ interface Props {
       id: string; billingMonth: string; roomRentUsd: number; waterUsage: number
       waterCostRiel: number; electricUsage: number; electricCostRiel: number
       totalUsd: number; totalRiel: number; paymentStatus: string; paymentDate: string
-      lateDays: number; discountUsd: number; outstandingDebtUsd: number
+      lateDays: number; latePenaltyUsd: number; discountUsd: number; outstandingDebtUsd: number
       payments: Array<{ id: string; amountUsd: number; paymentMethod: string; createdAt: Date }>
     }>
     notifications: Array<{ id: string; type: string; message: string; status: string; createdAt: Date }>
@@ -70,7 +71,7 @@ export function TenantDetailClient({ tenant, rooms }: Props) {
   const goBack = useBack('/tenants')
   const { data: session } = useSession()
   const isAdmin = session?.user?.role === 'admin'
-  const { t } = useLanguage()
+  const { t, language } = useLanguage()
   const roomLabel = useRoomLabel()
   const [showEdit, setShowEdit] = useState(false)
 
@@ -89,6 +90,23 @@ export function TenantDetailClient({ tenant, rooms }: Props) {
   // Which contract row is currently mid-send to the tenant's Telegram chat.
   // Used to drive a per-row loading state on the "Send to Tenant" button.
   const [sendingContractId, setSendingContractId] = useState<string | null>(null)
+
+  // Billing-history sort. Default: month descending (newest first).
+  type BillSortKey = 'billingMonth' | 'roomRentUsd' | 'waterCostRiel' | 'electricCostRiel' | 'latePenaltyUsd' | 'lateDays' | 'totalUsd' | 'paymentStatus'
+  const [billSort, setBillSort] = useState<{ key: BillSortKey; dir: SortDir }>({ key: 'billingMonth', dir: 'desc' })
+  const toggleBillSort = (key: BillSortKey) =>
+    setBillSort((prev) => prev.key === key ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'asc' })
+  // Stable ordering for paid/unpaid/partial when sorting by status.
+  const STATUS_ORDER: Record<string, number> = { unpaid: 0, partial: 1, paid: 2 }
+  const sortedBillings = [...tenant.billings].sort((a, b) => {
+    const { key, dir } = billSort
+    const sign = dir === 'asc' ? 1 : -1
+    if (key === 'billingMonth') return sign * a.billingMonth.localeCompare(b.billingMonth)
+    if (key === 'paymentStatus') return sign * ((STATUS_ORDER[a.paymentStatus] ?? 99) - (STATUS_ORDER[b.paymentStatus] ?? 99))
+    const av = (a[key] as number) ?? 0
+    const bv = (b[key] as number) ?? 0
+    return sign * (av - bv)
+  })
 
   /**
    * Render the saved contract HTML to a real PDF and upload to our
@@ -494,30 +512,38 @@ export function TenantDetailClient({ tenant, rooms }: Props) {
               </Link>
             </div>
             <TableScroll>
-              <table className="w-full min-w-[700px] text-sm">
+              <table className="w-full min-w-[860px] text-sm">
                 <thead>
                   <tr className="border-b border-border bg-muted/30">
-                    <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">{t('billing_col_month')}</th>
-                    <th className="text-right px-4 py-2.5 text-xs font-medium text-muted-foreground">{t('billing_col_rent')}</th>
-                    <th className="text-right px-4 py-2.5 text-xs font-medium text-muted-foreground">{t('water')}</th>
-                    <th className="text-right px-4 py-2.5 text-xs font-medium text-muted-foreground">{t('electric')}</th>
-                    <th className="text-right px-4 py-2.5 text-xs font-medium text-muted-foreground">{t('billing_col_total')}</th>
-                    <th className="text-right px-4 py-2.5 text-xs font-medium text-muted-foreground">{t('status')}</th>
+                    <SortableTh label={t('billing_col_month')} k="billingMonth"     onSort={toggleBillSort} active={billSort.key} dir={billSort.dir} align="left" />
+                    <SortableTh label={t('billing_col_rent')}  k="roomRentUsd"      onSort={toggleBillSort} active={billSort.key} dir={billSort.dir} />
+                    <SortableTh label={t('water')}             k="waterCostRiel"    onSort={toggleBillSort} active={billSort.key} dir={billSort.dir} />
+                    <SortableTh label={t('electric')}          k="electricCostRiel" onSort={toggleBillSort} active={billSort.key} dir={billSort.dir} />
+                    <SortableTh label={t('late_penalty')}      k="latePenaltyUsd"   onSort={toggleBillSort} active={billSort.key} dir={billSort.dir} />
+                    <SortableTh label={t('billing_late')}      k="lateDays"         onSort={toggleBillSort} active={billSort.key} dir={billSort.dir} />
+                    <SortableTh label={t('billing_col_total')} k="totalUsd"         onSort={toggleBillSort} active={billSort.key} dir={billSort.dir} />
+                    <SortableTh label={t('status')}            k="paymentStatus"    onSort={toggleBillSort} active={billSort.key} dir={billSort.dir} />
                     <th className="text-right px-4 py-2.5 text-xs font-medium text-muted-foreground">{t('actions')}</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {tenant.billings.map((bill) => (
+                  {sortedBillings.map((bill) => (
                     <tr key={bill.id} className="border-b border-border last:border-0 hover:bg-muted/30">
-                      <td className="px-4 py-3 font-medium">{bill.billingMonth}</td>
-                      <td className="px-4 py-3 text-right">{formatCurrency(bill.roomRentUsd)}</td>
-                      <td className="px-4 py-3 text-right text-xs">
+                      <td className="px-4 py-3 font-medium tabular-nums">{formatMonth(bill.billingMonth, language)}</td>
+                      <td className="px-4 py-3 text-right tabular-nums">{formatCurrency(bill.roomRentUsd)}</td>
+                      <td className="px-4 py-3 text-right text-xs tabular-nums">
                         {bill.waterUsage} {t('unit_kib')} / {bill.waterCostRiel.toLocaleString()} ៛
                       </td>
-                      <td className="px-4 py-3 text-right text-xs">
+                      <td className="px-4 py-3 text-right text-xs tabular-nums">
                         {bill.electricUsage} {t('unit_kw')} / {bill.electricCostRiel.toLocaleString()} ៛
                       </td>
-                      <td className="px-4 py-3 text-right">
+                      <td className={`px-4 py-3 text-right tabular-nums ${bill.latePenaltyUsd > 0 ? 'text-orange-600' : 'text-muted-foreground'}`}>
+                        {bill.latePenaltyUsd > 0 ? formatCurrency(bill.latePenaltyUsd) : '—'}
+                      </td>
+                      <td className={`px-4 py-3 text-right tabular-nums ${bill.lateDays > 0 ? 'text-red-600 font-medium' : 'text-muted-foreground'}`}>
+                        {bill.lateDays > 0 ? bill.lateDays : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-right tabular-nums">
                         <p className="font-semibold">{formatCurrency(bill.totalUsd)}</p>
                         <p className="text-xs text-muted-foreground">{Math.round(bill.totalRiel).toLocaleString()} ៛</p>
                       </td>
@@ -533,8 +559,8 @@ export function TenantDetailClient({ tenant, rooms }: Props) {
                       </td>
                     </tr>
                   ))}
-                  {tenant.billings.length === 0 && (
-                    <tr><td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">{t('no_billing_records')}</td></tr>
+                  {sortedBillings.length === 0 && (
+                    <tr><td colSpan={9} className="px-4 py-8 text-center text-muted-foreground">{t('no_billing_records')}</td></tr>
                   )}
                 </tbody>
               </table>
