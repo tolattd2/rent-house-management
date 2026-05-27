@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Plus, Search, Wrench, Trash2, Pencil, CheckCircle2, Clock, AlertCircle } from 'lucide-react'
+import { Plus, Search, Wrench, Trash2, Pencil, CheckCircle2, Clock, AlertCircle, Settings } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { Button } from '@/components/ui/button'
@@ -15,6 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { formatCurrency, formatDate, sortRoomsByNumber, cn } from '@/lib/utils'
 import { CARD_STYLES, type CardColor } from '@/lib/card-colors'
 import { toast } from '@/hooks/use-toast'
@@ -154,7 +155,8 @@ export function MaintenanceClient({ records: initial, rooms, tenants }: Props) {
   const [addingCategory, setAddingCategory] = useState(false)
   const [newCategory, setNewCategory] = useState('')
   function commitNewCategory() {
-    const name = newCategory.trim().toLowerCase()
+    // Preserve the user's exact casing.
+    const name = newCategory.trim()
     if (!name) { setAddingCategory(false); return }
     if (!allCategories.includes(name)) {
       const next = [...customCategories, name]
@@ -586,10 +588,36 @@ export function MaintenanceClient({ records: initial, rooms, tenants }: Props) {
                 <div className="flex items-center justify-between">
                   <Label>{t('maintenance_form_category')}</Label>
                   {!addingCategory && (
-                    <button type="button" className="text-xs text-primary hover:underline"
-                      onClick={() => { setNewCategory(''); setAddingCategory(true) }}>
-                      + {t('add')}
-                    </button>
+                    <div className="flex items-center gap-2">
+                      {customCategories.length > 0 && (
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <button type="button" className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-0.5">
+                              <Settings className="w-3.5 h-3.5" /> {t('manage')}
+                            </button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-60 p-2" align="end">
+                            <p className="text-xs font-semibold text-muted-foreground px-1 pb-1">{t('expenses_manage_categories')}</p>
+                            <ul className="space-y-0.5">
+                              {customCategories.map((c) => (
+                                <li key={c} className="flex items-center justify-between text-sm pl-2 pr-1 py-1 rounded hover:bg-muted">
+                                  <span className="capitalize">{c}</span>
+                                  <button type="button" aria-label="Delete category"
+                                    className="w-6 h-6 inline-flex items-center justify-center text-muted-foreground hover:text-destructive"
+                                    onClick={() => deleteCategory(c)}>
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </li>
+                              ))}
+                            </ul>
+                          </PopoverContent>
+                        </Popover>
+                      )}
+                      <button type="button" className="text-xs text-primary hover:underline"
+                        onClick={() => { setNewCategory(''); setAddingCategory(true) }}>
+                        + {t('add')}
+                      </button>
+                    </div>
                   )}
                 </div>
                 {addingCategory ? (
@@ -607,22 +635,9 @@ export function MaintenanceClient({ records: initial, rooms, tenants }: Props) {
                   <Select value={form.category} onValueChange={(v) => setForm((f) => ({ ...f, category: v }))}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {allCategories.map((c) => {
-                        const isCustom = !(CATEGORIES as readonly string[]).includes(c)
-                        return (
-                          <SelectItem key={c} value={c} className={cn('capitalize', isCustom && 'pr-8 relative')}>
-                            {c}
-                            {isCustom && (
-                              <button type="button" aria-label="Delete category"
-                                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-destructive"
-                                onPointerDown={(e) => { e.preventDefault(); e.stopPropagation() }}
-                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); deleteCategory(c) }}>
-                                <Trash2 className="w-3 h-3" />
-                              </button>
-                            )}
-                          </SelectItem>
-                        )
-                      })}
+                      {allCategories.map((c) => (
+                        <SelectItem key={c} value={c} className="capitalize">{c}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 )}

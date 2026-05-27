@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect } from 'react'
 import {
   Plus, Search, TrendingDown, DollarSign, Tag, Calendar,
   Edit, Trash2, Download, Wrench, Zap, Users, Package, FileText, HelpCircle,
+  Settings, Star, X,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -14,6 +15,7 @@ import { TableScroll } from '@/components/ui/table-scroll'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { MonthRangePicker, monthRange } from '@/components/ui/month-range-picker'
 import { Textarea } from '@/components/ui/textarea'
 import { toast } from '@/hooks/use-toast'
@@ -89,9 +91,7 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
   const isAdmin = session?.user?.role === 'admin'
   const canExport = session?.user?.role ? session.user.role !== 'guest' : false
   const { t, language } = useLanguage()
-  // 'general' is a virtual branch for expenses that aren't tied to a room —
-  // i.e. e.room === null. Listed alongside real branches in the filter strip.
-  const branchOptions = ['all', 'general', ...useBranches().map((b) => b.name)]
+  const branchOptions = ['all', ...useBranches().map((b) => b.name)]
   const [expenses, setExpenses] = useState(initialExpenses)
   useEffect(() => { setExpenses(initialExpenses) }, [initialExpenses])
   const [search, setSearch] = usePersistentState('expenses/search', '')
@@ -130,10 +130,7 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
       const matchMonth = range
         ? em >= range[0] && em <= range[1]
         : monthFilter === 'all' || e.expenseDate.startsWith(monthFilter)
-      const matchBranch =
-        branchFilter === 'all' ? true
-        : branchFilter === 'general' ? !e.room?.branch
-        : e.room?.branch === branchFilter
+      const matchBranch = branchFilter === 'all' || e.room?.branch === branchFilter
       return matchSearch && matchCat && matchMonth && matchBranch
     })
   }, [expenses, search, categoryFilter, monthFilter, monthFrom, monthTo, range, branchFilter])
@@ -170,7 +167,9 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
   const [addingCategory, setAddingCategory] = useState(false)
   const [newCategory, setNewCategory] = useState('')
   function commitNewCategory() {
-    const name = newCategory.trim().toLowerCase()
+    // Preserve the user's exact casing — "Internet", "WIFI", "rent" should all
+    // appear as typed in the dropdown and in records.
+    const name = newCategory.trim()
     if (!name) { setAddingCategory(false); return }
     if (!allCategories.includes(name)) {
       const next = [...customCategories, name]
@@ -229,6 +228,20 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
     setFormBranch(f.branch)
     setSaveAsFavorite(false)
     setShowForm(true)
+  }
+  /** Apply a favorite to the currently-open form, preserving the date the
+   *  user already entered. Used by the in-form title dropdown. */
+  function applyFavoriteFields(f: Favorite) {
+    setForm((prev) => ({
+      ...prev,
+      title: f.title,
+      category: f.category,
+      amountUsd: f.amountUsd,
+      paidTo: f.paidTo,
+      notes: f.notes,
+      roomId: f.roomId,
+    }))
+    setFormBranch(f.branch)
   }
   function removeFavorite(id: string) {
     persistFavorites(favorites.filter((f) => f.id !== id))
@@ -456,7 +469,7 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
           <Button key={b} variant={branchFilter === b ? 'default' : 'outline'} size="sm"
             className="h-9 px-3 text-sm"
             onClick={() => setBranchFilter(b)}>
-            {b === 'all' ? t('all_branches') : b === 'general' ? t('settings_general') : b}
+            {b === 'all' ? t('all_branches') : b}
           </Button>
         ))}
         <Select
@@ -622,11 +635,41 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
             <div className="space-y-4">
               <div className="space-y-1.5">
                 <Label>{t('expenses_form_title_label')} *</Label>
-                <Input
-                  placeholder={t('expenses_form_title_placeholder')}
-                  value={form.title}
-                  onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-                />
+                <div className="flex gap-2">
+                  <Input
+                    className="flex-1"
+                    placeholder={t('expenses_form_title_placeholder')}
+                    value={form.title}
+                    onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+                  />
+                  {favorites.length > 0 && (
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button type="button" variant="outline" className="h-10 px-3 gap-1.5" title={t('expenses_favorites')}>
+                          <Star className="w-4 h-4" />
+                          <span className="hidden sm:inline text-xs">{t('expenses_favorites')}</span>
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-72 p-1" align="end">
+                        <p className="text-xs font-semibold text-muted-foreground px-2 py-1.5">{t('expenses_favorites_pick_hint')}</p>
+                        <ul className="max-h-64 overflow-auto">
+                          {favorites.map((f) => (
+                            <li key={f.id}>
+                              <button type="button"
+                                className="w-full text-left flex items-center justify-between gap-2 px-2 py-1.5 rounded hover:bg-muted"
+                                onClick={() => applyFavoriteFields(f)}>
+                                <span className="truncate">{f.title}</span>
+                                <span className="text-xs text-muted-foreground tabular-nums">
+                                  {formatCurrency(parseFloat(f.amountUsd) || 0)}
+                                </span>
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      </PopoverContent>
+                    </Popover>
+                  )}
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -634,10 +677,36 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
                   <div className="flex items-center justify-between">
                     <Label>{t('expenses_form_category_label')}</Label>
                     {!addingCategory && (
-                      <button type="button" className="text-xs text-primary hover:underline"
-                        onClick={() => { setNewCategory(''); setAddingCategory(true) }}>
-                        + {t('add')}
-                      </button>
+                      <div className="flex items-center gap-2">
+                        {customCategories.length > 0 && (
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <button type="button" className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-0.5">
+                                <Settings className="w-3.5 h-3.5" /> {t('manage')}
+                              </button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-60 p-2" align="end">
+                              <p className="text-xs font-semibold text-muted-foreground px-1 pb-1">{t('expenses_manage_categories')}</p>
+                              <ul className="space-y-0.5">
+                                {customCategories.map((c) => (
+                                  <li key={c} className="flex items-center justify-between text-sm pl-2 pr-1 py-1 rounded hover:bg-muted">
+                                    <span>{c}</span>
+                                    <button type="button" aria-label="Delete category"
+                                      className="w-6 h-6 inline-flex items-center justify-center text-muted-foreground hover:text-destructive"
+                                      onClick={() => deleteCategory(c)}>
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  </li>
+                                ))}
+                              </ul>
+                            </PopoverContent>
+                          </Popover>
+                        )}
+                        <button type="button" className="text-xs text-primary hover:underline"
+                          onClick={() => { setNewCategory(''); setAddingCategory(true) }}>
+                          + {t('add')}
+                        </button>
+                      </div>
                     )}
                   </div>
                   {addingCategory ? (
@@ -655,22 +724,9 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
                     <Select value={form.category} onValueChange={(v) => setForm((f) => ({ ...f, category: v }))}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        {allCategories.map((c) => {
-                          const isCustom = !(CATEGORIES as readonly string[]).includes(c)
-                          return (
-                            <SelectItem key={c} value={c} className={isCustom ? 'pr-8 relative' : ''}>
-                              {catLabel(c)}
-                              {isCustom && (
-                                <button type="button" aria-label="Delete category"
-                                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-destructive"
-                                  onPointerDown={(e) => { e.preventDefault(); e.stopPropagation() }}
-                                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); deleteCategory(c) }}>
-                                  <Trash2 className="w-3 h-3" />
-                                </button>
-                              )}
-                            </SelectItem>
-                          )
-                        })}
+                        {allCategories.map((c) => (
+                          <SelectItem key={c} value={c}>{catLabel(c)}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   )}
@@ -715,7 +771,7 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
                   >
                     <SelectTrigger><SelectValue placeholder={t('maintenance_form_branch_placeholder')} /></SelectTrigger>
                     <SelectContent>
-                      {branchOptions.filter((b) => b !== 'all' && b !== 'general').map((b) => (
+                      {branchOptions.filter((b) => b !== 'all').map((b) => (
                         <SelectItem key={b} value={b}>{b}</SelectItem>
                       ))}
                     </SelectContent>
