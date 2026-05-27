@@ -568,9 +568,15 @@ export function MaintenanceClient({ records: initial, rooms, tenants }: Props) {
                 <SelectTrigger><SelectValue placeholder={t('maintenance_form_tenant_placeholder')} /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">{t('none')}</SelectItem>
-                  {tenants.map((t) => (
-                    <SelectItem key={t.id} value={t.id}>{t.fullName}</SelectItem>
-                  ))}
+                  {/* Only the active tenant assigned to the selected room is
+                      offered — picking a stranger here doesn't make sense for
+                      a room-scoped maintenance ticket. */}
+                  {form.roomId && (() => {
+                    const occupant = tenants.find((tn) => tn.roomId === form.roomId)
+                    return occupant ? (
+                      <SelectItem key={occupant.id} value={occupant.id}>{occupant.fullName}</SelectItem>
+                    ) : null
+                  })()}
                 </SelectContent>
               </Select>
             </div>
