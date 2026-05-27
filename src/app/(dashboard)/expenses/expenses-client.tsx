@@ -654,14 +654,19 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
                         <p className="text-xs font-semibold text-muted-foreground px-2 py-1.5">{t('expenses_favorites_pick_hint')}</p>
                         <ul className="max-h-64 overflow-auto">
                           {favorites.map((f) => (
-                            <li key={f.id}>
+                            <li key={f.id} className="flex items-center gap-1 group rounded hover:bg-muted">
                               <button type="button"
-                                className="w-full text-left flex items-center justify-between gap-2 px-2 py-1.5 rounded hover:bg-muted"
+                                className="flex-1 text-left flex items-center justify-between gap-2 px-2 py-1.5"
                                 onClick={() => applyFavoriteFields(f)}>
                                 <span className="truncate">{f.title}</span>
                                 <span className="text-xs text-muted-foreground tabular-nums">
                                   {formatCurrency(parseFloat(f.amountUsd) || 0)}
                                 </span>
+                              </button>
+                              <button type="button" aria-label="Delete favorite"
+                                className="w-6 h-6 mr-1 inline-flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                                onClick={() => removeFavorite(f.id)}>
+                                <Trash2 className="w-3.5 h-3.5" />
                               </button>
                             </li>
                           ))}
