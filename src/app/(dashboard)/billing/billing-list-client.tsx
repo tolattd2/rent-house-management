@@ -16,7 +16,7 @@ import { GenerateMonthlyDialog } from '@/components/billing/generate-monthly-dia
 import { BatchGenerateInvoiceDialog } from '@/components/invoices/batch-generate-dialog'
 import { NoticeDialog } from '@/components/tenants/notice-dialog'
 import { PromiseDialog } from '@/components/invoices/promise-dialog'
-import { formatCurrency, formatCompact, exportToCSV, groupByBranch, cn } from '@/lib/utils'
+import { formatCurrency, formatCompact, formatMonth, exportToCSV, groupByBranch, cn } from '@/lib/utils'
 import { CARD_STYLES } from '@/lib/card-colors'
 import { toast } from '@/hooks/use-toast'
 import { useSession } from 'next-auth/react'
@@ -55,7 +55,7 @@ export function BillingListClient({ billings: initial }: Props) {
   const isAdmin = session?.user?.role === 'admin'
   const canBatch = session?.user?.role ? session.user.role !== 'guest' : false
   const canExport = session?.user?.role ? session.user.role !== 'guest' : false
-  const { t } = useLanguage()
+  const { t, language } = useLanguage()
   const roomLabel = useRoomLabel()
   const [billings, setBillings] = useState(initial)
   useEffect(() => { setBillings(initial) }, [initial])
@@ -239,7 +239,7 @@ export function BillingListClient({ billings: initial }: Props) {
           <SelectTrigger className="w-40 h-9"><SelectValue placeholder={t('billing_all_months')} /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">{t('billing_all_months')}</SelectItem>
-            {months.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+            {months.map((m) => <SelectItem key={m} value={m}>{formatMonth(m, language)}</SelectItem>)}
           </SelectContent>
         </Select>
         <MonthRangePicker months={months} from={monthFrom} to={monthTo}

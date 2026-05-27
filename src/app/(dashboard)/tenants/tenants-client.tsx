@@ -12,7 +12,7 @@ import { Card } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { MonthRangePicker, monthRange } from '@/components/ui/month-range-picker'
 import { TenantFormDialog } from '@/components/tenants/tenant-form-dialog'
-import { formatCurrency, formatDate, formatPhones, groupByBranch, cn } from '@/lib/utils'
+import { formatCurrency, formatDate, formatMonth, formatPhones, groupByBranch, cn } from '@/lib/utils'
 import { CARD_STYLES, type CardColor } from '@/lib/card-colors'
 import { toast } from '@/hooks/use-toast'
 import { useLanguage } from '@/contexts/language-context'
@@ -37,7 +37,7 @@ export function TenantsClient({ tenants: initial, rooms }: Props) {
   const router = useRouter()
   const { data: session } = useSession()
   const isAdmin = session?.user?.role === 'admin'
-  const { t } = useLanguage()
+  const { t, language } = useLanguage()
   const branches = useBranches()
   const roomLabel = useRoomLabel()
   const [tenants, setTenants] = useState(initial)
@@ -236,7 +236,7 @@ export function TenantsClient({ tenants: initial, rooms }: Props) {
           <SelectTrigger className="w-40 h-9"><SelectValue placeholder={t('billing_all_months')} /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">{t('billing_all_months')}</SelectItem>
-            {months.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+            {months.map((m) => <SelectItem key={m} value={m}>{formatMonth(m, language)}</SelectItem>)}
           </SelectContent>
         </Select>
         <MonthRangePicker months={months} from={monthFrom} to={monthTo}

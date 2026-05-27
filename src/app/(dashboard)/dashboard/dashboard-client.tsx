@@ -12,7 +12,7 @@ import { RevenueChart } from '@/components/dashboard/revenue-chart'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { TableScroll } from '@/components/ui/table-scroll'
 import { Badge } from '@/components/ui/badge'
-import { formatCompact, formatDate, formatMonth, formatPhones, groupByBranch, cn } from '@/lib/utils'
+import { formatCompact, formatDate, formatMonth, formatMonthShort, formatPhones, groupByBranch, cn } from '@/lib/utils'
 import Link from 'next/link'
 import { useLanguage } from '@/contexts/language-context'
 import { useBranches, useRoomLabel } from '@/contexts/branches-context'
@@ -60,7 +60,7 @@ function trendLabel(current: number, prev: number, suffix: string): { label: str
 }
 
 export function DashboardClient({ rooms, tenants, billings, expenses, unpaidBillings, openNotices }: Props) {
-  const { t } = useLanguage()
+  const { t, language } = useLanguage()
   const branchList = useBranches()
   const roomLabel = useRoomLabel()
   const { data: session } = useSession()
@@ -134,7 +134,7 @@ export function DashboardClient({ rooms, tenants, billings, expenses, unpaidBill
         .reduce((s, e) => s + e.amountUsd, 0)
       return {
         month: m,
-        label: d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
+        label: formatMonthShort(m, language),
         revenue: parseFloat(rev.toFixed(2)),
         expenses: parseFloat(exp.toFixed(2)),
       }
@@ -163,7 +163,7 @@ export function DashboardClient({ rooms, tenants, billings, expenses, unpaidBill
       unpaidBillings: monthBillings.filter(b => b.paymentStatus !== 'paid').length,
       revenueChart: chart,
     }
-  }, [filteredRooms, filteredTenants, filteredBillings, filteredExpenses, currentMonth])
+  }, [filteredRooms, filteredTenants, filteredBillings, filteredExpenses, currentMonth, language])
 
   const collectionRate = stats.paidBillings + stats.unpaidBillings > 0
     ? Math.round((stats.paidBillings / (stats.paidBillings + stats.unpaidBillings)) * 100)
@@ -201,7 +201,7 @@ export function DashboardClient({ rooms, tenants, billings, expenses, unpaidBill
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">{t('dashboard_title')}</h1>
-          <p className="text-muted-foreground text-sm mt-0.5">{formatMonth(currentMonth)} {t('overview')}</p>
+          <p className="text-muted-foreground text-sm mt-0.5">{formatMonth(currentMonth, language)} {t('overview')}</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <div className="flex items-center bg-muted rounded-lg p-1 gap-0.5">

@@ -4,7 +4,7 @@ import { Fragment, useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Search, FileText, Printer, Trash2, CalendarClock, Bell } from 'lucide-react'
-import { formatCurrency, groupByBranch, cn } from '@/lib/utils'
+import { formatCurrency, formatMonth, groupByBranch, cn } from '@/lib/utils'
 import { CARD_STYLES } from '@/lib/card-colors'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
@@ -44,7 +44,7 @@ interface Props {
 
 export function InvoicesClient({ invoices: initial }: Props) {
   const router = useRouter()
-  const { t } = useLanguage()
+  const { t, language } = useLanguage()
   const { data: session } = useSession()
   const isAdmin = session?.user?.role === 'admin'
   const canPrint = session?.user?.role ? session.user.role !== 'guest' : false
@@ -217,7 +217,7 @@ export function InvoicesClient({ invoices: initial }: Props) {
           <SelectTrigger className="w-40 h-9"><SelectValue placeholder={t('billing_all_months')} /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">{t('billing_all_months')}</SelectItem>
-            {months.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+            {months.map((m) => <SelectItem key={m} value={m}>{formatMonth(m, language)}</SelectItem>)}
           </SelectContent>
         </Select>
         <MonthRangePicker months={months} from={monthFrom} to={monthTo}

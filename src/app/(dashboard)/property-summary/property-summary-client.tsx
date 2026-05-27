@@ -67,7 +67,7 @@ type SortKey =
 const CARD_CYCLE: CardColor[] = ['blue', 'green', 'purple', 'orange', 'cyan', 'pink', 'indigo', 'amber']
 
 export function PropertySummaryClient({ rooms, tenants, billings, expenses, maintenance, settings }: Props) {
-  const { t } = useLanguage()
+  const { t, language } = useLanguage()
   const branches = useBranches()
   const currentMonth = new Date().toISOString().slice(0, 7)
   const [month, setMonth] = usePersistentState('property/month', currentMonth)
@@ -196,8 +196,8 @@ export function PropertySummaryClient({ rooms, tenants, billings, expenses, main
           <h1 className="text-2xl font-bold tracking-tight">{t('property_summary_title')}</h1>
           <p className="text-muted-foreground text-sm mt-0.5">
             {t('property_summary_subtitle')} · {range
-              ? `${formatMonth(range[0])} – ${formatMonth(range[1])}`
-              : month === 'all' ? t('billing_all_months') : formatMonth(month)}
+              ? `${formatMonth(range[0], language)} – ${formatMonth(range[1], language)}`
+              : month === 'all' ? t('billing_all_months') : formatMonth(month, language)}
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -205,7 +205,7 @@ export function PropertySummaryClient({ rooms, tenants, billings, expenses, main
             <SelectTrigger className="w-40 h-9"><SelectValue placeholder={t('billing_all_months')} /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">{t('billing_all_months')}</SelectItem>
-              {months.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+              {months.map((m) => <SelectItem key={m} value={m}>{formatMonth(m, language)}</SelectItem>)}
             </SelectContent>
           </Select>
           <MonthRangePicker months={months} from={monthFrom} to={monthTo}

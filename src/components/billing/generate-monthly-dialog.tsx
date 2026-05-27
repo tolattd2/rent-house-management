@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from '@/hooks/use-toast'
+import { useLanguage } from '@/contexts/language-context'
+import { formatMonth, type FormatLang } from '@/lib/utils'
 
 interface Props {
   branches: string[]
@@ -14,20 +16,20 @@ interface Props {
   onGenerated: (month: string) => void
 }
 
-function getMonthOptions(): { value: string; label: string; isUpcoming: boolean }[] {
+function getMonthOptions(lang: FormatLang): { value: string; label: string; isUpcoming: boolean }[] {
   const options = []
   const now = new Date()
   for (let offset = -2; offset <= 3; offset++) {
     const d = new Date(now.getFullYear(), now.getMonth() + offset, 1)
     const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-    const label = d.toLocaleDateString('en-US', { year: 'numeric', month: 'long' })
-    options.push({ value, label, isUpcoming: offset > 0 })
+    options.push({ value, label: formatMonth(value, lang), isUpcoming: offset > 0 })
   }
   return options
 }
 
 export function GenerateMonthlyDialog({ branches, onClose, onGenerated }: Props) {
-  const monthOptions = getMonthOptions()
+  const { language } = useLanguage()
+  const monthOptions = getMonthOptions(language)
   // Default to next month (upcoming)
   const defaultMonth = monthOptions.find((m) => m.isUpcoming)?.value ?? monthOptions[2].value
 

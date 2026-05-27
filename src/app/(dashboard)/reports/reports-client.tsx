@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { MonthRangePicker, monthRange } from '@/components/ui/month-range-picker'
 import { Badge } from '@/components/ui/badge'
-import { formatCurrency, exportToCSV, groupByBranch, cn } from '@/lib/utils'
+import { formatCurrency, formatMonth, formatMonthShort, exportToCSV, groupByBranch, cn } from '@/lib/utils'
 import { CARD_STYLES } from '@/lib/card-colors'
 import { Download, TrendingDown } from 'lucide-react'
 import { useLanguage } from '@/contexts/language-context'
@@ -40,7 +40,7 @@ interface Props { billings: Billing[]; expenses: Expense[] }
 export function ReportsClient({ billings, expenses }: Props) {
   const { data: session } = useSession()
   const canExport = session?.user?.role ? session.user.role !== 'guest' : false
-  const { t } = useLanguage()
+  const { t, language } = useLanguage()
   const roomLabel = useRoomLabel()
   const branchOptions = ['all', ...useBranches().map((b) => b.name)]
   const latestReportMonth = [...new Set(billings.map((b) => b.billingMonth))].sort().reverse()[0] ?? 'all'
@@ -62,7 +62,7 @@ export function ReportsClient({ billings, expenses }: Props) {
     return Array.from({ length: 12 }, (_, i) => {
       const d = new Date(now.getFullYear(), now.getMonth() - (11 - i), 1)
       const m = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-      const label = d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
+      const label = formatMonthShort(m, language)
       const rev = branchBillings.filter((b) => b.billingMonth === m && b.paymentStatus === 'paid').reduce((s, b) => s + b.totalUsd, 0)
       const out = branchBillings.filter((b) => b.billingMonth === m && b.paymentStatus !== 'paid')
         .reduce((s, b) => {
@@ -72,7 +72,7 @@ export function ReportsClient({ billings, expenses }: Props) {
       const exp = branchExpenses.filter((e) => e.expenseDate.startsWith(m)).reduce((s, e) => s + e.amountUsd, 0)
       return { month: m, label, revenue: parseFloat(rev.toFixed(2)), outstanding: parseFloat(out.toFixed(2)), expenses: parseFloat(exp.toFixed(2)) }
     })
-  }, [branchBillings, branchExpenses])
+  }, [branchBillings, branchExpenses, language])
 
   // "All months" totals up to the current month — future-dated records are excluded
   // so a stray date in next month can't inflate lifetime totals.
@@ -161,7 +161,7 @@ export function ReportsClient({ billings, expenses }: Props) {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">{t('billing_all_months')}</SelectItem>
-              {months.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+              {months.map((m) => <SelectItem key={m} value={m}>{formatMonth(m, language)}</SelectItem>)}
             </SelectContent>
           </Select>
           <MonthRangePicker months={months} from={monthFrom} to={monthTo}

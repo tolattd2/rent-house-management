@@ -37,11 +37,33 @@ export function formatDate(dateStr: string): string {
   }
 }
 
-export function formatMonth(month: string): string {
+// Khmer month names — there's no widely-used 3-letter abbreviation form, so
+// the short formatter below uses the same names with a 2-digit year suffix.
+const KHMER_MONTHS = [
+  'មករា', 'កុម្ភៈ', 'មីនា', 'មេសា', 'ឧសភា', 'មិថុនា',
+  'កក្កដា', 'សីហា', 'កញ្ញា', 'តុលា', 'វិច្ឆិកា', 'ធ្នូ',
+] as const
+
+export type FormatLang = 'en' | 'kh'
+
+export function formatMonth(month: string, lang: FormatLang = 'en'): string {
   if (!month) return '—'
   const [year, m] = month.split('-')
-  const date = new Date(parseInt(year), parseInt(m) - 1, 1)
+  const idx = parseInt(m) - 1
+  if (lang === 'kh') return `${KHMER_MONTHS[idx]} ${year}`
+  const date = new Date(parseInt(year), idx, 1)
   return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long' })
+}
+
+/** Chart-axis-friendly short form, e.g. "Jan 24" / "មករា 24". */
+export function formatMonthShort(month: string, lang: FormatLang = 'en'): string {
+  if (!month) return '—'
+  const [year, m] = month.split('-')
+  const idx = parseInt(m) - 1
+  const yy = year.slice(-2)
+  if (lang === 'kh') return `${KHMER_MONTHS[idx]} ${yy}`
+  const date = new Date(parseInt(year), idx, 1)
+  return date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
 }
 
 export function currentMonth(): string {
