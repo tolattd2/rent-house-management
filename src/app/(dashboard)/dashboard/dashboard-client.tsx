@@ -53,10 +53,10 @@ const BRANCH_CHIP_COLORS = [
   'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400',
 ]
 
-function trendLabel(current: number, prev: number): { label: string; up: boolean } | undefined {
+function trendLabel(current: number, prev: number, suffix: string): { label: string; up: boolean } | undefined {
   if (prev === 0) return undefined
   const pct = ((current - prev) / prev) * 100
-  return { label: `${Math.abs(pct).toFixed(1)}% vs last month`, up: pct >= 0 }
+  return { label: `${Math.abs(pct).toFixed(1)}% ${suffix}`, up: pct >= 0 }
 }
 
 export function DashboardClient({ rooms, tenants, billings, expenses, unpaidBillings, openNotices }: Props) {
@@ -216,7 +216,7 @@ export function DashboardClient({ rooms, tenants, billings, expenses, unpaidBill
                     : 'text-muted-foreground hover:text-foreground'
                 )}
               >
-                {b === 'all' ? 'All' : b}
+                {b === 'all' ? t('all_branches') : b}
               </button>
             ))}
           </div>
@@ -240,7 +240,7 @@ export function DashboardClient({ rooms, tenants, billings, expenses, unpaidBill
           icon={DollarSign}
           color="green"
           index={0}
-          trend={trendLabel(stats.monthlyRevenue, stats.prevRevenue)}
+          trend={trendLabel(stats.monthlyRevenue, stats.prevRevenue, t('dashboard_vs_last_month'))}
         />
         <StatsCard
           title={t('dashboard_outstanding')}
@@ -249,7 +249,7 @@ export function DashboardClient({ rooms, tenants, billings, expenses, unpaidBill
           icon={AlertTriangle}
           color="red"
           index={1}
-          trend={stats.overdueCount > 0 ? { label: `${stats.overdueCount} overdue`, up: false } : undefined}
+          trend={stats.overdueCount > 0 ? { label: `${stats.overdueCount} ${t('dashboard_overdue')}`, up: false } : undefined}
         />
         <StatsCard
           title={t('dashboard_active_tenants')}
@@ -258,12 +258,12 @@ export function DashboardClient({ rooms, tenants, billings, expenses, unpaidBill
           icon={Users}
           color="blue"
           index={2}
-          trend={{ label: `${stats.occupancyRate}% occupancy`, up: stats.occupancyRate >= 80 }}
+          trend={{ label: `${stats.occupancyRate}% ${t('dashboard_occupancy_pct')}`, up: stats.occupancyRate >= 80 }}
         />
         <StatsCard
           title={t('dashboard_total_rooms')}
           value={stats.totalRooms}
-          subtitle={`${stats.occupied} occupied · ${stats.vacant} vacant`}
+          subtitle={`${stats.occupied} ${t('dashboard_occupied')} · ${stats.vacant} ${t('dashboard_vacant')}`}
           icon={Building2}
           color="purple"
           index={3}
@@ -275,8 +275,8 @@ export function DashboardClient({ rooms, tenants, billings, expenses, unpaidBill
           icon={TrendingDown}
           color="orange"
           index={4}
-          trend={trendLabel(stats.monthlyExpenses, stats.prevExpenses) && {
-            ...trendLabel(stats.monthlyExpenses, stats.prevExpenses)!,
+          trend={trendLabel(stats.monthlyExpenses, stats.prevExpenses, t('dashboard_vs_last_month')) && {
+            ...trendLabel(stats.monthlyExpenses, stats.prevExpenses, t('dashboard_vs_last_month'))!,
             up: (stats.monthlyExpenses <= stats.prevExpenses),
           }}
         />
@@ -287,7 +287,7 @@ export function DashboardClient({ rooms, tenants, billings, expenses, unpaidBill
           icon={TrendingUp}
           color={stats.netIncome >= 0 ? 'green' : 'red'}
           index={5}
-          trend={trendLabel(stats.netIncome, stats.prevNetIncome)}
+          trend={trendLabel(stats.netIncome, stats.prevNetIncome, t('dashboard_vs_last_month'))}
         />
       </div>
 

@@ -748,6 +748,9 @@ export const translations = {
     common_any_notes_ph: 'Any notes…',
     common_all_months: 'All months',
     invoices_search_ph: 'Search tenant, invoice #, room, month…',
+    // Dashboard subtitles / trend labels
+    dashboard_vs_last_month: 'vs last month',
+    dashboard_overdue: 'overdue',
     invoice_payment_qr: 'Payment QR Codes',
     // Tenant notices
     notice_tab: 'Notices',
@@ -1541,6 +1544,9 @@ export const translations = {
     common_any_notes_ph: 'កំណត់ចំណាំ (បើមាន)…',
     common_all_months: 'គ្រប់ខែ',
     invoices_search_ph: 'ស្វែងរកអ្នកជួល លេខវិក្កយបត្រ បន្ទប់ ឬខែ…',
+    // Dashboard subtitles / trend labels
+    dashboard_vs_last_month: 'ធៀបជាមួយខែមុន',
+    dashboard_overdue: 'ហួសកំណត់',
     invoice_payment_qr: 'QR Code សម្រាប់ការទូទាត់',
     // Tenant notices
     notice_tab: 'ដំណឹង',
