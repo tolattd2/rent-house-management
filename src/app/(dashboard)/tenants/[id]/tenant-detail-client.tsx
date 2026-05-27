@@ -409,7 +409,7 @@ export function TenantDetailClient({ tenant, rooms }: Props) {
                 </div>
                 <div className="flex items-center gap-2 text-sm">
                   <Calendar className="w-4 h-4 text-muted-foreground" />
-                  <span>{t('since')} {formatDate(tenant.moveInDate)}</span>
+                  <span>{t('since')} {formatDate(tenant.moveInDate, language)}</span>
                 </div>
               </div>
             </div>
@@ -581,8 +581,8 @@ export function TenantDetailClient({ tenant, rooms }: Props) {
                 [t('tenant_emergency_name'), tenant.emergencyName || tenant.emergencyContact || '—'],
                 [t('tenant_emergency_phone'), tenant.emergencyPhone || '—'],
                 [t('tenant_occupation'), tenant.occupation || '—'],
-                [t('tenants_col_movein'), formatDate(tenant.moveInDate)],
-                [t('tenants_col_moveout'), tenant.moveOutDate ? formatDate(tenant.moveOutDate) : '—'],
+                [t('tenants_col_movein'), formatDate(tenant.moveInDate, language)],
+                [t('tenants_col_moveout'), tenant.moveOutDate ? formatDate(tenant.moveOutDate, language) : '—'],
                 [t('tenant_deposit_paid'), formatCurrency(tenant.depositAmount)],
                 [t('notes'), tenant.notes || '—'],
               ] as [string, string][]).map(([label, value]) => (

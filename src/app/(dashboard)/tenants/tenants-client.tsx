@@ -286,7 +286,7 @@ export function TenantsClient({ tenants: initial, rooms }: Props) {
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">{t('tenants_col_movein')}</p>
-                  <p>{formatDate(tenant.moveInDate)}</p>
+                  <p>{formatDate(tenant.moveInDate, language)}</p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">{t('tenants_col_outstanding')}</p>

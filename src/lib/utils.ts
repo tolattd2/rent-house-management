@@ -24,18 +24,7 @@ export function formatNumber(n: number): string {
   return new Intl.NumberFormat('en-US').format(n)
 }
 
-export function formatDate(dateStr: string): string {
-  if (!dateStr) return '—'
-  try {
-    return new Date(dateStr).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    })
-  } catch {
-    return dateStr
-  }
-}
+export type FormatLang = 'en' | 'kh'
 
 // Khmer month names — there's no widely-used 3-letter abbreviation form, so
 // the short formatter below uses the same names with a 2-digit year suffix.
@@ -44,7 +33,22 @@ const KHMER_MONTHS = [
   'កក្កដា', 'សីហា', 'កញ្ញា', 'តុលា', 'វិច្ឆិកា', 'ធ្នូ',
 ] as const
 
-export type FormatLang = 'en' | 'kh'
+export function formatDate(dateStr: string, lang: FormatLang = 'en'): string {
+  if (!dateStr) return '—'
+  try {
+    const date = new Date(dateStr)
+    if (lang === 'kh') {
+      return `${date.getDate()} ${KHMER_MONTHS[date.getMonth()]} ${date.getFullYear()}`
+    }
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    })
+  } catch {
+    return dateStr
+  }
+}
 
 export function formatMonth(month: string, lang: FormatLang = 'en'): string {
   if (!month) return '—'
