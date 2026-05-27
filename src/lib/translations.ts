@@ -1031,7 +1031,7 @@ export const translations = {
     ps_financial: 'ការប្រៀបធៀបហិរញ្ញវត្ថុ',
     ps_profile: 'ប្រវត្តិអចលនទ្រព្យ',
     ps_open_maintenance: 'ការជួសជុលមិនទាន់រួច',
-    ps_all_time_tenants: 'អ្នករស់នៅសរុប',
+    ps_all_time_tenants: 'ភ្ញៀវធ្លាប់ស្នាក់នៅសរុប',
     ps_no_branches: 'មិនទាន់មានអចលនទ្រព្យ',
     // Notifications
     notifications_title: 'ការជូនដំណឹង',
