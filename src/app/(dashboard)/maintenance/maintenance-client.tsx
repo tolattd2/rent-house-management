@@ -85,6 +85,7 @@ export function MaintenanceClient({ records: initial, rooms, tenants }: Props) {
   const [search, setSearch] = usePersistentState('maintenance/search', '')
   const [statusFilter, setStatusFilter] = usePersistentState('maintenance/status', 'all')
   const [branchFilter, setBranchFilter] = usePersistentState('maintenance/branch', 'all')
+  const [categoryFilter, setCategoryFilter] = usePersistentState('maintenance/category', 'all')
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<MaintenanceRecord | null>(null)
   const [form, setForm] = useState(emptyForm)
@@ -99,7 +100,8 @@ export function MaintenanceClient({ records: initial, rooms, tenants }: Props) {
       r.category.toLowerCase().includes(search.toLowerCase())
     const matchStatus = statusFilter === 'all' || r.status === statusFilter
     const matchBranch = branchFilter === 'all' || r.room?.branch === branchFilter
-    return matchSearch && matchStatus && matchBranch
+    const matchCat = categoryFilter === 'all' || r.category === categoryFilter
+    return matchSearch && matchStatus && matchBranch && matchCat
   })
 
   const totalFee = filtered.reduce((s, r) => s + r.repairFeeUsd, 0)
@@ -143,6 +145,13 @@ export function MaintenanceClient({ records: initial, rooms, tenants }: Props) {
     setForm((f) => ({ ...f, category: name }))
     setNewCategory('')
     setAddingCategory(false)
+  }
+  function deleteCategory(c: string) {
+    if ((CATEGORIES as readonly string[]).includes(c)) return
+    const next = customCategories.filter((x) => x !== c)
+    setCustomCategories(next)
+    try { localStorage.setItem(CATEGORIES_STORAGE, JSON.stringify(next)) } catch { /* ignore */ }
+    if (form.category === c) setForm((f) => ({ ...f, category: 'general' }))
   }
 
   function openNew() {
@@ -338,6 +347,17 @@ export function MaintenanceClient({ records: initial, rooms, tenants }: Props) {
             {b === 'all' ? t('all_branches') : b}
           </Button>
         ))}
+        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+          <SelectTrigger className="w-40 h-9">
+            <SelectValue placeholder={t('maintenance_form_category')} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{t('all')}</SelectItem>
+            {allCategories.map((c) => (
+              <SelectItem key={c} value={c} className="capitalize">{c}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <p className="text-sm text-muted-foreground ml-auto">
           {t('maintenance_total_fees')} <span className="font-semibold text-foreground">{formatCurrency(totalFee)}</span>
         </p>
@@ -562,9 +582,22 @@ export function MaintenanceClient({ records: initial, rooms, tenants }: Props) {
                   <Select value={form.category} onValueChange={(v) => setForm((f) => ({ ...f, category: v }))}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {allCategories.map((c) => (
-                        <SelectItem key={c} value={c} className="capitalize">{c}</SelectItem>
-                      ))}
+                      {allCategories.map((c) => {
+                        const isCustom = !(CATEGORIES as readonly string[]).includes(c)
+                        return (
+                          <SelectItem key={c} value={c} className={cn('capitalize', isCustom && 'pr-8 relative')}>
+                            {c}
+                            {isCustom && (
+                              <button type="button" aria-label="Delete category"
+                                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-destructive"
+                                onPointerDown={(e) => { e.preventDefault(); e.stopPropagation() }}
+                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); deleteCategory(c) }}>
+                                <Trash2 className="w-3 h-3" />
+                              </button>
+                            )}
+                          </SelectItem>
+                        )
+                      })}
                     </SelectContent>
                   </Select>
                 )}

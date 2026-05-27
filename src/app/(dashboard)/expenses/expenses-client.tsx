@@ -89,7 +89,9 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
   const isAdmin = session?.user?.role === 'admin'
   const canExport = session?.user?.role ? session.user.role !== 'guest' : false
   const { t, language } = useLanguage()
-  const branchOptions = ['all', ...useBranches().map((b) => b.name)]
+  // 'general' is a virtual branch for expenses that aren't tied to a room —
+  // i.e. e.room === null. Listed alongside real branches in the filter strip.
+  const branchOptions = ['all', 'general', ...useBranches().map((b) => b.name)]
   const [expenses, setExpenses] = useState(initialExpenses)
   useEffect(() => { setExpenses(initialExpenses) }, [initialExpenses])
   const [search, setSearch] = usePersistentState('expenses/search', '')
@@ -128,7 +130,10 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
       const matchMonth = range
         ? em >= range[0] && em <= range[1]
         : monthFilter === 'all' || e.expenseDate.startsWith(monthFilter)
-      const matchBranch = branchFilter === 'all' || e.room?.branch === branchFilter
+      const matchBranch =
+        branchFilter === 'all' ? true
+        : branchFilter === 'general' ? !e.room?.branch
+        : e.room?.branch === branchFilter
       return matchSearch && matchCat && matchMonth && matchBranch
     })
   }, [expenses, search, categoryFilter, monthFilter, monthFrom, monthTo, range, branchFilter])
@@ -146,9 +151,9 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
   }, [filtered])
 
   // Custom categories: user-added via the form's "+ Add" link, persisted to
-  // localStorage so they survive reloads without a backend. We also union in
-  // any categories that already appear on existing expense records so the
-  // dropdown stays correct after a localStorage wipe / cross-device login.
+  // localStorage. Deletes only remove from the dropdown; existing expense
+  // records keep their saved category string so the breakdown / list can
+  // still render them (just without re-listing in the picker).
   const CATEGORIES_STORAGE = 'expenses/custom-categories'
   const [customCategories, setCustomCategories] = useState<string[]>([])
   useEffect(() => {
@@ -159,12 +164,9 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
   }, [])
   const allCategories = useMemo(() => {
     const built = new Set<string>(CATEGORIES)
-    const extras = [
-      ...customCategories,
-      ...expenses.map((e) => e.category),
-    ].filter((c) => c && !built.has(c))
+    const extras = customCategories.filter((c) => c && !built.has(c))
     return [...CATEGORIES, ...Array.from(new Set(extras))]
-  }, [customCategories, expenses])
+  }, [customCategories])
   const [addingCategory, setAddingCategory] = useState(false)
   const [newCategory, setNewCategory] = useState('')
   function commitNewCategory() {
@@ -178,6 +180,13 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
     setForm((f) => ({ ...f, category: name }))
     setNewCategory('')
     setAddingCategory(false)
+  }
+  function deleteCategory(c: string) {
+    if ((CATEGORIES as readonly string[]).includes(c)) return
+    const next = customCategories.filter((x) => x !== c)
+    setCustomCategories(next)
+    try { localStorage.setItem(CATEGORIES_STORAGE, JSON.stringify(next)) } catch { /* ignore */ }
+    if (form.category === c) setForm((f) => ({ ...f, category: 'other' }))
   }
 
   function openAdd() {
@@ -333,7 +342,7 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
       {/* Category breakdown */}
       {Object.keys(byCategory).length > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-          {allCategories.filter((c) => byCategory[c]).map((cat) => {
+          {Object.keys(byCategory).map((cat) => {
             const Icon = categoryIcon[cat] ?? HelpCircle
             return (
               <button
@@ -367,7 +376,7 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
           <Button key={b} variant={branchFilter === b ? 'default' : 'outline'} size="sm"
             className="h-9 px-3 text-sm"
             onClick={() => setBranchFilter(b)}>
-            {b === 'all' ? t('all_branches') : b}
+            {b === 'all' ? t('all_branches') : b === 'general' ? t('settings_general') : b}
           </Button>
         ))}
         <Select
@@ -566,9 +575,22 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
                     <Select value={form.category} onValueChange={(v) => setForm((f) => ({ ...f, category: v }))}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        {allCategories.map((c) => (
-                          <SelectItem key={c} value={c}>{catLabel(c)}</SelectItem>
-                        ))}
+                        {allCategories.map((c) => {
+                          const isCustom = !(CATEGORIES as readonly string[]).includes(c)
+                          return (
+                            <SelectItem key={c} value={c} className={isCustom ? 'pr-8 relative' : ''}>
+                              {catLabel(c)}
+                              {isCustom && (
+                                <button type="button" aria-label="Delete category"
+                                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-destructive"
+                                  onPointerDown={(e) => { e.preventDefault(); e.stopPropagation() }}
+                                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); deleteCategory(c) }}>
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
+                              )}
+                            </SelectItem>
+                          )
+                        })}
                       </SelectContent>
                     </Select>
                   )}
@@ -613,7 +635,7 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
                   >
                     <SelectTrigger><SelectValue placeholder={t('maintenance_form_branch_placeholder')} /></SelectTrigger>
                     <SelectContent>
-                      {branchOptions.filter((b) => b !== 'all').map((b) => (
+                      {branchOptions.filter((b) => b !== 'all' && b !== 'general').map((b) => (
                         <SelectItem key={b} value={b}>{b}</SelectItem>
                       ))}
                     </SelectContent>
