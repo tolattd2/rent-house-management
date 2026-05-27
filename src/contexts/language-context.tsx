@@ -15,6 +15,10 @@ const LanguageContext = createContext<LanguageContextValue>({
   t: (key) => key,
 })
 
+// Native date/time pickers and other browser UI read the document `lang`
+// attribute (BCP-47). Khmer is `km`, not our internal `kh` slug.
+const BCP47: Record<Language, string> = { en: 'en', kh: 'km' }
+
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const [language, setLanguageState] = useState<Language>('en')
 
@@ -22,6 +26,10 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     const stored = localStorage.getItem('lang') as Language | null
     if (stored === 'en' || stored === 'kh') setLanguageState(stored)
   }, [])
+
+  useEffect(() => {
+    document.documentElement.lang = BCP47[language]
+  }, [language])
 
   function setLanguage(lang: Language) {
     setLanguageState(lang)
