@@ -8,6 +8,7 @@ import { Plus, X, FileSignature } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { DateInput } from '@/components/ui/date-input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
@@ -309,7 +310,7 @@ export function TenantFormDialog({ rooms, tenant, onClose, onSave }: Props) {
                 </div>
                 <div className="space-y-1.5">
                   <Label>{t('tenant_form_movein')}</Label>
-                  <Input type="date" {...register('moveInDate')} />
+                  <DateInput {...register('moveInDate')} />
                 </div>
                 <div className="space-y-1.5">
                   <Label>{t('tenant_form_rent')}</Label>
@@ -330,7 +331,7 @@ export function TenantFormDialog({ rooms, tenant, onClose, onSave }: Props) {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="space-y-1.5">
                   <Label>{t('tenant_form_contract_start')}</Label>
-                  <Input type="date" {...register('contractStart')} />
+                  <DateInput {...register('contractStart')} />
                 </div>
                 <div className="space-y-1.5">
                   <Label>{t('tenant_form_contract_duration')}</Label>
@@ -359,7 +360,7 @@ export function TenantFormDialog({ rooms, tenant, onClose, onSave }: Props) {
                 </div>
                 <div className="space-y-1.5">
                   <Label>{t('tenant_form_contract_end')}</Label>
-                  <Input type="date" {...register('contractEnd')} />
+                  <DateInput {...register('contractEnd')} />
                   <p className="text-[10px] text-muted-foreground">{t('tenant_form_contract_end_auto')}</p>
                 </div>
               </div>

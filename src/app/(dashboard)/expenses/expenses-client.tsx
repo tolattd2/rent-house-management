@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { DateInput } from '@/components/ui/date-input'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { TableScroll } from '@/components/ui/table-scroll'
@@ -527,8 +528,7 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <Label>{t('expenses_form_date_label')} *</Label>
-                  <Input
-                    type="date"
+                  <DateInput
                     value={form.expenseDate}
                     onChange={(e) => setForm((f) => ({ ...f, expenseDate: e.target.value }))}
                   />

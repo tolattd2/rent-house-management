@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { DateInput } from '@/components/ui/date-input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
@@ -157,7 +158,7 @@ export function NoticeDialog({ tenantId, tenants, notice, tenantLabel, onClose, 
 
           <div className="space-y-1.5">
             <Label>{t('notice_expected_date')}</Label>
-            <Input type="date" value={expectedDate} onChange={(e) => setExpectedDate(e.target.value)} />
+            <DateInput value={expectedDate} onChange={(e) => setExpectedDate(e.target.value)} />
             <p className="text-xs text-muted-foreground">{t('notice_expected_date_hint')}</p>
           </div>
 

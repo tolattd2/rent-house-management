@@ -7,6 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { DateInput } from '@/components/ui/date-input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
@@ -101,7 +102,7 @@ export function PaymentDialog({ billing, onClose, onSave }: Props) {
             </div>
             <div className="space-y-1.5">
               <Label>{t('payment_date_label')} *</Label>
-              <Input type="date" {...register('paymentDate')} />
+              <DateInput {...register('paymentDate')} />
               {errors.paymentDate && <p className="text-xs text-destructive">{errors.paymentDate.message}</p>}
             </div>
           </div>

@@ -5,6 +5,7 @@ import { CalendarClock, Trash2 } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { DateInput } from '@/components/ui/date-input'
 import { Label } from '@/components/ui/label'
 import { toast } from '@/hooks/use-toast'
 import { formatDate } from '@/lib/utils'
@@ -124,9 +125,8 @@ export function PromiseDialog({ billingId, onClose, onSaved }: Props) {
           <div className="space-y-4">
             <div className="space-y-1.5">
               <Label htmlFor="promise-date">Promised pay date</Label>
-              <Input
+              <DateInput
                 id="promise-date"
-                type="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
               />

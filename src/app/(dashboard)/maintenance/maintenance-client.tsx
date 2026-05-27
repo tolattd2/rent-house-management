@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { DateInput } from '@/components/ui/date-input'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import { TableScroll } from '@/components/ui/table-scroll'
@@ -527,12 +528,12 @@ export function MaintenanceClient({ records: initial, rooms, tenants }: Props) {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label>{t('maintenance_form_reported')} *</Label>
-                <Input type="date" value={form.reportedDate}
+                <DateInput value={form.reportedDate}
                   onChange={(e) => setForm((f) => ({ ...f, reportedDate: e.target.value }))} />
               </div>
               <div className="space-y-1.5">
                 <Label>{t('maintenance_form_completed')}</Label>
-                <Input type="date" value={form.completedDate}
+                <DateInput value={form.completedDate}
                   onChange={(e) => setForm((f) => ({ ...f, completedDate: e.target.value }))} />
               </div>
             </div>
