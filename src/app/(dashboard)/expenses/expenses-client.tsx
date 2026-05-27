@@ -189,10 +189,56 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
     if (form.category === c) setForm((f) => ({ ...f, category: 'other' }))
   }
 
+  // Favorites: templates for recurring monthly expenses. Persisted in
+  // localStorage. Clicking a favorite opens the Add Expense dialog
+  // pre-filled with the template's fields and today's date.
+  type Favorite = {
+    id: string
+    title: string
+    category: string
+    amountUsd: string
+    paidTo: string
+    notes: string
+    roomId: string
+    branch: string
+  }
+  const FAVORITES_STORAGE = 'expenses/favorites'
+  const [favorites, setFavorites] = useState<Favorite[]>([])
+  const [saveAsFavorite, setSaveAsFavorite] = useState(false)
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(FAVORITES_STORAGE)
+      if (raw) setFavorites(JSON.parse(raw))
+    } catch { /* ignore */ }
+  }, [])
+  function persistFavorites(next: Favorite[]) {
+    setFavorites(next)
+    try { localStorage.setItem(FAVORITES_STORAGE, JSON.stringify(next)) } catch { /* ignore */ }
+  }
+  function applyFavorite(f: Favorite) {
+    setEditExpense(null)
+    setForm({
+      title: f.title,
+      category: f.category,
+      amountUsd: f.amountUsd,
+      expenseDate: new Date().toISOString().slice(0, 10),
+      paidTo: f.paidTo,
+      notes: f.notes,
+      roomId: f.roomId,
+    })
+    setFormBranch(f.branch)
+    setSaveAsFavorite(false)
+    setShowForm(true)
+  }
+  function removeFavorite(id: string) {
+    persistFavorites(favorites.filter((f) => f.id !== id))
+  }
+
   function openAdd() {
     setEditExpense(null)
     setForm(emptyForm)
     setFormBranch('')
+    setSaveAsFavorite(false)
     setShowForm(true)
   }
 
@@ -208,6 +254,7 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
       roomId: e.roomId ?? '',
     })
     setFormBranch(e.room?.branch ?? '')
+    setSaveAsFavorite(false)
     setShowForm(true)
   }
 
@@ -228,6 +275,19 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
     const data = await res.json()
     if (data.ok) {
       toast({ title: t(editExpense ? 'expense_updated' : 'expense_added') })
+      if (saveAsFavorite) {
+        const fav: Favorite = {
+          id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          title: form.title,
+          category: form.category,
+          amountUsd: form.amountUsd,
+          paidTo: form.paidTo,
+          notes: form.notes,
+          roomId: form.roomId,
+          branch: formBranch,
+        }
+        persistFavorites([...favorites.filter((f) => f.title !== fav.title), fav])
+      }
       router.refresh()
       setShowForm(false)
       if (editExpense) {
@@ -338,6 +398,26 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
           </CardContent>
         </Card>
       </div>
+
+      {/* Favorites: one-click templates for recurring monthly expenses */}
+      {favorites.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs uppercase font-semibold tracking-wider text-muted-foreground mr-1">
+            ★ {t('expenses_favorites')}
+          </span>
+          {favorites.map((f) => (
+            <div key={f.id} className="inline-flex items-center gap-1 rounded-full border border-border bg-card pl-3 pr-1 py-1 text-xs shadow-sm">
+              <button type="button" onClick={() => applyFavorite(f)} className="font-medium hover:underline">
+                {f.title} <span className="text-muted-foreground">· {formatCurrency(parseFloat(f.amountUsd) || 0)}</span>
+              </button>
+              <button type="button" aria-label="Remove favorite" onClick={() => removeFavorite(f.id)}
+                className="w-5 h-5 inline-flex items-center justify-center rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10">
+                <Trash2 className="w-3 h-3" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Category breakdown */}
       {Object.keys(byCategory).length > 0 && (
@@ -672,6 +752,12 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
                   onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
                 />
               </div>
+
+              <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+                <input type="checkbox" className="h-4 w-4 rounded border-input"
+                  checked={saveAsFavorite} onChange={(e) => setSaveAsFavorite(e.target.checked)} />
+                <span>★ {t('expenses_save_as_favorite')}</span>
+              </label>
 
               <div className="flex justify-end gap-3 pt-2">
                 <Button variant="outline" onClick={() => setShowForm(false)}>{t('cancel')}</Button>

@@ -10,6 +10,7 @@ import { DateInput } from '@/components/ui/date-input'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import { TableScroll } from '@/components/ui/table-scroll'
+import { SortableTh, type SortDir } from '@/components/ui/sortable-th'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -105,6 +106,24 @@ export function MaintenanceClient({ records: initial, rooms, tenants }: Props) {
   })
 
   const totalFee = filtered.reduce((s, r) => s + r.repairFeeUsd, 0)
+
+  // Column sort. Default: reportedDate descending (newest first).
+  type SortKey = 'title' | 'room' | 'branch' | 'tenant' | 'reportedDate' | 'completedDate' | 'repairFeeUsd' | 'status'
+  const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({ key: 'reportedDate', dir: 'desc' })
+  const toggleSort = (key: SortKey) => setSort((s) => s.key === key ? { key, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'asc' })
+  const sorted = [...filtered].sort((a, b) => {
+    const sign = sort.dir === 'asc' ? 1 : -1
+    switch (sort.key) {
+      case 'title': return sign * a.title.localeCompare(b.title)
+      case 'room': return sign * ((a.room?.roomNumber ?? '').localeCompare(b.room?.roomNumber ?? ''))
+      case 'branch': return sign * ((a.room?.branch ?? '').localeCompare(b.room?.branch ?? ''))
+      case 'tenant': return sign * ((a.tenant?.fullName ?? '').localeCompare(b.tenant?.fullName ?? ''))
+      case 'reportedDate': return sign * a.reportedDate.localeCompare(b.reportedDate)
+      case 'completedDate': return sign * (a.completedDate || '').localeCompare(b.completedDate || '')
+      case 'repairFeeUsd': return sign * (a.repairFeeUsd - b.repairFeeUsd)
+      case 'status': return sign * a.status.localeCompare(b.status)
+    }
+  })
 
   const branches = useBranches().map((b) => b.name)
   const filteredRooms = sortRoomsByNumber(
@@ -425,19 +444,19 @@ export function MaintenanceClient({ records: initial, rooms, tenants }: Props) {
           <table className="w-full min-w-[950px] text-sm">
             <thead>
               <tr className="border-b border-border">
-                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{t('maintenance_col_title')}</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{t('maintenance_col_room')}</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{t('maintenance_col_branch')}</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{t('maintenance_col_tenant')}</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{t('maintenance_col_reported')}</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{t('maintenance_col_completed')}</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{t('maintenance_col_fee')}</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{t('maintenance_col_status')}</th>
+                <SortableTh align="left" k="title" label={t('maintenance_col_title')} active={sort.key} dir={sort.dir} onSort={toggleSort} />
+                <SortableTh align="left" k="room" label={t('maintenance_col_room')} active={sort.key} dir={sort.dir} onSort={toggleSort} />
+                <SortableTh align="left" k="branch" label={t('maintenance_col_branch')} active={sort.key} dir={sort.dir} onSort={toggleSort} />
+                <SortableTh align="left" k="tenant" label={t('maintenance_col_tenant')} active={sort.key} dir={sort.dir} onSort={toggleSort} />
+                <SortableTh align="left" k="reportedDate" label={t('maintenance_col_reported')} active={sort.key} dir={sort.dir} onSort={toggleSort} />
+                <SortableTh align="left" k="completedDate" label={t('maintenance_col_completed')} active={sort.key} dir={sort.dir} onSort={toggleSort} />
+                <SortableTh align="left" k="repairFeeUsd" label={t('maintenance_col_fee')} active={sort.key} dir={sort.dir} onSort={toggleSort} />
+                <SortableTh align="left" k="status" label={t('maintenance_col_status')} active={sort.key} dir={sort.dir} onSort={toggleSort} />
                 <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground">{t('maintenance_col_actions')}</th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map((r, i) => {
+              {sorted.map((r, i) => {
                 return (
                   <tr key={r.id}
                     className={`border-b border-border last:border-0 hover:bg-muted/40 ${i % 2 ? 'bg-muted/10' : ''}`}
