@@ -1,4 +1,4 @@
-export type UserRole = 'admin' | 'manager' | 'staff'
+export type UserRole = 'admin' | 'manager' | 'staff' | 'guest'
 export type RoomStatus = 'occupied' | 'vacant' | 'reserved' | 'maintenance'
 export type TenantStatus = 'active' | 'inactive'
 export type PaymentStatus = 'unpaid' | 'partial' | 'paid'

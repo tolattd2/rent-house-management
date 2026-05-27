@@ -1,4 +1,6 @@
 import { db } from '@/lib/db'
+import { auth } from '@/lib/auth'
+import { redirect } from 'next/navigation'
 import { SettingsClient } from './settings-client'
 
 async function getSettings() {
@@ -7,6 +9,10 @@ async function getSettings() {
 }
 
 export default async function SettingsPage() {
+  const session = await auth()
+  if (!session || session.user.role === 'guest') {
+    redirect('/dashboard')
+  }
   const settings = await getSettings()
   return <SettingsClient settings={settings} />
 }

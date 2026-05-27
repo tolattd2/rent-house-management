@@ -65,7 +65,7 @@ const NOTICE_TYPES: NoticeType[] = ['move_out', 'repair', 'complaint', 'general'
 export function NoticesClient({ notices: initial, tenants }: Props) {
   const router = useRouter()
   const { data: session } = useSession()
-  const isAdmin = session?.user?.role === 'admin'
+  const canManage = session?.user?.role ? session.user.role !== 'guest' : false
   const { t } = useLanguage()
   const roomLabel = useRoomLabel()
   const branches = useBranches().map((b) => b.name)
@@ -194,7 +194,7 @@ export function NoticesClient({ notices: initial, tenants }: Props) {
             {openCount} {t('notice_open_count')}
           </p>
         </div>
-        {isAdmin && (
+        {canManage && (
           <Button onClick={openNew}>
             <Plus className="w-4 h-4 mr-2" /> {t('notice_add')}
           </Button>
@@ -306,7 +306,7 @@ export function NoticesClient({ notices: initial, tenants }: Props) {
                 )}
                 {t('notice_added_on')} {formatDate(String(n.createdAt))}
               </p>
-              {isAdmin && (
+              {canManage && (
                 <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
                   <Button variant="outline" size="sm" className="flex-1 min-w-[6rem] h-10" onClick={() => toggleResolved(n)}>
                     {resolved
@@ -409,7 +409,7 @@ export function NoticesClient({ notices: initial, tenants }: Props) {
                       </Badge>
                     </td>
                     <td className="px-4 py-3 text-right">
-                      {isAdmin && (
+                      {canManage && (
                         <div className="flex items-center justify-end gap-1">
                           <Button
                             variant="ghost" size="sm" className="h-8 px-2"

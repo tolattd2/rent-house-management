@@ -86,6 +86,7 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
   const router = useRouter()
   const { data: session } = useSession()
   const isAdmin = session?.user?.role === 'admin'
+  const canExport = session?.user?.role ? session.user.role !== 'guest' : false
   const { t } = useLanguage()
   const branchOptions = ['all', ...useBranches().map((b) => b.name)]
   const [expenses, setExpenses] = useState(initialExpenses)
@@ -227,9 +228,11 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
           <p className="text-muted-foreground text-sm">{t('expenses_subtitle')}</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={handleExport}>
-            <Download className="w-4 h-4 mr-2" />{t('billing_export')}
-          </Button>
+          {canExport && (
+            <Button variant="outline" onClick={handleExport}>
+              <Download className="w-4 h-4 mr-2" />{t('billing_export')}
+            </Button>
+          )}
           {isAdmin && (
             <Button onClick={openAdd}>
               <Plus className="w-4 h-4 mr-2" />{t('expenses_add')}

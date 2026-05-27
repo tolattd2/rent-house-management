@@ -8,7 +8,7 @@ const NOTICE_TYPES = ['move_out', 'repair', 'complaint', 'general'] as const
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth()
   if (!session) return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 })
-  if (session.user.role !== 'admin') return NextResponse.json({ ok: false, error: 'Forbidden' }, { status: 403 })
+  if (session.user.role === 'guest') return NextResponse.json({ ok: false, error: 'Forbidden' }, { status: 403 })
   try {
     const { id } = await params
     const { type, message, expectedDate } = await req.json()

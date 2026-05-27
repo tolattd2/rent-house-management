@@ -53,6 +53,8 @@ export function BillingListClient({ billings: initial }: Props) {
   const router = useRouter()
   const { data: session } = useSession()
   const isAdmin = session?.user?.role === 'admin'
+  const canBatch = session?.user?.role ? session.user.role !== 'guest' : false
+  const canExport = session?.user?.role ? session.user.role !== 'guest' : false
   const { t } = useLanguage()
   const roomLabel = useRoomLabel()
   const [billings, setBillings] = useState(initial)
@@ -166,10 +168,14 @@ export function BillingListClient({ billings: initial }: Props) {
           <p className="text-muted-foreground text-sm">{filtered.length} {t('billing_records')}</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" size="sm" onClick={handleExport}>{t('billing_export')}</Button>
-          <Button variant="outline" size="sm" onClick={() => setShowBatchInvoice(true)}>
-            <Printer className="w-4 h-4 mr-2" />{t('batch_invoice')}
-          </Button>
+          {canExport && (
+            <Button variant="outline" size="sm" onClick={handleExport}>{t('billing_export')}</Button>
+          )}
+          {canBatch && (
+            <Button variant="outline" size="sm" onClick={() => setShowBatchInvoice(true)}>
+              <Printer className="w-4 h-4 mr-2" />{t('batch_invoice')}
+            </Button>
+          )}
           {isAdmin && (
             <>
               <Button variant="outline" size="sm" onClick={() => setShowGenerate(true)}>

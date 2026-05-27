@@ -1,6 +1,7 @@
 'use client'
 
 import { Fragment, useState, useMemo } from 'react'
+import { useSession } from 'next-auth/react'
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis,
   CartesianGrid, Tooltip, Legend
@@ -37,6 +38,8 @@ type Expense = {
 interface Props { billings: Billing[]; expenses: Expense[] }
 
 export function ReportsClient({ billings, expenses }: Props) {
+  const { data: session } = useSession()
+  const canExport = session?.user?.role ? session.user.role !== 'guest' : false
   const { t } = useLanguage()
   const roomLabel = useRoomLabel()
   const branchOptions = ['all', ...useBranches().map((b) => b.name)]
@@ -163,9 +166,11 @@ export function ReportsClient({ billings, expenses }: Props) {
           </Select>
           <MonthRangePicker months={months} from={monthFrom} to={monthTo}
             onChange={(f, to) => { setMonthFrom(f); setMonthTo(to); if (f || to) setSelectedMonth('all') }} />
-          <Button variant="outline" className="h-10" onClick={handleExport}>
-            <Download className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">{t('billing_export')}</span>
-          </Button>
+          {canExport && (
+            <Button variant="outline" className="h-10" onClick={handleExport}>
+              <Download className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">{t('billing_export')}</span>
+            </Button>
+          )}
         </div>
       </div>
 

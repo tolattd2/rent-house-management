@@ -76,7 +76,7 @@ const emptyForm: {
 export function MaintenanceClient({ records: initial, rooms, tenants }: Props) {
   const router = useRouter()
   const { data: session } = useSession()
-  const isAdmin = session?.user?.role === 'admin'
+  const canManage = session?.user?.role ? session.user.role !== 'guest' : false
   const { t } = useLanguage()
   const roomLabel = useRoomLabel()
   const [records, setRecords] = useState(initial)
@@ -223,7 +223,7 @@ export function MaintenanceClient({ records: initial, rooms, tenants }: Props) {
 
   function StatusControl({ record }: { record: MaintenanceRecord }) {
     const sc = statusConfig[record.status]
-    if (!isAdmin) {
+    if (!canManage) {
       return (
         <Badge variant={sc.color} className="flex items-center gap-1 w-fit">
           <sc.icon className="w-3 h-3" />
@@ -265,7 +265,7 @@ export function MaintenanceClient({ records: initial, rooms, tenants }: Props) {
             {records.filter((r) => r.status !== 'completed').length} {t('maintenance_open_count')}
           </p>
         </div>
-        {isAdmin && (
+        {canManage && (
           <Button onClick={openNew}>
             <Plus className="w-4 h-4 mr-2" /> {t('maintenance_add')}
           </Button>
@@ -346,7 +346,7 @@ export function MaintenanceClient({ records: initial, rooms, tenants }: Props) {
                   </div>
                 )}
               </div>
-              {isAdmin && (
+              {canManage && (
                 <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
                   <Button variant="outline" size="sm" className="flex-1 min-w-[6rem] h-10" onClick={() => openEdit(r)}>
                     <Pencil className="w-3.5 h-3.5 mr-1.5" />{t('edit')}
@@ -414,7 +414,7 @@ export function MaintenanceClient({ records: initial, rooms, tenants }: Props) {
                       <StatusControl record={r} />
                     </td>
                     <td className="px-4 py-3 text-right">
-                      {isAdmin && (
+                      {canManage && (
                         <div className="flex items-center justify-end gap-2">
                           <Button variant="ghost" size="sm" onClick={() => openEdit(r)}>
                             <Pencil className="w-3.5 h-3.5" />

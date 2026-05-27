@@ -2,6 +2,7 @@
 
 import { Fragment, useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
+import { useSession } from 'next-auth/react'
 import { Bell, Send, MessageSquare, Search, ImagePlus, AlertTriangle, Settings, History, RotateCcw, CheckCircle2, XCircle, Clock } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -70,6 +71,8 @@ function formatSentAt(d: Date | string): string {
 export function NotificationsClient({ notifications, unpaidBillings, linkedTenants }: Props) {
   const router = useRouter()
   const { t } = useLanguage()
+  const { data: session } = useSession()
+  const canSend = session?.user?.role ? session.user.role !== 'guest' : false
   const roomLabel = useRoomLabel()
   const [sending, setSending] = useState<string | null>(null)
   const [sendingBulk, setSendingBulk] = useState<boolean>(false)
@@ -198,6 +201,7 @@ export function NotificationsClient({ notifications, unpaidBillings, linkedTenan
         <div className="flex flex-wrap items-end gap-x-5 gap-y-3">
           <div className="flex flex-col items-end gap-1">
             <span className="text-xs text-muted-foreground">{t('notifications_invoice_reminder')}</span>
+            {canSend && (
             <Button
               size="sm"
               onClick={handleBulkReminder}
@@ -206,12 +210,15 @@ export function NotificationsClient({ notifications, unpaidBillings, linkedTenan
             >
               <Send className="w-3.5 h-3.5 mr-1.5" />{t('notifications_send_all_tenants')} ({filteredUnpaid.length})
             </Button>
+            )}
           </div>
           <div className="flex flex-col items-end gap-1">
             <span className="text-xs text-muted-foreground">{t('notifications_custom_reminder')}</span>
+            {canSend && (
             <Button size="sm" variant="outline" onClick={() => setShowCustom(true)}>
               <ImagePlus className="w-3.5 h-3.5 mr-1.5" />{t('notifications_custom_compose')}
             </Button>
+            )}
           </div>
           <div className="flex flex-col items-end gap-1">
             <span className="text-xs text-muted-foreground">{t('settings_telegram_bot')}</span>

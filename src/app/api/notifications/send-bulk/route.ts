@@ -7,6 +7,7 @@ import { invalidate } from '@/lib/revalidate'
 export async function POST(req: NextRequest) {
   const session = await auth()
   if (!session) return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 })
+  if (session.user.role === 'guest') return NextResponse.json({ ok: false, error: 'Forbidden' }, { status: 403 })
 
   // Optional branch filter — when set, only that branch's unpaid bills are reminded.
   // `lang` is accepted for backwards compatibility but no longer used: every reminder

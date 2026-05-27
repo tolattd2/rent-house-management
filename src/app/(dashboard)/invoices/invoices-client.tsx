@@ -47,6 +47,7 @@ export function InvoicesClient({ invoices: initial }: Props) {
   const { t } = useLanguage()
   const { data: session } = useSession()
   const isAdmin = session?.user?.role === 'admin'
+  const canPrint = session?.user?.role ? session.user.role !== 'guest' : false
   const [invoices, setInvoices] = useState(initial)
   useEffect(() => { setInvoices(initial) }, [initial])
   const [search, setSearch] = usePersistentState('invoices/search', '')
@@ -138,9 +139,11 @@ export function InvoicesClient({ invoices: initial }: Props) {
           <p className="text-muted-foreground text-sm">{filtered.length} {t('invoices_generated')}</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" size="sm" onClick={() => setShowBatchPrint(true)}>
-            <Printer className="w-4 h-4 mr-2" />{t('batch_print')}
-          </Button>
+          {canPrint && (
+            <Button variant="outline" size="sm" onClick={() => setShowBatchPrint(true)}>
+              <Printer className="w-4 h-4 mr-2" />{t('batch_print')}
+            </Button>
+          )}
           {isAdmin && (
             <Button variant="outline" size="sm"
               className="text-destructive border-destructive/30 hover:bg-destructive/10"
@@ -275,12 +278,14 @@ export function InvoicesClient({ invoices: initial }: Props) {
                 <Link href={`/invoices/${inv.billingId}`} className="flex-1 min-w-[5rem]">
                   <Button variant="outline" size="sm" className="w-full h-10">{t('view')}</Button>
                 </Link>
-                <Button
-                  variant="outline" size="sm" className="h-10 px-3 shrink-0"
-                  onClick={() => window.open(`/invoices/${inv.billingId}`, '_blank')}
-                >
-                  <Printer className="w-4 h-4" />
-                </Button>
+                {canPrint && (
+                  <Button
+                    variant="outline" size="sm" className="h-10 px-3 shrink-0"
+                    onClick={() => window.open(`/invoices/${inv.billingId}`, '_blank')}
+                  >
+                    <Printer className="w-4 h-4" />
+                  </Button>
+                )}
                 {isAdmin && (
                   <Button
                     variant="outline" size="sm"
@@ -379,10 +384,12 @@ export function InvoicesClient({ invoices: initial }: Props) {
                       <Link href={`/invoices/${inv.billingId}`}>
                         <Button variant="ghost" size="sm" className="text-xs h-8 px-2">{t('view')}</Button>
                       </Link>
-                      <Button variant="ghost" size="sm" className="text-xs h-8 px-2"
-                        onClick={() => window.open(`/invoices/${inv.billingId}`, '_blank')}>
-                        <Printer className="w-3.5 h-3.5" />
-                      </Button>
+                      {canPrint && (
+                        <Button variant="ghost" size="sm" className="text-xs h-8 px-2"
+                          onClick={() => window.open(`/invoices/${inv.billingId}`, '_blank')}>
+                          <Printer className="w-3.5 h-3.5" />
+                        </Button>
+                      )}
                       {isAdmin && (
                         <Button
                           variant="ghost"

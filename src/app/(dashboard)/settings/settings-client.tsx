@@ -26,7 +26,7 @@ interface UserRow {
   id: string
   name: string
   email: string
-  role: 'admin' | 'manager' | 'staff'
+  role: 'admin' | 'manager' | 'staff' | 'guest'
   phone: string
   createdAt: string
 }
@@ -1146,6 +1146,7 @@ export function SettingsClient({ settings: initial }: Props) {
                   <SelectItem value="admin">Admin</SelectItem>
                   <SelectItem value="manager">Manager</SelectItem>
                   <SelectItem value="staff">Staff</SelectItem>
+                  <SelectItem value="guest">Guest</SelectItem>
                 </SelectContent>
               </Select>
             </div>

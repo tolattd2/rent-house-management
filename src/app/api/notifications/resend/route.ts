@@ -12,6 +12,7 @@ import { invalidate } from '@/lib/revalidate'
 export async function POST(req: NextRequest) {
   const session = await auth()
   if (!session) return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 })
+  if (session.user.role === 'guest') return NextResponse.json({ ok: false, error: 'Forbidden' }, { status: 403 })
 
   try {
     const { notificationId } = await req.json()

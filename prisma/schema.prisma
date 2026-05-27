@@ -11,6 +11,7 @@ enum UserRole {
   admin
   manager
   staff
+  guest
 }
 
 enum RoomStatus {

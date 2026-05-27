@@ -1,4 +1,5 @@
 import { db } from '@/lib/db'
+import { auth } from '@/lib/auth'
 import { BatchPrintClient } from './batch-print-client'
 
 export default async function BatchPrintPage({
@@ -6,7 +7,19 @@ export default async function BatchPrintPage({
 }: {
   searchParams: Promise<{ branch?: string; month?: string }>
 }) {
+  const session = await auth()
   const { branch, month } = await searchParams
+
+  if (!session || session.user.role === 'guest') {
+    return (
+      <div style={{ padding: '2rem', textAlign: 'center', fontFamily: 'sans-serif', color: '#475569' }}>
+        <p style={{ fontSize: '1.125rem', fontWeight: 600 }}>Access denied</p>
+        <p style={{ fontSize: '0.875rem', marginTop: '0.5rem' }}>
+          You do not have permission to print this page.
+        </p>
+      </div>
+    )
+  }
 
   if (!month || month === 'all') {
     return (

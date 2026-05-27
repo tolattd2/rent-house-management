@@ -36,6 +36,7 @@ export function InvoiceClient({ billing, invoice, settings }: Props) {
   const { t } = useLanguage()
   const { data: session } = useSession()
   const isAdmin = session?.user?.role === 'admin'
+  const canPrint = session?.user?.role ? session.user.role !== 'guest' : false
   const goBack = useBack('/billing')
   const [sending, setSending] = useState<string | null>(null)
   const [showPromise, setShowPromise] = useState(false)
@@ -95,9 +96,11 @@ export function InvoiceClient({ billing, invoice, settings }: Props) {
             <span className="hidden sm:inline">{invoice.sentTelegram ? t('invoice_resend_telegram') : t('invoice_send_telegram')}</span>
           </Button>
         )}
-        <Button className="h-10" onClick={handlePrint}>
-          <Download className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">{t('invoice_print')}</span>
-        </Button>
+        {canPrint && (
+          <Button className="h-10" onClick={handlePrint}>
+            <Download className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">{t('invoice_print')}</span>
+          </Button>
+        )}
       </div>
 
       {showPromise && (

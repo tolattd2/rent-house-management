@@ -8,7 +8,7 @@ const patchSchema = z.object({
   newPassword: z.string().min(6).optional(),
   name: z.string().min(1).optional(),
   phone: z.string().optional(),
-  role: z.enum(['admin', 'manager', 'staff']).optional(),
+  role: z.enum(['admin', 'manager', 'staff', 'guest']).optional(),
 })
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
