@@ -47,7 +47,7 @@ type MaintenanceRecord = {
 }
 
 type Room = { id: string; roomNumber: string; branch?: string }
-type Tenant = { id: string; fullName: string }
+type Tenant = { id: string; fullName: string; roomId: string | null }
 
 interface Props {
   records: MaintenanceRecord[]
@@ -108,6 +108,42 @@ export function MaintenanceClient({ records: initial, rooms, tenants }: Props) {
   const filteredRooms = sortRoomsByNumber(
     form.branch ? rooms.filter((r) => r.branch === form.branch) : []
   )
+
+  // When the user picks a room, auto-fill the tenant select with whichever
+  // active tenant occupies that room (if any). Skips when the user has
+  // already chosen a specific tenant, so a manual override isn't clobbered.
+  useEffect(() => {
+    if (!form.roomId) return
+    if (form.tenantId && form.tenantId !== 'none') return
+    const occupant = tenants.find((tn) => tn.roomId === form.roomId)
+    if (occupant) setForm((f) => ({ ...f, tenantId: occupant.id }))
+  }, [form.roomId, form.tenantId, tenants])
+
+  // Categories: built-in plus any custom ones the user has added. We persist
+  // additions to localStorage so they survive page reloads without a backend.
+  const CATEGORIES_STORAGE = 'maintenance/custom-categories'
+  const [customCategories, setCustomCategories] = useState<string[]>([])
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(CATEGORIES_STORAGE)
+      if (raw) setCustomCategories(JSON.parse(raw))
+    } catch { /* ignore */ }
+  }, [])
+  const allCategories = [...CATEGORIES, ...customCategories.filter((c) => !CATEGORIES.includes(c))]
+  const [addingCategory, setAddingCategory] = useState(false)
+  const [newCategory, setNewCategory] = useState('')
+  function commitNewCategory() {
+    const name = newCategory.trim().toLowerCase()
+    if (!name) { setAddingCategory(false); return }
+    if (!allCategories.includes(name)) {
+      const next = [...customCategories, name]
+      setCustomCategories(next)
+      try { localStorage.setItem(CATEGORIES_STORAGE, JSON.stringify(next)) } catch { /* ignore */ }
+    }
+    setForm((f) => ({ ...f, category: name }))
+    setNewCategory('')
+    setAddingCategory(false)
+  }
 
   function openNew() {
     setEditing(null)
@@ -464,7 +500,7 @@ export function MaintenanceClient({ records: initial, rooms, tenants }: Props) {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label>{t('maintenance_form_branch')} *</Label>
-                <Select value={form.branch} onValueChange={(v) => setForm((f) => ({ ...f, branch: v, roomId: '' }))}>
+                <Select value={form.branch} onValueChange={(v) => setForm((f) => ({ ...f, branch: v, roomId: '', tenantId: 'none' }))}>
                   <SelectTrigger><SelectValue placeholder={t('maintenance_form_branch_placeholder')} /></SelectTrigger>
                   <SelectContent>
                     {branches.map((b) => (
@@ -475,7 +511,7 @@ export function MaintenanceClient({ records: initial, rooms, tenants }: Props) {
               </div>
               <div className="space-y-1.5">
                 <Label>{t('maintenance_form_room')} *</Label>
-                <Select value={form.roomId} onValueChange={(v) => setForm((f) => ({ ...f, roomId: v }))}
+                <Select value={form.roomId} onValueChange={(v) => setForm((f) => ({ ...f, roomId: v, tenantId: 'none' }))}
                   disabled={!form.branch}>
                   <SelectTrigger><SelectValue placeholder={form.branch ? t('maintenance_form_room_placeholder') : t('maintenance_form_room_hint')} /></SelectTrigger>
                   <SelectContent>
@@ -502,15 +538,36 @@ export function MaintenanceClient({ records: initial, rooms, tenants }: Props) {
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label>{t('maintenance_form_category')}</Label>
-                <Select value={form.category} onValueChange={(v) => setForm((f) => ({ ...f, category: v }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {CATEGORIES.map((c) => (
-                      <SelectItem key={c} value={c} className="capitalize">{c}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="flex items-center justify-between">
+                  <Label>{t('maintenance_form_category')}</Label>
+                  {!addingCategory && (
+                    <button type="button" className="text-xs text-primary hover:underline"
+                      onClick={() => { setNewCategory(''); setAddingCategory(true) }}>
+                      + {t('add')}
+                    </button>
+                  )}
+                </div>
+                {addingCategory ? (
+                  <div className="flex gap-1">
+                    <Input autoFocus placeholder={t('maintenance_form_category')} value={newCategory}
+                      onChange={(e) => setNewCategory(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') { e.preventDefault(); commitNewCategory() }
+                        if (e.key === 'Escape') { setAddingCategory(false); setNewCategory('') }
+                      }}
+                      onBlur={commitNewCategory} />
+                    <Button type="button" size="sm" onClick={commitNewCategory}>{t('save')}</Button>
+                  </div>
+                ) : (
+                  <Select value={form.category} onValueChange={(v) => setForm((f) => ({ ...f, category: v }))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {allCategories.map((c) => (
+                        <SelectItem key={c} value={c} className="capitalize">{c}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
               <div className="space-y-1.5">
                 <Label>{t('maintenance_form_status')}</Label>

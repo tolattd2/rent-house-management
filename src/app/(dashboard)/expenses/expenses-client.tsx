@@ -145,6 +145,41 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
     return map
   }, [filtered])
 
+  // Custom categories: user-added via the form's "+ Add" link, persisted to
+  // localStorage so they survive reloads without a backend. We also union in
+  // any categories that already appear on existing expense records so the
+  // dropdown stays correct after a localStorage wipe / cross-device login.
+  const CATEGORIES_STORAGE = 'expenses/custom-categories'
+  const [customCategories, setCustomCategories] = useState<string[]>([])
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(CATEGORIES_STORAGE)
+      if (raw) setCustomCategories(JSON.parse(raw))
+    } catch { /* ignore */ }
+  }, [])
+  const allCategories = useMemo(() => {
+    const built = new Set<string>(CATEGORIES)
+    const extras = [
+      ...customCategories,
+      ...expenses.map((e) => e.category),
+    ].filter((c) => c && !built.has(c))
+    return [...CATEGORIES, ...Array.from(new Set(extras))]
+  }, [customCategories, expenses])
+  const [addingCategory, setAddingCategory] = useState(false)
+  const [newCategory, setNewCategory] = useState('')
+  function commitNewCategory() {
+    const name = newCategory.trim().toLowerCase()
+    if (!name) { setAddingCategory(false); return }
+    if (!allCategories.includes(name)) {
+      const next = [...customCategories, name]
+      setCustomCategories(next)
+      try { localStorage.setItem(CATEGORIES_STORAGE, JSON.stringify(next)) } catch { /* ignore */ }
+    }
+    setForm((f) => ({ ...f, category: name }))
+    setNewCategory('')
+    setAddingCategory(false)
+  }
+
   function openAdd() {
     setEditExpense(null)
     setForm(emptyForm)
@@ -217,8 +252,13 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
 
   function catLabel(cat: string) {
     const key = `expense_cat_${cat}` as Parameters<typeof t>[0]
-    return t(key)
+    const v = t(key)
+    // Custom (user-added) categories have no translation key, so t() falls
+    // back to returning the key itself — show the raw category instead.
+    return v === key ? cat : v
   }
+
+  const DEFAULT_CAT_COLOR = 'text-gray-600 bg-gray-50 dark:bg-gray-900/30'
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -293,7 +333,7 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
       {/* Category breakdown */}
       {Object.keys(byCategory).length > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-          {CATEGORIES.filter((c) => byCategory[c]).map((cat) => {
+          {allCategories.filter((c) => byCategory[c]).map((cat) => {
             const Icon = categoryIcon[cat] ?? HelpCircle
             return (
               <button
@@ -301,7 +341,7 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
                 onClick={() => setCategoryFilter(categoryFilter === cat ? 'all' : cat)}
                 className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl border border-border/50 shadow-sm transition-all duration-200 text-center hover:-translate-y-0.5 hover:shadow-md
                   ${categoryFilter === cat ? 'ring-2 ring-primary/70' : ''}
-                  ${categoryColor[cat]}`}
+                  ${categoryColor[cat] ?? DEFAULT_CAT_COLOR}`}
               >
                 <Icon className="w-4 h-4" />
                 <span className="text-xs font-medium leading-tight">{catLabel(cat)}</span>
@@ -350,7 +390,7 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">{t('all')}</SelectItem>
-            {CATEGORIES.map((c) => (
+            {allCategories.map((c) => (
               <SelectItem key={c} value={c}>{catLabel(c)}</SelectItem>
             ))}
           </SelectContent>
@@ -378,7 +418,7 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
                 <p className="font-bold text-red-600 shrink-0">{formatCurrency(expense.amountUsd)}</p>
               </div>
               <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground mb-3">
-                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-medium ${categoryColor[expense.category]}`}>
+                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-medium ${categoryColor[expense.category] ?? DEFAULT_CAT_COLOR}`}>
                   <Icon className="w-3 h-3" />{catLabel(expense.category)}
                 </span>
                 <span>{expense.expenseDate}</span>
@@ -435,7 +475,7 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
                       )}
                     </td>
                     <td className="px-4 py-3">
-                      <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium ${categoryColor[expense.category]}`}>
+                      <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium ${categoryColor[expense.category] ?? DEFAULT_CAT_COLOR}`}>
                         <Icon className="w-3 h-3" />
                         {catLabel(expense.category)}
                       </span>
@@ -502,15 +542,36 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <Label>{t('expenses_form_category_label')}</Label>
-                  <Select value={form.category} onValueChange={(v) => setForm((f) => ({ ...f, category: v }))}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {CATEGORIES.map((c) => (
-                        <SelectItem key={c} value={c}>{catLabel(c)}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="flex items-center justify-between">
+                    <Label>{t('expenses_form_category_label')}</Label>
+                    {!addingCategory && (
+                      <button type="button" className="text-xs text-primary hover:underline"
+                        onClick={() => { setNewCategory(''); setAddingCategory(true) }}>
+                        + {t('add')}
+                      </button>
+                    )}
+                  </div>
+                  {addingCategory ? (
+                    <div className="flex gap-1">
+                      <Input autoFocus placeholder={t('expenses_form_category_label')} value={newCategory}
+                        onChange={(e) => setNewCategory(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') { e.preventDefault(); commitNewCategory() }
+                          if (e.key === 'Escape') { setAddingCategory(false); setNewCategory('') }
+                        }}
+                        onBlur={commitNewCategory} />
+                      <Button type="button" size="sm" onClick={commitNewCategory}>{t('save')}</Button>
+                    </div>
+                  ) : (
+                    <Select value={form.category} onValueChange={(v) => setForm((f) => ({ ...f, category: v }))}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {allCategories.map((c) => (
+                          <SelectItem key={c} value={c}>{catLabel(c)}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
                 </div>
                 <div className="space-y-1.5">
                   <Label>{t('expenses_form_amount_label')} *</Label>

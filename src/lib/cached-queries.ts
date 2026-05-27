@@ -210,7 +210,7 @@ export const getMaintenanceData = unstable_cache(
       }),
       db.tenant.findMany({
         where: { status: 'active' },
-        select: { id: true, fullName: true },
+        select: { id: true, fullName: true, roomId: true },
         orderBy: { fullName: 'asc' },
       }),
     ])
