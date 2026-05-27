@@ -94,7 +94,10 @@ export function MaintenanceClient({ records: initial, rooms, tenants }: Props) {
   const [saving, setSaving] = useState(false)
   const { triggerDelete, dialogState, closeDialog } = useDeleteWithUndo()
 
-  const filtered = records.filter((r) => {
+  // Two filtered views (mirrors the expenses page): the breakdown cards run
+  // off the category-agnostic view so clicking one card doesn't blank the
+  // others. The table uses the fully-filtered view.
+  const filteredNoCategory = records.filter((r) => {
     const matchSearch =
       r.title.toLowerCase().includes(search.toLowerCase()) ||
       (r.room?.roomNumber ?? '').includes(search) ||
@@ -102,11 +105,17 @@ export function MaintenanceClient({ records: initial, rooms, tenants }: Props) {
       r.category.toLowerCase().includes(search.toLowerCase())
     const matchStatus = statusFilter === 'all' || r.status === statusFilter
     const matchBranch = branchFilter === 'all' || r.room?.branch === branchFilter
-    const matchCat = categoryFilter === 'all' || r.category === categoryFilter
-    return matchSearch && matchStatus && matchBranch && matchCat
+    return matchSearch && matchStatus && matchBranch
   })
+  const filtered = categoryFilter === 'all'
+    ? filteredNoCategory
+    : filteredNoCategory.filter((r) => r.category === categoryFilter)
 
   const totalFee = filtered.reduce((s, r) => s + r.repairFeeUsd, 0)
+
+  // Per-category fee totals for the breakdown cards.
+  const byCategory: Record<string, number> = {}
+  filteredNoCategory.forEach((r) => { byCategory[r.category] = (byCategory[r.category] ?? 0) + r.repairFeeUsd })
 
   // Column sort. Default: reportedDate descending (newest first).
   type SortKey = 'title' | 'room' | 'branch' | 'tenant' | 'reportedDate' | 'completedDate' | 'repairFeeUsd' | 'status'
@@ -353,6 +362,26 @@ export function MaintenanceClient({ records: initial, rooms, tenants }: Props) {
           )
         })}
       </div>
+
+      {/* Category breakdown: click a card to filter by that category. Built
+          from filteredNoCategory so clicking a card never empties the others. */}
+      {Object.keys(byCategory).length > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          {Object.keys(byCategory).sort().map((cat) => (
+            <button
+              key={cat}
+              onClick={() => setCategoryFilter(categoryFilter === cat ? 'all' : cat)}
+              className={cn(
+                'flex flex-col items-center gap-1.5 p-3 rounded-2xl border border-border/50 bg-card shadow-sm text-center transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md',
+                categoryFilter === cat && 'ring-2 ring-primary/70',
+              )}>
+              <Wrench className="w-4 h-4 text-muted-foreground" />
+              <span className="text-xs font-medium leading-tight capitalize">{cat}</span>
+              <span className="text-sm font-bold tabular-nums">{formatCurrency(byCategory[cat])}</span>
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-2">
