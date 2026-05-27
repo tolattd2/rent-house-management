@@ -9,6 +9,7 @@ import { CARD_STYLES } from '@/lib/card-colors'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import { TableScroll } from '@/components/ui/table-scroll'
+import { SortableTh, type SortDir } from '@/components/ui/sortable-th'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -87,13 +88,30 @@ export function InvoicesClient({ invoices: initial }: Props) {
     return matchSearch && matchStatus && matchMonth && matchBranch
   })
 
+  // Column sort applied within each branch group (grouping stays intact).
+  type SortKey = 'room' | 'tenant' | 'month' | 'amount' | 'status' | 'invoice'
+  const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({ key: 'month', dir: 'desc' })
+  const toggleSort = (k: SortKey) => setSort((s) => s.key === k ? { key: k, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key: k, dir: 'asc' })
+  const sortItems = <T extends Invoice & { roomNumber: string; branch: string }>(items: T[]) => {
+    const sign = sort.dir === 'asc' ? 1 : -1
+    return [...items].sort((a, b) => {
+      switch (sort.key) {
+        case 'room': return sign * a.roomNumber.localeCompare(b.roomNumber)
+        case 'tenant': return sign * (a.tenant?.fullName ?? '').localeCompare(b.tenant?.fullName ?? '')
+        case 'month': return sign * (a.billing?.billingMonth ?? '').localeCompare(b.billing?.billingMonth ?? '')
+        case 'amount': return sign * ((a.billing?.totalUsd ?? 0) - (b.billing?.totalUsd ?? 0))
+        case 'status': return sign * (a.billing?.paymentStatus ?? '').localeCompare(b.billing?.paymentStatus ?? '')
+        case 'invoice': return sign * a.invoiceNumber.localeCompare(b.invoiceNumber)
+      }
+    })
+  }
   const grouped = groupByBranch(
     filtered.map((inv) => ({
       ...inv,
       roomNumber: inv.billing?.room?.roomNumber ?? '',
       branch: inv.billing?.room?.branch ?? '',
     })),
-  )
+  ).map((g) => ({ ...g, items: sortItems(g.items) }))
 
   const totalAmount = filtered.reduce((s, inv) => s + (inv.billing?.totalUsd ?? 0), 0)
   const paidCount = filtered.filter((inv) => inv.billing?.paymentStatus === 'paid').length
@@ -329,13 +347,13 @@ export function InvoicesClient({ invoices: initial }: Props) {
           <table className="w-full min-w-[820px] text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/30">
-                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{t('room')}</th>
+                <SortableTh align="left" k="room" label={t('room')} active={sort.key} dir={sort.dir} onSort={toggleSort} />
                 <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{t('branch')}</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{t('tenant')}</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{t('billing_col_month')}</th>
-                <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground">{t('amount')}</th>
-                <th className="text-center px-4 py-3 text-xs font-medium text-muted-foreground">{t('status')}</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{t('invoices_col_invoice')}</th>
+                <SortableTh align="left" k="tenant" label={t('tenant')} active={sort.key} dir={sort.dir} onSort={toggleSort} />
+                <SortableTh align="left" k="month" label={t('billing_col_month')} active={sort.key} dir={sort.dir} onSort={toggleSort} />
+                <SortableTh align="right" k="amount" label={t('amount')} active={sort.key} dir={sort.dir} onSort={toggleSort} />
+                <SortableTh align="left" k="status" label={t('status')} active={sort.key} dir={sort.dir} onSort={toggleSort} />
+                <SortableTh align="left" k="invoice" label={t('invoices_col_invoice')} active={sort.key} dir={sort.dir} onSort={toggleSort} />
                 <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground">{t('actions')}</th>
               </tr>
             </thead>

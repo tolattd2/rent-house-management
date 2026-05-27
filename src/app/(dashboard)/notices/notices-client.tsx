@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import { TableScroll } from '@/components/ui/table-scroll'
+import { SortableTh, type SortDir } from '@/components/ui/sortable-th'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { DeleteConfirmDialog } from '@/components/ui/delete-confirm-dialog'
 import { NoticeDialog, type TenantNotice, type NoticeTenantOption } from '@/components/tenants/notice-dialog'
@@ -95,13 +96,31 @@ export function NoticesClient({ notices: initial, tenants }: Props) {
 
   const openCount = notices.filter((n) => n.status === 'open').length
 
+  // Column sort applied within each branch group so the grouping stays
+  // intact while the user can re-order the rows inside each group.
+  type SortKey = 'tenant' | 'room' | 'type' | 'message' | 'expectedDate' | 'status'
+  const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({ key: 'expectedDate', dir: 'desc' })
+  const toggleSort = (k: SortKey) => setSort((s) => s.key === k ? { key: k, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key: k, dir: 'asc' })
+  const sortItems = <T extends NoticeRecord & { roomNumber: string; branch: string }>(items: T[]) => {
+    const sign = sort.dir === 'asc' ? 1 : -1
+    return [...items].sort((a, b) => {
+      switch (sort.key) {
+        case 'tenant': return sign * (a.tenant?.fullName ?? '').localeCompare(b.tenant?.fullName ?? '')
+        case 'room': return sign * a.roomNumber.localeCompare(b.roomNumber)
+        case 'type': return sign * a.type.localeCompare(b.type)
+        case 'message': return sign * a.message.localeCompare(b.message)
+        case 'expectedDate': return sign * (a.expectedDate || '').localeCompare(b.expectedDate || '')
+        case 'status': return sign * a.status.localeCompare(b.status)
+      }
+    })
+  }
   const grouped = groupByBranch(
     filtered.map((n) => ({
       ...n,
       roomNumber: n.tenant?.room?.roomNumber ?? '',
       branch: n.tenant?.room?.branch ?? '',
     })),
-  )
+  ).map((g) => ({ ...g, items: sortItems(g.items) }))
 
   function openNew() {
     setEditing(null)
@@ -349,13 +368,13 @@ export function NoticesClient({ notices: initial, tenants }: Props) {
           <table className="w-full min-w-[1000px] text-sm">
             <thead>
               <tr className="border-b border-border">
-                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{t('tenant')}</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{t('room')}</th>
+                <SortableTh align="left" k="tenant" label={t('tenant')} active={sort.key} dir={sort.dir} onSort={toggleSort} />
+                <SortableTh align="left" k="room" label={t('room')} active={sort.key} dir={sort.dir} onSort={toggleSort} />
                 <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{t('branch')}</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{t('notice_type')}</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{t('notice_message')}</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{t('notice_expected')}</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{t('status')}</th>
+                <SortableTh align="left" k="type" label={t('notice_type')} active={sort.key} dir={sort.dir} onSort={toggleSort} />
+                <SortableTh align="left" k="message" label={t('notice_message')} active={sort.key} dir={sort.dir} onSort={toggleSort} />
+                <SortableTh align="left" k="expectedDate" label={t('notice_expected')} active={sort.key} dir={sort.dir} onSort={toggleSort} />
+                <SortableTh align="left" k="status" label={t('status')} active={sort.key} dir={sort.dir} onSort={toggleSort} />
                 <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground">{t('actions')}</th>
               </tr>
             </thead>

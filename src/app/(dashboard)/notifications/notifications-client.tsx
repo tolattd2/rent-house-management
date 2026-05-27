@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { TableScroll } from '@/components/ui/table-scroll'
+import { SortableTh, type SortDir } from '@/components/ui/sortable-th'
 import { formatCurrency, cn, groupByBranch } from '@/lib/utils'
 import { toast } from '@/hooks/use-toast'
 import { useLanguage } from '@/contexts/language-context'
@@ -111,10 +112,30 @@ export function NotificationsClient({ notifications, unpaidBillings, linkedTenan
     [unpaidBillings, branchFilter, statusFilter, search],
   )
 
-  const unpaidGroups = useMemo(
-    () => groupByBranch(filteredUnpaid.map((b) => ({ ...b, roomNumber: b.room?.roomNumber ?? '', branch: b.room?.branch ?? '' }))),
-    [filteredUnpaid],
-  )
+  // Pending table sort (within each branch group).
+  type PendingSortKey = 'room' | 'tenant' | 'amount' | 'status'
+  const [pendingSort, setPendingSort] = useState<{ key: PendingSortKey; dir: SortDir }>({ key: 'room', dir: 'asc' })
+  const togglePendingSort = (k: PendingSortKey) => setPendingSort((s) => s.key === k ? { key: k, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key: k, dir: 'asc' })
+  const unpaidGroups = useMemo(() => {
+    const sign = pendingSort.dir === 'asc' ? 1 : -1
+    return groupByBranch(filteredUnpaid.map((b) => ({ ...b, roomNumber: b.room?.roomNumber ?? '', branch: b.room?.branch ?? '' })))
+      .map((g) => ({
+        ...g,
+        items: [...g.items].sort((a, b) => {
+          switch (pendingSort.key) {
+            case 'room': return sign * a.roomNumber.localeCompare(b.roomNumber)
+            case 'tenant': return sign * (a.tenant?.fullName ?? '').localeCompare(b.tenant?.fullName ?? '')
+            case 'amount': return sign * (a.totalUsd - b.totalUsd)
+            case 'status': return sign * a.paymentStatus.localeCompare(b.paymentStatus)
+          }
+        }),
+      }))
+  }, [filteredUnpaid, pendingSort])
+
+  // History table sort (flat) — sortedHistory is built below after filteredHistory exists.
+  type HistorySortKey = 'sentAt' | 'tenant' | 'type' | 'status' | 'message'
+  const [historySort, setHistorySort] = useState<{ key: HistorySortKey; dir: SortDir }>({ key: 'sentAt', dir: 'desc' })
+  const toggleHistorySort = (k: HistorySortKey) => setHistorySort((s) => s.key === k ? { key: k, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key: k, dir: 'asc' })
 
   const filteredHistory = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -131,6 +152,19 @@ export function NotificationsClient({ notifications, unpaidBillings, linkedTenan
       return matchBranch && matchStatus && matchSearch
     })
   }, [notifications, branchFilter, historyStatus, search])
+
+  const sortedHistory = useMemo(() => {
+    const sign = historySort.dir === 'asc' ? 1 : -1
+    return [...filteredHistory].sort((a, b) => {
+      switch (historySort.key) {
+        case 'sentAt': return sign * String(a.createdAt).localeCompare(String(b.createdAt))
+        case 'tenant': return sign * (a.tenant?.fullName ?? '').localeCompare(b.tenant?.fullName ?? '')
+        case 'type': return sign * a.type.localeCompare(b.type)
+        case 'status': return sign * a.status.localeCompare(b.status)
+        case 'message': return sign * a.message.localeCompare(b.message)
+      }
+    })
+  }, [filteredHistory, historySort])
 
   const handleSendReminder = async (
     tenantId: string,
@@ -421,7 +455,7 @@ export function NotificationsClient({ notifications, unpaidBillings, linkedTenan
               <p>{t('notifications_history_empty')}</p>
             </div>
           ) : (
-            filteredHistory.map((n) => {
+            sortedHistory.map((n) => {
               const typeKey = NOTIF_TYPE_KEY[n.type as keyof typeof NOTIF_TYPE_KEY]
               const typeLabel = typeKey ? t(typeKey) : n.type
               const StatusIcon = n.status === 'sent' ? CheckCircle2 : n.status === 'failed' ? XCircle : Clock
@@ -481,11 +515,11 @@ export function NotificationsClient({ notifications, unpaidBillings, linkedTenan
               <table className="w-full min-w-[760px] text-sm">
                 <thead>
                   <tr className="border-b border-border bg-muted/30">
-                    <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">{t('room')}</th>
-                    <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">{t('tenant')}</th>
+                    <SortableTh align="left" k="room" label={t('room')} active={pendingSort.key} dir={pendingSort.dir} onSort={togglePendingSort} />
+                    <SortableTh align="left" k="tenant" label={t('tenant')} active={pendingSort.key} dir={pendingSort.dir} onSort={togglePendingSort} />
                     <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">{t('branch')}</th>
-                    <th className="text-right px-4 py-2.5 text-xs font-medium text-muted-foreground">{t('notifications_col_total')}</th>
-                    <th className="text-center px-4 py-2.5 text-xs font-medium text-muted-foreground">{t('status')}</th>
+                    <SortableTh align="right" k="amount" label={t('notifications_col_total')} active={pendingSort.key} dir={pendingSort.dir} onSort={togglePendingSort} />
+                    <SortableTh align="left" k="status" label={t('status')} active={pendingSort.key} dir={pendingSort.dir} onSort={togglePendingSort} />
                     <th className="text-right px-4 py-2.5 text-xs font-medium text-muted-foreground">{t('actions')}</th>
                   </tr>
                 </thead>
@@ -580,11 +614,11 @@ export function NotificationsClient({ notifications, unpaidBillings, linkedTenan
               <table className="w-full min-w-[820px] text-sm">
                 <thead>
                   <tr className="border-b border-border bg-muted/30">
-                    <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">{t('notifications_history_col_sent_at')}</th>
-                    <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">{t('tenant')}</th>
-                    <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">{t('notifications_history_col_type')}</th>
-                    <th className="text-center px-4 py-2.5 text-xs font-medium text-muted-foreground">{t('status')}</th>
-                    <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">{t('notifications_history_col_message')}</th>
+                    <SortableTh align="left" k="sentAt" label={t('notifications_history_col_sent_at')} active={historySort.key} dir={historySort.dir} onSort={toggleHistorySort} />
+                    <SortableTh align="left" k="tenant" label={t('tenant')} active={historySort.key} dir={historySort.dir} onSort={toggleHistorySort} />
+                    <SortableTh align="left" k="type" label={t('notifications_history_col_type')} active={historySort.key} dir={historySort.dir} onSort={toggleHistorySort} />
+                    <SortableTh align="left" k="status" label={t('status')} active={historySort.key} dir={historySort.dir} onSort={toggleHistorySort} />
+                    <SortableTh align="left" k="message" label={t('notifications_history_col_message')} active={historySort.key} dir={historySort.dir} onSort={toggleHistorySort} />
                     <th className="text-right px-4 py-2.5 text-xs font-medium text-muted-foreground">{t('actions')}</th>
                   </tr>
                 </thead>
@@ -597,7 +631,7 @@ export function NotificationsClient({ notifications, unpaidBillings, linkedTenan
                       </td>
                     </tr>
                   )}
-                  {filteredHistory.map((n, i) => {
+                  {sortedHistory.map((n, i) => {
                     const typeKey = NOTIF_TYPE_KEY[n.type as keyof typeof NOTIF_TYPE_KEY]
                     const typeLabel = typeKey ? t(typeKey) : n.type
                     const StatusIcon = n.status === 'sent' ? CheckCircle2 : n.status === 'failed' ? XCircle : Clock
