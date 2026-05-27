@@ -478,16 +478,16 @@ export function SettingsClient({ settings: initial }: Props) {
       <form onSubmit={handleSubmit(onSubmit)}>
         <Tabs value={currentTab} onValueChange={setCurrentTab}>
           <div className="overflow-x-auto">
-            <TabsList className="flex-nowrap w-max min-w-full">
-              <TabsTrigger value="general"><Palette className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">{t('settings_general')}</span></TabsTrigger>
-              <TabsTrigger value="rates"><DollarSign className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">{t('settings_rates')}</span></TabsTrigger>
-              <TabsTrigger value="company"><Building2 className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">{t('settings_company')}</span></TabsTrigger>
-              <TabsTrigger value="telegram"><MessageSquare className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">{t('settings_telegram_bot')}</span></TabsTrigger>
-              <TabsTrigger value="email"><Mail className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">{t('settings_email_smtp')}</span></TabsTrigger>
-              <TabsTrigger value="sms"><Phone className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">{t('settings_twilio_sms')}</span></TabsTrigger>
-              <TabsTrigger value="qr"><QrCode className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">{t('settings_qr_codes')}</span></TabsTrigger>
-              <TabsTrigger value="users"><Users className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">{t('settings_users')}</span></TabsTrigger>
-              <TabsTrigger value="data"><FileSpreadsheet className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">{t('settings_data')}</span></TabsTrigger>
+            <TabsList className="flex-nowrap w-full h-9 gap-0.5 p-0.5">
+              <TabsTrigger value="general" className="flex-1 min-w-0 px-1.5 text-xs gap-1"><Palette className="w-3.5 h-3.5 shrink-0" /><span className="hidden md:inline truncate">{t('settings_general')}</span></TabsTrigger>
+              <TabsTrigger value="rates" className="flex-1 min-w-0 px-1.5 text-xs gap-1"><DollarSign className="w-3.5 h-3.5 shrink-0" /><span className="hidden md:inline truncate">{t('settings_rates')}</span></TabsTrigger>
+              <TabsTrigger value="company" className="flex-1 min-w-0 px-1.5 text-xs gap-1"><Building2 className="w-3.5 h-3.5 shrink-0" /><span className="hidden md:inline truncate">{t('settings_company')}</span></TabsTrigger>
+              <TabsTrigger value="telegram" className="flex-1 min-w-0 px-1.5 text-xs gap-1"><MessageSquare className="w-3.5 h-3.5 shrink-0" /><span className="hidden md:inline truncate">{t('settings_telegram_bot')}</span></TabsTrigger>
+              <TabsTrigger value="email" className="flex-1 min-w-0 px-1.5 text-xs gap-1"><Mail className="w-3.5 h-3.5 shrink-0" /><span className="hidden md:inline truncate">{t('settings_email_smtp')}</span></TabsTrigger>
+              <TabsTrigger value="sms" className="flex-1 min-w-0 px-1.5 text-xs gap-1"><Phone className="w-3.5 h-3.5 shrink-0" /><span className="hidden md:inline truncate">{t('settings_twilio_sms')}</span></TabsTrigger>
+              <TabsTrigger value="qr" className="flex-1 min-w-0 px-1.5 text-xs gap-1"><QrCode className="w-3.5 h-3.5 shrink-0" /><span className="hidden md:inline truncate">{t('settings_qr_codes')}</span></TabsTrigger>
+              <TabsTrigger value="users" className="flex-1 min-w-0 px-1.5 text-xs gap-1"><Users className="w-3.5 h-3.5 shrink-0" /><span className="hidden md:inline truncate">{t('settings_users')}</span></TabsTrigger>
+              <TabsTrigger value="data" className="flex-1 min-w-0 px-1.5 text-xs gap-1"><FileSpreadsheet className="w-3.5 h-3.5 shrink-0" /><span className="hidden md:inline truncate">{t('settings_data')}</span></TabsTrigger>
             </TabsList>
           </div>
 
