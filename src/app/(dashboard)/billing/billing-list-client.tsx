@@ -17,9 +17,6 @@ import { BatchGenerateInvoiceDialog } from '@/components/invoices/batch-generate
 import { NoticeDialog } from '@/components/tenants/notice-dialog'
 import { PromiseDialog } from '@/components/invoices/promise-dialog'
 import { formatCurrency, formatCompact, formatMonth, exportToCSV, groupByBranch, cn } from '@/lib/utils'
-import { TableScroll } from '@/components/ui/table-scroll'
-import { SortableTh, type SortDir } from '@/components/ui/sortable-th'
-import { Fragment } from 'react'
 import { CARD_STYLES } from '@/lib/card-colors'
 import { toast } from '@/hooks/use-toast'
 import { useSession } from 'next-auth/react'
@@ -91,24 +88,7 @@ export function BillingListClient({ billings: initial }: Props) {
     return matchBranch && matchMonth
   })
 
-  // Sort state — drives both the flat desktop table and the within-group
-  // order on mobile cards. Default to month descending so newest is on top.
-  type BillSortKey = 'billingMonth' | 'roomRentUsd' | 'waterCostRiel' | 'electricCostRiel' | 'latePenaltyUsd' | 'lateDays' | 'totalUsd' | 'paymentStatus'
-  const [billSort, setBillSort] = usePersistentState<{ key: BillSortKey; dir: SortDir }>('billing/sort', { key: 'billingMonth', dir: 'desc' })
-  const toggleBillSort = (key: BillSortKey) =>
-    setBillSort((prev) => prev.key === key ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'asc' })
-  const STATUS_ORDER: Record<string, number> = { unpaid: 0, partial: 1, paid: 2 }
-  const compareBills = (a: Billing, b: Billing) => {
-    const { key, dir } = billSort
-    const sign = dir === 'asc' ? 1 : -1
-    if (key === 'billingMonth') return sign * a.billingMonth.localeCompare(b.billingMonth)
-    if (key === 'paymentStatus') return sign * ((STATUS_ORDER[a.paymentStatus] ?? 99) - (STATUS_ORDER[b.paymentStatus] ?? 99))
-    const av = (a[key] as number) ?? 0
-    const bv = (b[key] as number) ?? 0
-    return sign * (av - bv)
-  }
-
-  const filteredBase = billings.filter((b) => {
+  const filtered = billings.filter((b) => {
     const matchSearch =
       (b.tenant?.fullName ?? '').toLowerCase().includes(search.toLowerCase()) ||
       (b.room?.roomNumber ?? '').includes(search) ||
@@ -123,9 +103,7 @@ export function BillingListClient({ billings: initial }: Props) {
       : monthFilter === 'all' || b.billingMonth === monthFilter
     const matchBranch = branchFilter === 'all' || b.room?.branch === branchFilter
     return matchSearch && matchStatus && matchMonth && matchBranch
-  })
-  const sortedFlat = [...filteredBase].sort(compareBills)
-  const filtered = sortedFlat.map((b) => ({ ...b, roomNumber: b.room?.roomNumber ?? '', branch: b.room?.branch ?? '' }))
+  }).map((b) => ({ ...b, roomNumber: b.room?.roomNumber ?? '', branch: b.room?.branch ?? '' }))
 
   const grouped = groupByBranch(filtered)
 
@@ -268,125 +246,15 @@ export function BillingListClient({ billings: initial }: Props) {
           onChange={(f, to) => { setMonthFrom(f); setMonthTo(to); if (f || to) setMonthFilter('all') }} />
       </div>
 
-      {/* Empty state */}
+      {/* Card list — grouped by branch, rooms ascending inside each group */}
       {filtered.length === 0 && (
         <div className="text-center py-16 text-muted-foreground">
           <FileText className="w-12 h-12 mx-auto mb-3 opacity-30" />
           <p>{t('billing_empty')}</p>
         </div>
       )}
-
-      {/* Desktop: sortable table, grouped by branch — md and up */}
-      {filtered.length > 0 && (
-        <Card className="hidden md:block">
-          <TableScroll>
-            <table className="w-full min-w-[1100px] text-sm">
-              <thead>
-                <tr className="border-b border-border bg-muted/30">
-                  <SortableTh label={t('billing_col_month')} k="billingMonth"     onSort={toggleBillSort} active={billSort.key} dir={billSort.dir} align="left" />
-                  <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">{t('tenant')}</th>
-                  <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">{t('room')}</th>
-                  <SortableTh label={t('billing_col_rent')}  k="roomRentUsd"      onSort={toggleBillSort} active={billSort.key} dir={billSort.dir} />
-                  <SortableTh label={t('water')}             k="waterCostRiel"    onSort={toggleBillSort} active={billSort.key} dir={billSort.dir} />
-                  <SortableTh label={t('electric')}          k="electricCostRiel" onSort={toggleBillSort} active={billSort.key} dir={billSort.dir} />
-                  <SortableTh label={t('late_penalty')}      k="latePenaltyUsd"   onSort={toggleBillSort} active={billSort.key} dir={billSort.dir} />
-                  <SortableTh label={t('billing_late')}      k="lateDays"         onSort={toggleBillSort} active={billSort.key} dir={billSort.dir} />
-                  <SortableTh label={t('billing_col_total')} k="totalUsd"         onSort={toggleBillSort} active={billSort.key} dir={billSort.dir} />
-                  <SortableTh label={t('status')}            k="paymentStatus"    onSort={toggleBillSort} active={billSort.key} dir={billSort.dir} />
-                  <th className="text-right px-4 py-2.5 text-xs font-medium text-muted-foreground">{t('actions')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {grouped.map((group) => (
-                  <Fragment key={group.branch}>
-                    <tr className="bg-muted/40">
-                      <td colSpan={11} className="px-4 py-2">
-                        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{group.branch}</span>
-                        <span className="ml-2 text-xs text-muted-foreground tabular-nums">({group.items.length})</span>
-                      </td>
-                    </tr>
-                    {group.items.map((b, i) => {
-                      const totalPaid = b.payments.reduce((s, p) => s + p.amountUsd, 0)
-                      const balance = Math.max(0, b.totalUsd - totalPaid)
-                      return (
-                        <tr key={b.id} className={`border-b border-border last:border-0 hover:bg-muted/30 ${i % 2 ? 'bg-muted/10' : ''}`}>
-                          <td className="px-4 py-3 font-medium tabular-nums whitespace-nowrap">{formatMonth(b.billingMonth, language)}</td>
-                          <td className="px-4 py-3">
-                            <Link href={`/tenants/${b.tenant?.id}`} className="font-medium hover:text-primary">
-                              {b.tenant?.fullName ?? '—'}
-                            </Link>
-                          </td>
-                          <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">
-                            {b.room ? roomLabel(b.room) : '—'}
-                          </td>
-                          <td className="px-4 py-3 text-right tabular-nums">{formatCurrency(b.roomRentUsd)}</td>
-                          <td className="px-4 py-3 text-right text-xs tabular-nums">
-                            {b.waterUsage}{t('unit_kib')} / {b.waterCostRiel.toLocaleString()} ៛
-                          </td>
-                          <td className="px-4 py-3 text-right text-xs tabular-nums">
-                            {b.electricUsage}{t('unit_kw')} / {b.electricCostRiel.toLocaleString()} ៛
-                          </td>
-                          <td className={`px-4 py-3 text-right tabular-nums ${b.latePenaltyUsd > 0 ? 'text-orange-600' : 'text-muted-foreground'}`}>
-                            {b.latePenaltyUsd > 0 ? formatCurrency(b.latePenaltyUsd) : '—'}
-                          </td>
-                          <td className={`px-4 py-3 text-right tabular-nums ${b.lateDays > 0 ? 'text-red-600 font-medium' : 'text-muted-foreground'}`}>
-                            {b.lateDays > 0 ? b.lateDays : '—'}
-                          </td>
-                          <td className="px-4 py-3 text-right tabular-nums">
-                            <p className="font-semibold">{formatCurrency(b.totalUsd)}</p>
-                            {balance > 0 && <p className="text-xs text-red-500">-{formatCurrency(balance)}</p>}
-                          </td>
-                          <td className="px-4 py-3 text-right">
-                            <Badge variant={b.paymentStatus === 'paid' ? 'success' : b.paymentStatus === 'partial' ? 'warning' : 'error'}>
-                              {t(b.paymentStatus === 'paid' ? 'status_paid' : b.paymentStatus === 'partial' ? 'status_partial' : 'status_unpaid')}
-                            </Badge>
-                          </td>
-                          <td className="px-4 py-3">
-                            <div className="flex items-center justify-end gap-1">
-                              <Link href={`/billing/${b.id}`}>
-                                <Button variant="ghost" size="sm" className="h-8 px-2 text-xs">{t('view')}</Button>
-                              </Link>
-                              {isAdmin && b.paymentStatus !== 'paid' && (
-                                <Button
-                                  variant="ghost" size="sm" className="h-8 px-2 text-xs text-green-600 hover:bg-green-500/10"
-                                  onClick={() => setPayDialog(b)}
-                                  title={t('billing_pay')}
-                                >
-                                  {t('billing_pay')}
-                                </Button>
-                              )}
-                              {isAdmin && (
-                                <Link href={`/billing/${b.id}/edit`}>
-                                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0" title={t('edit')}>
-                                    <Pencil className="w-3.5 h-3.5" />
-                                  </Button>
-                                </Link>
-                              )}
-                              {isAdmin && (
-                                <Button
-                                  variant="ghost" size="sm" className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10"
-                                  onClick={() => handleDelete(b)}
-                                  title={t('delete')}
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </Button>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </Fragment>
-                ))}
-              </tbody>
-            </table>
-          </TableScroll>
-        </Card>
-      )}
-
-      {/* Mobile: card list — grouped by branch (hidden on md+) */}
       {grouped.map((group) => (
-        <div key={group.branch} className="space-y-3 md:hidden">
+        <div key={group.branch} className="space-y-3">
           <div className="flex items-center gap-3 sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/70 py-2">
             <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">{group.branch}</h2>
             <span className="text-xs text-muted-foreground tabular-nums">({group.items.length})</span>
