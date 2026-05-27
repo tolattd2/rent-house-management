@@ -199,37 +199,39 @@ export function NotificationsClient({ notifications, unpaidBillings, linkedTenan
           <p className="text-muted-foreground text-sm">{filteredUnpaid.length} {t('notifications_unpaid')}</p>
         </div>
         <div className="flex flex-wrap items-end gap-x-5 gap-y-3">
-          <div className="flex flex-col items-end gap-1">
-            <span className="text-xs text-muted-foreground">{t('notifications_invoice_reminder')}</span>
-            {canSend && (
-            <Button
-              size="sm"
-              onClick={handleBulkReminder}
-              loading={sendingBulk}
-              disabled={filteredUnpaid.length === 0 || sendingBulk}
-            >
-              <Send className="w-3.5 h-3.5 mr-1.5" />{t('notifications_send_all_tenants')} ({filteredUnpaid.length})
-            </Button>
-            )}
-          </div>
-          <div className="flex flex-col items-end gap-1">
-            <span className="text-xs text-muted-foreground">{t('notifications_custom_reminder')}</span>
-            {canSend && (
-            <Button size="sm" variant="outline" onClick={() => setShowCustom(true)}>
-              <ImagePlus className="w-3.5 h-3.5 mr-1.5" />{t('notifications_custom_compose')}
-            </Button>
-            )}
-          </div>
-          <div className="flex flex-col items-end gap-1">
-            <span className="text-xs text-muted-foreground">{t('settings_telegram_bot')}</span>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => router.push('/settings?tab=telegram')}
-            >
-              <Settings className="w-3.5 h-3.5 mr-1.5" />{t('nav_settings')}
-            </Button>
-          </div>
+          {canSend && (
+            <div className="flex flex-col items-end gap-1">
+              <span className="text-xs text-muted-foreground">{t('notifications_invoice_reminder')}</span>
+              <Button
+                size="sm"
+                onClick={handleBulkReminder}
+                loading={sendingBulk}
+                disabled={filteredUnpaid.length === 0 || sendingBulk}
+              >
+                <Send className="w-3.5 h-3.5 mr-1.5" />{t('notifications_send_all_tenants')} ({filteredUnpaid.length})
+              </Button>
+            </div>
+          )}
+          {canSend && (
+            <div className="flex flex-col items-end gap-1">
+              <span className="text-xs text-muted-foreground">{t('notifications_custom_reminder')}</span>
+              <Button size="sm" variant="outline" onClick={() => setShowCustom(true)}>
+                <ImagePlus className="w-3.5 h-3.5 mr-1.5" />{t('notifications_custom_compose')}
+              </Button>
+            </div>
+          )}
+          {canSend && (
+            <div className="flex flex-col items-end gap-1">
+              <span className="text-xs text-muted-foreground">{t('settings_telegram_bot')}</span>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => router.push('/settings?tab=telegram')}
+              >
+                <Settings className="w-3.5 h-3.5 mr-1.5" />{t('nav_settings')}
+              </Button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -380,7 +382,7 @@ export function NotificationsClient({ notifications, unpaidBillings, linkedTenan
                   <p className="text-xs text-muted-foreground italic pt-2 border-t border-border">
                     {t('notifications_not_linked')}
                   </p>
-                ) : (
+                ) : canSend ? (
                   <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
                     <Button
                       size="sm" variant="outline" className="flex-1 min-w-[6rem] h-10"
@@ -406,7 +408,7 @@ export function NotificationsClient({ notifications, unpaidBillings, linkedTenan
                       <ImagePlus className="w-3.5 h-3.5 mr-1" />{t('notifications_custom_compose')}
                     </Button>
                   </div>
-                )}
+                ) : null}
               </Card>
                 ))}
               </div>
@@ -452,7 +454,7 @@ export function NotificationsClient({ notifications, unpaidBillings, linkedTenan
                   >
                     {n.message}
                   </button>
-                  {n.tenant?.telegramChatId && (
+                  {n.tenant?.telegramChatId && canSend && (
                     <div className="flex pt-2 border-t border-border">
                       <Button
                         size="sm" variant="outline" className="flex-1 h-10"
@@ -535,7 +537,7 @@ export function NotificationsClient({ notifications, unpaidBillings, linkedTenan
                           <span className="block text-right text-xs text-muted-foreground italic">
                             {t('notifications_not_linked')}
                           </span>
-                        ) : (
+                        ) : canSend ? (
                           <div className="flex flex-wrap items-center justify-end gap-1.5">
                             <Button
                               size="sm" variant="outline"
@@ -564,6 +566,8 @@ export function NotificationsClient({ notifications, unpaidBillings, linkedTenan
                               <ImagePlus className="w-3.5 h-3.5 mr-1" />{t('notifications_custom_compose')}
                             </Button>
                           </div>
+                        ) : (
+                          <span className="block text-right text-xs text-muted-foreground">—</span>
                         )}
                       </td>
                     </tr>
@@ -637,7 +641,7 @@ export function NotificationsClient({ notifications, unpaidBillings, linkedTenan
                               <span className="text-xs text-muted-foreground italic">
                                 {t('notifications_not_linked')}
                               </span>
-                            ) : (
+                            ) : canSend ? (
                               <Button
                                 size="sm" variant="outline"
                                 title={t('notifications_resend')}
@@ -647,6 +651,8 @@ export function NotificationsClient({ notifications, unpaidBillings, linkedTenan
                               >
                                 <RotateCcw className="w-3.5 h-3.5 mr-1" />{t('notifications_resend')}
                               </Button>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">—</span>
                             )}
                           </div>
                         </td>
