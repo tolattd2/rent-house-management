@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { useForm } from 'react-hook-form'
-import { Save, Building2, DollarSign, MessageSquare, Mail, Phone, Users, Plus, Key, Trash2, QrCode, Upload, X, Send, MapPin, Image as ImageIcon, Palette } from 'lucide-react'
+import { Save, Building2, DollarSign, MessageSquare, Mail, Phone, Users, Plus, Key, Trash2, QrCode, Upload, X, Send, MapPin, Image as ImageIcon, Palette, FileSpreadsheet } from 'lucide-react'
 import { mapHref } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -19,6 +19,7 @@ import { toast } from '@/hooks/use-toast'
 import { useLanguage } from '@/contexts/language-context'
 import { parseBranches, RATE_KEYS, RATE_DEFAULTS, branchRateKey, type Branch } from '@/lib/branches'
 import { QrCropDialog } from '@/components/settings/qr-crop-dialog'
+import { DataIoTab } from './data-io-tab'
 import { useDeleteWithUndo } from '@/hooks/use-delete-with-undo'
 import { DeleteConfirmDialog } from '@/components/ui/delete-confirm-dialog'
 
@@ -33,7 +34,7 @@ interface UserRow {
 
 interface Props { settings: Record<string, string> }
 
-const VALID_TABS = ['general', 'rates', 'company', 'telegram', 'email', 'sms', 'qr', 'users'] as const
+const VALID_TABS = ['general', 'rates', 'company', 'telegram', 'email', 'sms', 'qr', 'users', 'data'] as const
 
 const MAX_LOGO_BYTES = 500_000  // logo data URL ships with every page load — keep it small
 
@@ -486,6 +487,7 @@ export function SettingsClient({ settings: initial }: Props) {
               <TabsTrigger value="sms"><Phone className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">{t('settings_twilio_sms')}</span></TabsTrigger>
               <TabsTrigger value="qr"><QrCode className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">{t('settings_qr_codes')}</span></TabsTrigger>
               <TabsTrigger value="users"><Users className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">{t('settings_users')}</span></TabsTrigger>
+              <TabsTrigger value="data"><FileSpreadsheet className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">{t('settings_data')}</span></TabsTrigger>
             </TabsList>
           </div>
 
@@ -1106,6 +1108,10 @@ export function SettingsClient({ settings: initial }: Props) {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="data" className="mt-4">
+            <DataIoTab />
           </TabsContent>
         </Tabs>
 
