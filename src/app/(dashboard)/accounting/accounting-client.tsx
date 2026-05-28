@@ -310,8 +310,8 @@ export function AccountingClient({ billings, expenses, tenants, locks: initialLo
   const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null)
   const filteredTenants = useMemo(() => {
     const q = tenantSearch.trim().toLowerCase()
-    if (!q) return tenants.slice(0, 50)
-    return tenants.filter((tn) => tn.fullName.toLowerCase().includes(q) || (tn.room?.roomNumber ?? '').toLowerCase().includes(q)).slice(0, 50)
+    if (!q) return tenants
+    return tenants.filter((tn) => tn.fullName.toLowerCase().includes(q) || (tn.room?.roomNumber ?? '').toLowerCase().includes(q))
   }, [tenants, tenantSearch])
   // Tenant picker grouped by branch (consistent with the other tables).
   const tenantPickerGroups = useMemo(
