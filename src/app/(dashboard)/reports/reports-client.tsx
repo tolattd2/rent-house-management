@@ -511,9 +511,11 @@ export function ReportsClient({ billings, expenses, rooms }: Props) {
               <Download className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">{t('billing_export')}</span>
             </Button>
           )}
-          <Button variant="outline" className="h-10" onClick={handleExportPDF} disabled={exportingPdf}>
-            <FileText className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">{t('reports_export_pdf')}</span>
-          </Button>
+          {canExport && (
+            <Button variant="outline" className="h-10" onClick={handleExportPDF} disabled={exportingPdf}>
+              <FileText className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">{t('reports_export_pdf')}</span>
+            </Button>
+          )}
         </div>
       </div>
 
@@ -667,7 +669,7 @@ export function ReportsClient({ billings, expenses, rooms }: Props) {
               <CardTitle className="text-base">{t('reports_aging')}</CardTitle>
               <p className="text-xs text-muted-foreground mt-0.5">{t('reports_aging_subtitle')} · {cutoffDate.toISOString().slice(0, 10)}</p>
             </div>
-            {sortedAging.length > 0 && (
+            {canExport && sortedAging.length > 0 && (
               <Button variant="outline" size="sm" onClick={exportAgingCSV}>
                 <Download className="w-3.5 h-3.5 sm:mr-1.5" /><span className="hidden sm:inline">{t('billing_export')}</span>
               </Button>
@@ -738,7 +740,7 @@ export function ReportsClient({ billings, expenses, rooms }: Props) {
         <CardHeader>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <CardTitle className="text-base">{t('reports_payments_journal')} <span className="text-sm font-normal text-muted-foreground">— {formatCurrency(paymentsJournalTotal)}</span></CardTitle>
-            {paymentsJournal.length > 0 && (
+            {canExport && paymentsJournal.length > 0 && (
               <Button variant="outline" size="sm" onClick={exportPaymentsCSV}>
                 <Download className="w-3.5 h-3.5 sm:mr-1.5" /><span className="hidden sm:inline">{t('billing_export')}</span>
               </Button>
@@ -784,7 +786,7 @@ export function ReportsClient({ billings, expenses, rooms }: Props) {
         <CardHeader>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <CardTitle className="text-base">{t('reports_expense_register')} <span className="text-sm font-normal text-muted-foreground">— {formatCurrency(totalExpenses)}</span></CardTitle>
-            {expenseRegister.length > 0 && (
+            {canExport && expenseRegister.length > 0 && (
               <Button variant="outline" size="sm" onClick={exportExpenseRegisterCSV}>
                 <Download className="w-3.5 h-3.5 sm:mr-1.5" /><span className="hidden sm:inline">{t('billing_export')}</span>
               </Button>

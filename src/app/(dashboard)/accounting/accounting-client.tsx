@@ -76,6 +76,7 @@ function newMonthTotals(): MonthTotals {
 export function AccountingClient({ billings, expenses, tenants, locks: initialLocks }: Props) {
   const { data: session } = useSession()
   const isAdmin = session?.user?.role === 'admin'
+  const canExport = session?.user?.role ? session.user.role !== 'guest' : false
   const { t } = useLanguage()
   const { title, subtitle } = useBranding()
   const branchOptions = ['all', ...useBranches().map((b) => b.name)]
@@ -607,9 +608,11 @@ export function AccountingClient({ billings, expenses, tenants, locks: initialLo
               </Button>
             )}
           </div>
-          <Button variant="outline" className="h-10" onClick={handleExportAuditPack} disabled={exportingPdf}>
-            <FileText className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">{t('accounting_audit_pack')}</span>
-          </Button>
+          {canExport && (
+            <Button variant="outline" className="h-10" onClick={handleExportAuditPack} disabled={exportingPdf}>
+              <FileText className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">{t('accounting_audit_pack')}</span>
+            </Button>
+          )}
         </div>
       </div>
 
@@ -892,9 +895,11 @@ export function AccountingClient({ billings, expenses, tenants, locks: initialLo
                         <p className="font-semibold text-base">{tenantLedger.tenant.fullName}</p>
                         {tenantLedger.tenant.room && <p className="text-xs text-muted-foreground">{tenantLedger.tenant.room.roomNumber} · {tenantLedger.tenant.room.branch}</p>}
                       </div>
-                      <Button size="sm" variant="outline" onClick={handleExportTenantStatement}>
-                        <FileText className="w-3.5 h-3.5 mr-1.5" />{t('accounting_download_statement')}
-                      </Button>
+                      {canExport && (
+                        <Button size="sm" variant="outline" onClick={handleExportTenantStatement}>
+                          <FileText className="w-3.5 h-3.5 mr-1.5" />{t('accounting_download_statement')}
+                        </Button>
+                      )}
                     </div>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
                       <div className="p-2 bg-muted/40 rounded">
