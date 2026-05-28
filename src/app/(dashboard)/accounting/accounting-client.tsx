@@ -396,73 +396,70 @@ export function AccountingClient({ billings, expenses, tenants, locks: initialLo
   // supports both languages; the template uses clean white-paper styling so it
   // reads like a financial statement set, not a web capture.
   const auditDocRef = useRef<HTMLDivElement | null>(null)
+  const tenantDocRef = useRef<HTMLDivElement | null>(null)
   const [exportingPdf, setExportingPdf] = useState(false)
   const branchLabelText = branchFilter === 'all' ? t('all_branches') : branchFilter
+
+  // Shared, high-quality PDF renderer used by both the Audit Pack and the
+  // Tenant Statement: captures a print-styled HTML document at high resolution
+  // (crisp text + correct Khmer shaping), then paginates onto A4 with margins,
+  // breaking BETWEEN blocks rather than through a line. JPEG + stream
+  // compression keep the file small.
+  async function renderDocToPdf(el: HTMLElement, filename: string) {
+    const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
+      import('html2canvas'),
+      import('jspdf'),
+    ])
+    const SCALE = 4
+    const canvas = await html2canvas(el, { scale: SCALE, backgroundColor: '#ffffff', useCORS: true, windowWidth: el.scrollWidth })
+    const pdf = new jsPDF({ orientation: 'p', unit: 'pt', format: 'a4', compress: true })
+    const pageW = pdf.internal.pageSize.getWidth()
+    const pageH = pdf.internal.pageSize.getHeight()
+    const MT = 34, MB = 34
+    const cpx = canvas.width / pageW
+    const pageContentPx = (pageH - MT - MB) * cpx
+    const docTop = el.getBoundingClientRect().top
+    const ratio = canvas.height / el.scrollHeight
+    const bounds = Array.from(el.children).map((c) => {
+      const r = (c as HTMLElement).getBoundingClientRect()
+      return { top: (r.top - docTop) * ratio, bottom: (r.bottom - docTop) * ratio }
+    })
+    const slices: { start: number; h: number }[] = []
+    const H = canvas.height
+    let start = 0
+    let guard = 0
+    while (start < H - 1 && guard++ < 4000) {
+      let end = Math.min(start + pageContentPx, H)
+      if (end < H) {
+        let cut = end
+        for (const b of bounds) {
+          if (b.top > start + 1 && b.top < end - 1 && b.bottom > end + 1) cut = Math.min(cut, b.top)
+        }
+        if (cut > start + 1) end = cut
+      }
+      slices.push({ start, h: end - start })
+      start = end
+    }
+    slices.forEach((s, i) => {
+      const band = document.createElement('canvas')
+      band.width = canvas.width
+      band.height = Math.ceil(s.h)
+      const ctx = band.getContext('2d')
+      if (!ctx) return
+      ctx.fillStyle = '#ffffff'
+      ctx.fillRect(0, 0, band.width, band.height)
+      ctx.drawImage(canvas, 0, s.start, canvas.width, s.h, 0, 0, canvas.width, s.h)
+      if (i > 0) pdf.addPage()
+      pdf.addImage(band.toDataURL('image/jpeg', 0.85), 'JPEG', 0, MT, pageW, s.h / cpx, undefined, 'FAST')
+    })
+    pdf.save(filename.replace(/[^a-z0-9._-]/gi, '_'))
+  }
+
   async function handleExportAuditPack() {
-    const el = auditDocRef.current
-    if (!el || exportingPdf) return
+    if (!auditDocRef.current || exportingPdf) return
     setExportingPdf(true)
     try {
-      const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
-        import('html2canvas'),
-        import('jspdf'),
-      ])
-      // scale 4 → 2× the linear resolution of the previous capture, so text is
-      // noticeably crisper in the exported PDF.
-      const SCALE = 4
-      const canvas = await html2canvas(el, { scale: SCALE, backgroundColor: '#ffffff', useCORS: true, windowWidth: el.scrollWidth })
-      // compress: true zips the PDF streams; pages are encoded as JPEG (far
-      // smaller than PNG for rendered documents) — at this high resolution the
-      // text stays sharp while the file shrinks dramatically.
-      const pdf = new jsPDF({ orientation: 'p', unit: 'pt', format: 'a4', compress: true })
-      const pageW = pdf.internal.pageSize.getWidth()
-      const pageH = pdf.internal.pageSize.getHeight()
-      const MT = 34, MB = 34 // top/bottom page margins (pt) so content never touches the edge
-      const cpx = canvas.width / pageW               // canvas px per pt
-      const pageContentPx = (pageH - MT - MB) * cpx  // canvas px that fit one page's content area
-
-      // Find the vertical extent of each top-level block so page breaks can fall
-      // in the gaps BETWEEN rows/tables rather than slicing through a line.
-      const docTop = el.getBoundingClientRect().top
-      const ratio = canvas.height / el.scrollHeight  // canvas px per CSS px (≈ SCALE)
-      const bounds = Array.from(el.children).map((c) => {
-        const r = (c as HTMLElement).getBoundingClientRect()
-        return { top: (r.top - docTop) * ratio, bottom: (r.bottom - docTop) * ratio }
-      })
-
-      // Build page slices: each up to one page tall, cut back to the top of any
-      // block that would straddle the boundary (unless a single block is taller
-      // than a page, in which case we take a full page to guarantee progress).
-      const slices: { start: number; h: number }[] = []
-      const H = canvas.height
-      let start = 0
-      let guard = 0
-      while (start < H - 1 && guard++ < 2000) {
-        let end = Math.min(start + pageContentPx, H)
-        if (end < H) {
-          let cut = end
-          for (const b of bounds) {
-            if (b.top > start + 1 && b.top < end - 1 && b.bottom > end + 1) cut = Math.min(cut, b.top)
-          }
-          if (cut > start + 1) end = cut
-        }
-        slices.push({ start, h: end - start })
-        start = end
-      }
-
-      slices.forEach((s, i) => {
-        const band = document.createElement('canvas')
-        band.width = canvas.width
-        band.height = Math.ceil(s.h)
-        const ctx = band.getContext('2d')
-        if (!ctx) return
-        ctx.fillStyle = '#ffffff'
-        ctx.fillRect(0, 0, band.width, band.height)
-        ctx.drawImage(canvas, 0, s.start, canvas.width, s.h, 0, 0, canvas.width, s.h)
-        if (i > 0) pdf.addPage()
-        pdf.addImage(band.toDataURL('image/jpeg', 0.85), 'JPEG', 0, MT, pageW, s.h / cpx, undefined, 'FAST')
-      })
-      pdf.save(`audit-pack-${branchLabelText}-${rangeLabel}.pdf`.replace(/[^a-z0-9._-]/gi, '_'))
+      await renderDocToPdf(auditDocRef.current, `audit-pack-${branchLabelText}-${rangeLabel}.pdf`)
     } catch (e) {
       toast({ title: e instanceof Error ? e.message : 'PDF export failed', variant: 'destructive' })
     } finally {
@@ -470,38 +467,15 @@ export function AccountingClient({ billings, expenses, tenants, locks: initialLo
     }
   }
 
-  // Tenant statement PDF (a single-tenant PDF for the selected ledger).
-  const ledgerRef = useRef<HTMLDivElement | null>(null)
   async function handleExportTenantStatement() {
-    const root = ledgerRef.current
-    if (!root || !tenantLedger) return
-    const scrolls = Array.from(root.querySelectorAll<HTMLElement>('.table-scroll'))
-    const originalScrollStyles = scrolls.map((el) => ({ overflow: el.style.overflow, width: el.style.width }))
-    const originalRootWidth = root.style.width
+    if (!tenantDocRef.current || !tenantLedger || exportingPdf) return
+    setExportingPdf(true)
     try {
-      root.style.width = 'max-content'
-      scrolls.forEach((el) => { el.style.overflow = 'visible'; el.style.width = 'max-content' })
-      const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
-        import('html2canvas'),
-        import('jspdf'),
-      ])
-      const canvas = await html2canvas(root, { scale: 2, backgroundColor: '#ffffff', useCORS: true, windowWidth: root.scrollWidth })
-      const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' })
-      const pageW = pdf.internal.pageSize.getWidth()
-      const imgW = pageW
-      const imgH = (canvas.height * imgW) / canvas.width
-      pdf.setFontSize(14)
-      pdf.text(`${tenantLedger.tenant.fullName} — ${rangeLabel}`, 10, 12)
-      pdf.setFontSize(9)
-      pdf.text(new Date().toISOString().slice(0, 16).replace('T', ' '), 10, 18)
-      pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 24, imgW, imgH)
-      pdf.save(`statement-${tenantLedger.tenant.fullName.replace(/\s+/g, '-')}-${rangeLabel}.pdf`.replace(/[^a-z0-9._-]/gi, '_'))
+      await renderDocToPdf(tenantDocRef.current, `statement-${tenantLedger.tenant.fullName.replace(/\s+/g, '-')}-${rangeLabel}.pdf`)
+    } catch (e) {
+      toast({ title: e instanceof Error ? e.message : 'PDF export failed', variant: 'destructive' })
     } finally {
-      root.style.width = originalRootWidth
-      scrolls.forEach((el, i) => {
-        el.style.overflow = originalScrollStyles[i].overflow
-        el.style.width = originalScrollStyles[i].width
-      })
+      setExportingPdf(false)
     }
   }
 
@@ -900,7 +874,7 @@ export function AccountingClient({ billings, expenses, tenants, locks: initialLo
                 {!tenantLedger ? (
                   <div className="text-center text-sm text-muted-foreground py-16 border border-dashed border-border rounded-lg">{t('accounting_pick_tenant')}</div>
                 ) : (
-                  <div ref={ledgerRef} className="space-y-3 bg-background">
+                  <div className="space-y-3 bg-background">
                     <div className="flex flex-wrap items-baseline justify-between gap-2">
                       <div>
                         <p className="font-semibold text-base">{tenantLedger.tenant.fullName}</p>
@@ -1140,6 +1114,63 @@ export function AccountingClient({ billings, expenses, tenants, locks: initialLo
             {lockedMonthsList.length ? `${t('accounting_locked')}: ${lockedMonthsList.join(', ')}` : '—'}
           </div>
         </div>
+      </div>
+
+      {/* ===== Hidden Tenant Statement print template (captured to PDF) ===== */}
+      <div aria-hidden style={{ position: 'fixed', left: -99999, top: 0, pointerEvents: 'none' }}>
+        {tenantLedger && (
+          <div ref={tenantDocRef} style={{ width: 760, background: '#ffffff', color: '#111827', padding: '44px 48px', fontSize: 13, lineHeight: 1.5, fontFamily: 'inherit' }}>
+            {/* Header */}
+            <div style={{ textAlign: 'center', borderBottom: '2px solid #2563eb', paddingBottom: 18, marginBottom: 8 }}>
+              <div style={{ fontSize: 24, fontWeight: 700 }}>{title}</div>
+              {subtitle && <div style={{ color: '#6b7280', marginTop: 2 }}>{subtitle}</div>}
+              <div style={{ fontSize: 18, fontWeight: 700, color: '#2563eb', marginTop: 14 }}>{t('accounting_tenant_ledger')}</div>
+              <div style={{ fontSize: 15, fontWeight: 600, marginTop: 8 }}>{tenantLedger.tenant.fullName}</div>
+              {tenantLedger.tenant.room && <div style={{ color: '#6b7280', fontSize: 12 }}>{tenantLedger.tenant.room.roomNumber} · {tenantLedger.tenant.room.branch}</div>}
+              <div style={{ color: '#374151', marginTop: 8 }}>{t('accounting_for_period')}: {periodStart} → {periodEnd}</div>
+              <div style={{ color: '#6b7280', fontSize: 11, marginTop: 3 }}>{t('accounting_generated')}: {generatedAt}</div>
+            </div>
+
+            {/* Summary */}
+            {docSection('ts-sum', t('accounting_tenant_ledger'))}
+            {docRow('ts-ob', t('accounting_opening_balance'), tenantLedger.openingBalance)}
+            {docRow('ts-ch', t('accounting_period_charges'), tenantLedger.charges, { indent: true })}
+            {docRow('ts-pm', t('accounting_period_payments'), `(${formatCurrency(tenantLedger.payments)})`, { indent: true, muted: true })}
+            {docRow('ts-cb', t('accounting_closing_balance'), tenantLedger.closingBalance, { bold: true, doubleRule: true, red: tenantLedger.closingBalance > 0 })}
+
+            {/* Ledger table */}
+            <div style={{ height: 12 }} />
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontVariantNumeric: 'tabular-nums' }}>
+              <thead>
+                <tr>
+                  <th style={thStyle}>{t('expenses_col_date')}</th>
+                  <th style={thStyle}>&nbsp;</th>
+                  <th style={{ ...thStyle, textAlign: 'right' }}>{t('accounting_ledger_charge')}</th>
+                  <th style={{ ...thStyle, textAlign: 'right' }}>{t('accounting_ledger_payment')}</th>
+                  <th style={{ ...thStyle, textAlign: 'right' }}>{t('accounting_ledger_balance')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr style={{ color: '#6b7280' }}>
+                  <td style={tdStyle}>{periodStart}</td>
+                  <td style={{ ...tdStyle, fontStyle: 'italic' }}>{t('accounting_opening_balance')}</td>
+                  <td style={{ ...tdStyle, textAlign: 'right' }}>—</td>
+                  <td style={{ ...tdStyle, textAlign: 'right' }}>—</td>
+                  <td style={{ ...tdStyle, textAlign: 'right' }}>{formatCurrency(tenantLedger.openingBalance)}</td>
+                </tr>
+                {tenantLedger.entries.map((e, i) => (
+                  <tr key={i}>
+                    <td style={tdStyle}>{e.date}</td>
+                    <td style={tdStyle}>{e.description}</td>
+                    <td style={{ ...tdStyle, textAlign: 'right' }}>{e.kind === 'charge' ? formatCurrency(e.amount) : '—'}</td>
+                    <td style={{ ...tdStyle, textAlign: 'right' }}>{e.kind === 'payment' ? formatCurrency(-e.amount) : '—'}</td>
+                    <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 600 }}>{formatCurrency(e.balance)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   )
