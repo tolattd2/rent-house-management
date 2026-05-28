@@ -604,6 +604,8 @@ export const translations = {
     accounting_total: 'Total',
     accounting_for_period: 'For the period',
     accounting_year_to_date: 'Year to date',
+    accounting_page: 'Page',
+    accounting_generated: 'Generated',
     // Maintenance expense link
     maintenance_linked_expense: 'Linked Expense',
     maintenance_expense_auto: 'Auto-created from repair fee',
@@ -1512,6 +1514,8 @@ export const translations = {
     accounting_total: 'សរុប',
     accounting_for_period: 'សម្រាប់រយៈពេល',
     accounting_year_to_date: 'ពីដើមឆ្នាំដល់បច្ចុប្បន្ន',
+    accounting_page: 'ទំព័រ',
+    accounting_generated: 'បង្កើតនៅ',
     // Maintenance expense link
     maintenance_linked_expense: 'ការចំណាយដែលភ្ជាប់',
     maintenance_expense_auto: 'បង្កើតដោយស្វ័យប្រវត្តិពីថ្លៃជួសជុល',

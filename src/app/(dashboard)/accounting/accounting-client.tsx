@@ -11,7 +11,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { formatCurrency, cn } from '@/lib/utils'
 import { Calculator, FileText, Lock, LockOpen, Search, X } from 'lucide-react'
 import { useLanguage } from '@/contexts/language-context'
+import { translations, type TranslationKey } from '@/lib/translations'
 import { useBranches } from '@/contexts/branches-context'
+import { useBranding } from '@/contexts/branding-context'
 import { usePersistentState } from '@/hooks/use-persistent-state'
 import { toast } from '@/hooks/use-toast'
 
@@ -74,7 +76,8 @@ function newMonthTotals(): MonthTotals {
 export function AccountingClient({ billings, expenses, tenants, locks: initialLocks }: Props) {
   const { data: session } = useSession()
   const isAdmin = session?.user?.role === 'admin'
-  const { t, language } = useLanguage()
+  const { t } = useLanguage()
+  const { title, subtitle } = useBranding()
   const branchOptions = ['all', ...useBranches().map((b) => b.name)]
   const [locks, setLocks] = useState<Lock[]>(initialLocks)
 
@@ -383,76 +386,224 @@ export function AccountingClient({ billings, expenses, tenants, locks: initialLo
   }
 
   // ---- Audit pack PDF ----
+  // Built programmatically with jsPDF (crisp vector text, proper paper layout)
+  // rather than screenshotting the page, so it reads like a real financial
+  // statement set rather than a web capture.
   const exportRootRef = useRef<HTMLDivElement | null>(null)
   const [exportingPdf, setExportingPdf] = useState(false)
   async function handleExportAuditPack() {
-    const root = exportRootRef.current
-    if (!root || exportingPdf) return
+    if (exportingPdf) return
     setExportingPdf(true)
-
-    // Wide tables (e.g. the 12-month income statement matrix) live inside
-    // <TableScroll>, which clips horizontally with overflow-x:auto. html2canvas
-    // captures only what's visually rendered — so the right side of those
-    // tables gets cropped. Temporarily un-clip during capture, then restore.
-    const scrolls = Array.from(root.querySelectorAll<HTMLElement>('.table-scroll'))
-    const originalScrollStyles = scrolls.map((el) => ({ overflow: el.style.overflow, width: el.style.width }))
-    const originalRootWidth = root.style.width
-    const originalRootMaxWidth = root.style.maxWidth
     try {
-      root.style.width = 'max-content'
-      root.style.maxWidth = 'none'
-      scrolls.forEach((el) => { el.style.overflow = 'visible'; el.style.width = 'max-content' })
-
-      const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
-        import('html2canvas'),
-        import('jspdf'),
-      ])
-      const canvas = await html2canvas(root, {
-        scale: 2,
-        backgroundColor: '#ffffff',
-        useCORS: true,
-        windowWidth: root.scrollWidth,
-      })
-      // Landscape A4 fits the wide P&L matrix at a readable size.
-      const pdf = new jsPDF({ orientation: 'l', unit: 'mm', format: 'a4' })
-      const pageW = pdf.internal.pageSize.getWidth()
-      const pageH = pdf.internal.pageSize.getHeight()
-      const imgW = pageW
-      const imgH = (canvas.height * imgW) / canvas.width
+      // jsPDF's built-in Helvetica has no Khmer glyphs, so the PDF always uses
+      // English labels (the conventional language for audit/tax statements).
+      // This local `t` shadows the UI translator for the whole function body.
+      const t = (k: TranslationKey) => translations.en[k] ?? (k as string)
+      const { default: jsPDF } = await import('jspdf')
+      const pdf = new jsPDF({ orientation: 'p', unit: 'pt', format: 'a4' })
+      const PW = pdf.internal.pageSize.getWidth()
+      const PH = pdf.internal.pageSize.getHeight()
+      const M = 48 // page margin
+      const RIGHT = PW - M
       const branchLabel = branchFilter === 'all' ? t('all_branches') : branchFilter
-      pdf.setFontSize(14)
-      pdf.text(`${t('accounting_audit_pack')} — ${rangeLabel}`, 10, 12)
-      pdf.setFontSize(9)
-      pdf.text(`${branchLabel} · ${new Date().toISOString().slice(0, 16).replace('T', ' ')}`, 10, 18)
-      const topMargin = 22
-      const usableH = pageH - topMargin - 6
-      let remaining = imgH
-      let yCanvas = 0
-      let positionMm = topMargin
-      while (remaining > 0) {
-        const bandHmm = Math.min(usableH, remaining)
-        const bandHpx = Math.floor((bandHmm * canvas.width) / imgW)
-        const band = document.createElement('canvas')
-        band.width = canvas.width
-        band.height = bandHpx
-        const ctx = band.getContext('2d')
-        if (!ctx) break
-        ctx.drawImage(canvas, 0, yCanvas, canvas.width, bandHpx, 0, 0, canvas.width, bandHpx)
-        pdf.addImage(band.toDataURL('image/png'), 'PNG', 0, positionMm, imgW, bandHmm)
-        yCanvas += bandHpx
-        remaining -= bandHmm
-        if (remaining > 0) { pdf.addPage(); positionMm = topMargin }
+      const generatedAt = new Date().toISOString().slice(0, 16).replace('T', ' ')
+      const usd = (n: number) => formatCurrency(n)
+      const ink = () => pdf.setTextColor(17, 24, 39)       // near-black
+      const muted = () => pdf.setTextColor(107, 114, 128)  // gray
+      const accent = () => pdf.setTextColor(37, 99, 235)   // blue
+
+      let y = 0
+      let pageNo = 0
+
+      function footer() {
+        pdf.setFont('helvetica', 'normal'); pdf.setFontSize(8); muted()
+        pdf.text(`${title} · ${t('accounting_audit_pack')}`, M, PH - 24)
+        pdf.text(`${t('accounting_page')} ${pageNo}`, RIGHT, PH - 24, { align: 'right' })
+        pdf.setDrawColor(229, 231, 235); pdf.setLineWidth(0.5)
+        pdf.line(M, PH - 34, RIGHT, PH - 34)
       }
+      function newPage() {
+        pdf.addPage(); pageNo++; y = M + 6; footer()
+      }
+      function ensure(h: number) { if (y + h > PH - 48) newPage() }
+
+      // Two-column statement line: label (left) + amount (right).
+      function line(label: string, value: number | string, opts: { bold?: boolean; indent?: number; muted?: boolean; rule?: 'top' | 'double'; color?: 'red' } = {}) {
+        const h = 16
+        ensure(h)
+        if (opts.rule === 'top' || opts.rule === 'double') {
+          pdf.setDrawColor(209, 213, 219); pdf.setLineWidth(opts.rule === 'double' ? 1 : 0.5)
+          pdf.line(M, y - 2, RIGHT, y - 2)
+          if (opts.rule === 'double') { pdf.line(M, y - 4.5, RIGHT, y - 4.5) }
+        }
+        pdf.setFont('helvetica', opts.bold ? 'bold' : 'normal'); pdf.setFontSize(10)
+        if (opts.muted) muted(); else ink()
+        pdf.text(label, M + (opts.indent ?? 0), y + 9)
+        const valStr = typeof value === 'number' ? usd(value) : value
+        if (opts.color === 'red') pdf.setTextColor(220, 38, 38)
+        pdf.text(valStr, RIGHT, y + 9, { align: 'right' })
+        y += h
+      }
+      function sectionHeading(label: string) {
+        ensure(30)
+        y += 6
+        pdf.setFont('helvetica', 'bold'); pdf.setFontSize(8); accent()
+        pdf.text(label.toUpperCase(), M, y + 8)
+        y += 16
+      }
+      function pageTitle(title1: string, subtitle?: string) {
+        ensure(40)
+        pdf.setFont('helvetica', 'bold'); pdf.setFontSize(15); ink()
+        pdf.text(title1, M, y + 14)
+        y += 22
+        if (subtitle) {
+          pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9); muted()
+          pdf.text(subtitle, M, y + 6)
+          y += 16
+        } else { y += 4 }
+      }
+      // Generic grid table (header + rows), right-aligned numeric columns.
+      function grid(headers: string[], rows: string[][], aligns: ('l' | 'r')[], colW: number[]) {
+        const rowH = 16
+        const drawHead = () => {
+          ensure(rowH + 4)
+          pdf.setFillColor(243, 244, 246); pdf.rect(M, y, RIGHT - M, rowH, 'F')
+          pdf.setFont('helvetica', 'bold'); pdf.setFontSize(8); muted()
+          let x = M
+          headers.forEach((hd, i) => {
+            const a = aligns[i]
+            pdf.text(hd, a === 'r' ? x + colW[i] - 4 : x + 4, y + 11, { align: a === 'r' ? 'right' : 'left' })
+            x += colW[i]
+          })
+          y += rowH
+        }
+        drawHead()
+        pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9); ink()
+        rows.forEach((r, ri) => {
+          if (y + rowH > PH - 48) { newPage(); drawHead(); pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9); ink() }
+          if (ri % 2) { pdf.setFillColor(249, 250, 251); pdf.rect(M, y, RIGHT - M, rowH, 'F') }
+          let x = M
+          r.forEach((cell, i) => {
+            const a = aligns[i]
+            pdf.text(cell, a === 'r' ? x + colW[i] - 4 : x + 4, y + 11, { align: a === 'r' ? 'right' : 'left' })
+            x += colW[i]
+          })
+          y += rowH
+        })
+        pdf.setDrawColor(229, 231, 235); pdf.setLineWidth(0.5)
+        pdf.line(M, y, RIGHT, y)
+      }
+
+      // ---------- Cover page ----------
+      pageNo = 1; footer()
+      pdf.setFont('helvetica', 'bold'); pdf.setFontSize(26); ink()
+      pdf.text(title, PW / 2, 230, { align: 'center' })
+      if (subtitle) { pdf.setFont('helvetica', 'normal'); pdf.setFontSize(12); muted(); pdf.text(subtitle, PW / 2, 252, { align: 'center' }) }
+      pdf.setDrawColor(37, 99, 235); pdf.setLineWidth(2)
+      pdf.line(PW / 2 - 70, 274, PW / 2 + 70, 274)
+      pdf.setFont('helvetica', 'bold'); pdf.setFontSize(18); accent()
+      pdf.text(t('accounting_audit_pack'), PW / 2, 318, { align: 'center' })
+      pdf.setFont('helvetica', 'normal'); pdf.setFontSize(11); ink()
+      pdf.text(`${t('accounting_for_period')}: ${periodStart}  →  ${periodEnd}`, PW / 2, 350, { align: 'center' })
+      muted(); pdf.setFontSize(10)
+      pdf.text(`${t('branch')}: ${branchLabel}`, PW / 2, 372, { align: 'center' })
+      pdf.text(`${t('accounting_generated')}: ${generatedAt}`, PW / 2, 390, { align: 'center' })
+
+      // ---------- Income Statement (formal, range totals) ----------
+      newPage()
+      pageTitle(t('accounting_income_statement_annual'), `${rangeLabel} · ${branchLabel} · ${periodStart} → ${periodEnd}`)
+      sectionHeading(t('reports_revenue_billed'))
+      line(t('reports_revenue_room_rent'), rangeTotals.rent, { indent: 12 })
+      line(t('reports_revenue_water'), rangeTotals.water, { indent: 12 })
+      line(t('reports_revenue_electric'), rangeTotals.electric, { indent: 12 })
+      line(t('reports_revenue_penalty'), rangeTotals.penalty, { indent: 12 })
+      line(t('reports_revenue_discount'), `(${usd(rangeTotals.discount)})`, { indent: 12, muted: true })
+      line(t('reports_net_revenue'), rangeTotals.netRevenue, { bold: true, rule: 'top' })
+      line(t('reports_of_which_collected'), rangeTotals.collected, { indent: 12, muted: true })
+      line(t('reports_of_which_outstanding'), rangeTotals.outstanding, { indent: 12, muted: true })
+      sectionHeading(t('reports_total_expenses'))
+      for (const cat of expenseCategories) {
+        line(catLabel(cat), rangeTotals.expensesByCat.get(cat) ?? 0, { indent: 12 })
+      }
+      line(t('reports_total_expenses'), rangeTotals.expenseTotal, { bold: true, rule: 'top' })
+      y += 4
+      line(t('reports_net_income'), rangeTotals.netIncome, { bold: true, rule: 'double', color: rangeTotals.netIncome < 0 ? 'red' : undefined })
+
+      // ---------- Quarterly Summary (single year only) ----------
+      if (isSingleYear) {
+        newPage()
+        pageTitle(t('accounting_quarterly_summary'), `${fromYear} · ${branchLabel}`)
+        const qcol = [150, (RIGHT - M - 150) / 5, (RIGHT - M - 150) / 5, (RIGHT - M - 150) / 5, (RIGHT - M - 150) / 5, (RIGHT - M - 150) / 5]
+        grid(
+          ['', t('accounting_quarter_q1'), t('accounting_quarter_q2'), t('accounting_quarter_q3'), t('accounting_quarter_q4'), t('accounting_total')],
+          [
+            [t('reports_revenue_billed'), ...quarters.map((q) => usd(q.billed)), usd(rangeTotals.netRevenue)],
+            [t('reports_revenue_collected'), ...quarters.map((q) => usd(q.collected)), usd(rangeTotals.collected)],
+            [t('reports_outstanding'), ...quarters.map((q) => usd(q.outstanding)), usd(rangeTotals.outstanding)],
+            [t('reports_total_expenses'), ...quarters.map((q) => usd(q.expenses)), usd(rangeTotals.expenseTotal)],
+            [t('reports_net_income'), ...quarters.map((q) => usd(q.net)), usd(rangeTotals.netIncome)],
+          ],
+          ['l', 'r', 'r', 'r', 'r', 'r'],
+          qcol,
+        )
+      }
+
+      // ---------- Balance Sheet ----------
+      newPage()
+      pageTitle(t('accounting_balance_sheet'), `${t('accounting_balance_sheet_as_of')} ${balanceSheetCutoff} · ${branchLabel}`)
+      sectionHeading(t('accounting_assets'))
+      line(t('accounting_accounts_receivable'), balanceSheet.accountsReceivable, { indent: 12 })
+      line(t('accounting_cash_position'), balanceSheet.netCash, { indent: 12, color: balanceSheet.netCash < 0 ? 'red' : undefined })
+      line(t('accounting_total_assets'), balanceSheet.totalAssets, { bold: true, rule: 'top' })
+      sectionHeading(t('accounting_liabilities'))
+      line(t('accounting_security_deposits'), balanceSheet.securityDeposits, { indent: 12 })
+      line(t('accounting_total_liabilities'), balanceSheet.totalLiabilities, { bold: true, rule: 'top' })
+      sectionHeading(t('accounting_equity'))
+      line(t('accounting_retained_earnings'), balanceSheet.retainedEarnings, { indent: 12, color: balanceSheet.retainedEarnings < 0 ? 'red' : undefined })
+      line(t('accounting_total_liab_equity'), balanceSheet.totalLiabilities + balanceSheet.retainedEarnings, { bold: true, rule: 'double' })
+
+      // ---------- Cash Flow ----------
+      newPage()
+      pageTitle(t('accounting_cash_flow'), `${rangeLabel} · ${branchLabel} · ${periodStart} → ${periodEnd}`)
+      sectionHeading(t('accounting_cf_operating'))
+      line(t('accounting_cf_rental_receipts'), cashFlow.rentalReceipts, { indent: 12 })
+      line(t('accounting_cf_operating_expenses'), `(${usd(cashFlow.operatingExpenses)})`, { indent: 12, muted: true })
+      line(t('accounting_cf_net_operating'), cashFlow.netOperating, { bold: true, rule: 'top', color: cashFlow.netOperating < 0 ? 'red' : undefined })
+      sectionHeading(t('accounting_cf_financing'))
+      line(t('accounting_cf_deposits_received'), cashFlow.depositsReceived, { indent: 12 })
+      line(t('accounting_cf_deposits_refunded'), `(${usd(cashFlow.depositsRefunded)})`, { indent: 12, muted: true })
+      line(t('accounting_cf_net_change'), cashFlow.netChange, { bold: true, rule: 'double', color: cashFlow.netChange < 0 ? 'red' : undefined })
+
+      // ---------- Security Deposits Schedule ----------
+      newPage()
+      pageTitle(t('accounting_deposits_schedule'), branchLabel)
+      if (balanceSheet.activeDeposits.length === 0) {
+        pdf.setFont('helvetica', 'normal'); pdf.setFontSize(10); muted(); pdf.text('—', M, y + 10)
+      } else {
+        const w0 = 170, wr = 90, wb = 90, wm = 80
+        grid(
+          [t('tenant'), t('room'), t('branch'), t('accounting_move_in'), t('accounting_security_deposits')],
+          balanceSheet.activeDeposits.map((tn) => [
+            tn.fullName, tn.room?.roomNumber ?? '—', tn.room?.branch ?? '—', tn.moveInDate || '—', usd(tn.depositAmount),
+          ]),
+          ['l', 'l', 'l', 'l', 'r'],
+          [w0, wr, wb, wm, RIGHT - M - w0 - wr - wb - wm],
+        )
+        line(t('accounting_total'), balanceSheet.securityDeposits, { bold: true, rule: 'top' })
+      }
+
+      // ---------- Period Lock status ----------
+      const lockedMonths = lockMonths.filter((m) => locks.some((l) => l.month === m))
+      sectionHeading(t('accounting_period_lock'))
+      pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9); ink()
+      ensure(16)
+      pdf.text(lockedMonths.length ? `${t('accounting_locked')}: ${lockedMonths.join(', ')}` : '—', M, y + 9)
+      y += 16
+
       pdf.save(`audit-pack-${branchLabel}-${rangeLabel}.pdf`.replace(/[^a-z0-9._-]/gi, '_'))
+    } catch (e) {
+      toast({ title: e instanceof Error ? e.message : 'PDF export failed', variant: 'destructive' })
     } finally {
-      // Always restore the layout — even on error — so the page doesn't stay
-      // in a max-content state.
-      root.style.width = originalRootWidth
-      root.style.maxWidth = originalRootMaxWidth
-      scrolls.forEach((el, i) => {
-        el.style.overflow = originalScrollStyles[i].overflow
-        el.style.width = originalScrollStyles[i].width
-      })
       setExportingPdf(false)
     }
   }
