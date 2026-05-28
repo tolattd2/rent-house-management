@@ -1181,7 +1181,7 @@ export const translations = {
     received_by: 'ទទួលដោយ',
     no_tenant: 'គ្មានអ្នករស់នៅ',
     all_branches: 'សាខាទាំងអស់',
-    branch_shared: 'ចំណាយរួម',
+    branch_shared: 'សាខារួម',
     paid_on: 'បានបង់នៅ',
     // Dashboard extra
     dashboard_monthly_revenue: 'ចំណូលប្រចាំខែ',
