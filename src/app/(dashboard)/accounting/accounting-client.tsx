@@ -11,7 +11,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { formatCurrency, cn } from '@/lib/utils'
 import { Calculator, FileText, Lock, LockOpen, Search, X } from 'lucide-react'
 import { useLanguage } from '@/contexts/language-context'
-import { translations, type TranslationKey } from '@/lib/translations'
 import { useBranches } from '@/contexts/branches-context'
 import { useBranding } from '@/contexts/branding-context'
 import { usePersistentState } from '@/hooks/use-persistent-state'
@@ -386,221 +385,49 @@ export function AccountingClient({ billings, expenses, tenants, locks: initialLo
   }
 
   // ---- Audit pack PDF ----
-  // Built programmatically with jsPDF (crisp vector text, proper paper layout)
-  // rather than screenshotting the page, so it reads like a real financial
-  // statement set rather than a web capture.
-  const exportRootRef = useRef<HTMLDivElement | null>(null)
+  // Rendered from a dedicated, print-styled HTML document (auditDocRef) rather
+  // than the live dashboard. The browser shapes Khmer correctly, so the PDF
+  // supports both languages; the template uses clean white-paper styling so it
+  // reads like a financial statement set, not a web capture.
+  const auditDocRef = useRef<HTMLDivElement | null>(null)
   const [exportingPdf, setExportingPdf] = useState(false)
+  const branchLabelText = branchFilter === 'all' ? t('all_branches') : branchFilter
   async function handleExportAuditPack() {
-    if (exportingPdf) return
+    const el = auditDocRef.current
+    if (!el || exportingPdf) return
     setExportingPdf(true)
     try {
-      // jsPDF's built-in Helvetica has no Khmer glyphs, so the PDF always uses
-      // English labels (the conventional language for audit/tax statements).
-      // This local `t` shadows the UI translator for the whole function body.
-      const t = (k: TranslationKey) => translations.en[k] ?? (k as string)
-      const { default: jsPDF } = await import('jspdf')
+      const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
+        import('html2canvas'),
+        import('jspdf'),
+      ])
+      const canvas = await html2canvas(el, { scale: 2, backgroundColor: '#ffffff', useCORS: true, windowWidth: el.scrollWidth })
       const pdf = new jsPDF({ orientation: 'p', unit: 'pt', format: 'a4' })
-      const PW = pdf.internal.pageSize.getWidth()
-      const PH = pdf.internal.pageSize.getHeight()
-      const M = 48 // page margin
-      const RIGHT = PW - M
-      const branchLabel = branchFilter === 'all' ? t('all_branches') : branchFilter
-      const generatedAt = new Date().toISOString().slice(0, 16).replace('T', ' ')
-      const usd = (n: number) => formatCurrency(n)
-      const ink = () => pdf.setTextColor(17, 24, 39)       // near-black
-      const muted = () => pdf.setTextColor(107, 114, 128)  // gray
-      const accent = () => pdf.setTextColor(37, 99, 235)   // blue
-
-      let y = 0
-      let pageNo = 0
-
-      function footer() {
-        pdf.setFont('helvetica', 'normal'); pdf.setFontSize(8); muted()
-        pdf.text(`${title} · ${t('accounting_audit_pack')}`, M, PH - 24)
-        pdf.text(`${t('accounting_page')} ${pageNo}`, RIGHT, PH - 24, { align: 'right' })
-        pdf.setDrawColor(229, 231, 235); pdf.setLineWidth(0.5)
-        pdf.line(M, PH - 34, RIGHT, PH - 34)
+      const pageW = pdf.internal.pageSize.getWidth()
+      const pageH = pdf.internal.pageSize.getHeight()
+      const imgW = pageW
+      const imgH = (canvas.height * imgW) / canvas.width
+      const pxPerPage = Math.floor((pageH * canvas.width) / imgW)
+      let remaining = canvas.height
+      let yCanvas = 0
+      let first = true
+      while (remaining > 0) {
+        const bandPx = Math.min(pxPerPage, remaining)
+        const band = document.createElement('canvas')
+        band.width = canvas.width
+        band.height = bandPx
+        const ctx = band.getContext('2d')
+        if (!ctx) break
+        ctx.fillStyle = '#ffffff'
+        ctx.fillRect(0, 0, band.width, band.height)
+        ctx.drawImage(canvas, 0, yCanvas, canvas.width, bandPx, 0, 0, canvas.width, bandPx)
+        if (!first) pdf.addPage()
+        pdf.addImage(band.toDataURL('image/png'), 'PNG', 0, 0, imgW, (bandPx * imgW) / canvas.width)
+        first = false
+        yCanvas += bandPx
+        remaining -= bandPx
       }
-      function newPage() {
-        pdf.addPage(); pageNo++; y = M + 6; footer()
-      }
-      function ensure(h: number) { if (y + h > PH - 48) newPage() }
-
-      // Two-column statement line: label (left) + amount (right).
-      function line(label: string, value: number | string, opts: { bold?: boolean; indent?: number; muted?: boolean; rule?: 'top' | 'double'; color?: 'red' } = {}) {
-        const h = 16
-        ensure(h)
-        if (opts.rule === 'top' || opts.rule === 'double') {
-          pdf.setDrawColor(209, 213, 219); pdf.setLineWidth(opts.rule === 'double' ? 1 : 0.5)
-          pdf.line(M, y - 2, RIGHT, y - 2)
-          if (opts.rule === 'double') { pdf.line(M, y - 4.5, RIGHT, y - 4.5) }
-        }
-        pdf.setFont('helvetica', opts.bold ? 'bold' : 'normal'); pdf.setFontSize(10)
-        if (opts.muted) muted(); else ink()
-        pdf.text(label, M + (opts.indent ?? 0), y + 9)
-        const valStr = typeof value === 'number' ? usd(value) : value
-        if (opts.color === 'red') pdf.setTextColor(220, 38, 38)
-        pdf.text(valStr, RIGHT, y + 9, { align: 'right' })
-        y += h
-      }
-      function sectionHeading(label: string) {
-        ensure(30)
-        y += 6
-        pdf.setFont('helvetica', 'bold'); pdf.setFontSize(8); accent()
-        pdf.text(label.toUpperCase(), M, y + 8)
-        y += 16
-      }
-      function pageTitle(title1: string, subtitle?: string) {
-        ensure(40)
-        pdf.setFont('helvetica', 'bold'); pdf.setFontSize(15); ink()
-        pdf.text(title1, M, y + 14)
-        y += 22
-        if (subtitle) {
-          pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9); muted()
-          pdf.text(subtitle, M, y + 6)
-          y += 16
-        } else { y += 4 }
-      }
-      // Generic grid table (header + rows), right-aligned numeric columns.
-      function grid(headers: string[], rows: string[][], aligns: ('l' | 'r')[], colW: number[]) {
-        const rowH = 16
-        const drawHead = () => {
-          ensure(rowH + 4)
-          pdf.setFillColor(243, 244, 246); pdf.rect(M, y, RIGHT - M, rowH, 'F')
-          pdf.setFont('helvetica', 'bold'); pdf.setFontSize(8); muted()
-          let x = M
-          headers.forEach((hd, i) => {
-            const a = aligns[i]
-            pdf.text(hd, a === 'r' ? x + colW[i] - 4 : x + 4, y + 11, { align: a === 'r' ? 'right' : 'left' })
-            x += colW[i]
-          })
-          y += rowH
-        }
-        drawHead()
-        pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9); ink()
-        rows.forEach((r, ri) => {
-          if (y + rowH > PH - 48) { newPage(); drawHead(); pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9); ink() }
-          if (ri % 2) { pdf.setFillColor(249, 250, 251); pdf.rect(M, y, RIGHT - M, rowH, 'F') }
-          let x = M
-          r.forEach((cell, i) => {
-            const a = aligns[i]
-            pdf.text(cell, a === 'r' ? x + colW[i] - 4 : x + 4, y + 11, { align: a === 'r' ? 'right' : 'left' })
-            x += colW[i]
-          })
-          y += rowH
-        })
-        pdf.setDrawColor(229, 231, 235); pdf.setLineWidth(0.5)
-        pdf.line(M, y, RIGHT, y)
-      }
-
-      // ---------- Cover page ----------
-      pageNo = 1; footer()
-      pdf.setFont('helvetica', 'bold'); pdf.setFontSize(26); ink()
-      pdf.text(title, PW / 2, 230, { align: 'center' })
-      if (subtitle) { pdf.setFont('helvetica', 'normal'); pdf.setFontSize(12); muted(); pdf.text(subtitle, PW / 2, 252, { align: 'center' }) }
-      pdf.setDrawColor(37, 99, 235); pdf.setLineWidth(2)
-      pdf.line(PW / 2 - 70, 274, PW / 2 + 70, 274)
-      pdf.setFont('helvetica', 'bold'); pdf.setFontSize(18); accent()
-      pdf.text(t('accounting_audit_pack'), PW / 2, 318, { align: 'center' })
-      pdf.setFont('helvetica', 'normal'); pdf.setFontSize(11); ink()
-      pdf.text(`${t('accounting_for_period')}: ${periodStart}  →  ${periodEnd}`, PW / 2, 350, { align: 'center' })
-      muted(); pdf.setFontSize(10)
-      pdf.text(`${t('branch')}: ${branchLabel}`, PW / 2, 372, { align: 'center' })
-      pdf.text(`${t('accounting_generated')}: ${generatedAt}`, PW / 2, 390, { align: 'center' })
-
-      // ---------- Income Statement (formal, range totals) ----------
-      newPage()
-      pageTitle(t('accounting_income_statement_annual'), `${rangeLabel} · ${branchLabel} · ${periodStart} → ${periodEnd}`)
-      sectionHeading(t('reports_revenue_billed'))
-      line(t('reports_revenue_room_rent'), rangeTotals.rent, { indent: 12 })
-      line(t('reports_revenue_water'), rangeTotals.water, { indent: 12 })
-      line(t('reports_revenue_electric'), rangeTotals.electric, { indent: 12 })
-      line(t('reports_revenue_penalty'), rangeTotals.penalty, { indent: 12 })
-      line(t('reports_revenue_discount'), `(${usd(rangeTotals.discount)})`, { indent: 12, muted: true })
-      line(t('reports_net_revenue'), rangeTotals.netRevenue, { bold: true, rule: 'top' })
-      line(t('reports_of_which_collected'), rangeTotals.collected, { indent: 12, muted: true })
-      line(t('reports_of_which_outstanding'), rangeTotals.outstanding, { indent: 12, muted: true })
-      sectionHeading(t('reports_total_expenses'))
-      for (const cat of expenseCategories) {
-        line(catLabel(cat), rangeTotals.expensesByCat.get(cat) ?? 0, { indent: 12 })
-      }
-      line(t('reports_total_expenses'), rangeTotals.expenseTotal, { bold: true, rule: 'top' })
-      y += 4
-      line(t('reports_net_income'), rangeTotals.netIncome, { bold: true, rule: 'double', color: rangeTotals.netIncome < 0 ? 'red' : undefined })
-
-      // ---------- Quarterly Summary (single year only) ----------
-      if (isSingleYear) {
-        newPage()
-        pageTitle(t('accounting_quarterly_summary'), `${fromYear} · ${branchLabel}`)
-        const qcol = [150, (RIGHT - M - 150) / 5, (RIGHT - M - 150) / 5, (RIGHT - M - 150) / 5, (RIGHT - M - 150) / 5, (RIGHT - M - 150) / 5]
-        grid(
-          ['', t('accounting_quarter_q1'), t('accounting_quarter_q2'), t('accounting_quarter_q3'), t('accounting_quarter_q4'), t('accounting_total')],
-          [
-            [t('reports_revenue_billed'), ...quarters.map((q) => usd(q.billed)), usd(rangeTotals.netRevenue)],
-            [t('reports_revenue_collected'), ...quarters.map((q) => usd(q.collected)), usd(rangeTotals.collected)],
-            [t('reports_outstanding'), ...quarters.map((q) => usd(q.outstanding)), usd(rangeTotals.outstanding)],
-            [t('reports_total_expenses'), ...quarters.map((q) => usd(q.expenses)), usd(rangeTotals.expenseTotal)],
-            [t('reports_net_income'), ...quarters.map((q) => usd(q.net)), usd(rangeTotals.netIncome)],
-          ],
-          ['l', 'r', 'r', 'r', 'r', 'r'],
-          qcol,
-        )
-      }
-
-      // ---------- Balance Sheet ----------
-      newPage()
-      pageTitle(t('accounting_balance_sheet'), `${t('accounting_balance_sheet_as_of')} ${balanceSheetCutoff} · ${branchLabel}`)
-      sectionHeading(t('accounting_assets'))
-      line(t('accounting_accounts_receivable'), balanceSheet.accountsReceivable, { indent: 12 })
-      line(t('accounting_cash_position'), balanceSheet.netCash, { indent: 12, color: balanceSheet.netCash < 0 ? 'red' : undefined })
-      line(t('accounting_total_assets'), balanceSheet.totalAssets, { bold: true, rule: 'top' })
-      sectionHeading(t('accounting_liabilities'))
-      line(t('accounting_security_deposits'), balanceSheet.securityDeposits, { indent: 12 })
-      line(t('accounting_total_liabilities'), balanceSheet.totalLiabilities, { bold: true, rule: 'top' })
-      sectionHeading(t('accounting_equity'))
-      line(t('accounting_retained_earnings'), balanceSheet.retainedEarnings, { indent: 12, color: balanceSheet.retainedEarnings < 0 ? 'red' : undefined })
-      line(t('accounting_total_liab_equity'), balanceSheet.totalLiabilities + balanceSheet.retainedEarnings, { bold: true, rule: 'double' })
-
-      // ---------- Cash Flow ----------
-      newPage()
-      pageTitle(t('accounting_cash_flow'), `${rangeLabel} · ${branchLabel} · ${periodStart} → ${periodEnd}`)
-      sectionHeading(t('accounting_cf_operating'))
-      line(t('accounting_cf_rental_receipts'), cashFlow.rentalReceipts, { indent: 12 })
-      line(t('accounting_cf_operating_expenses'), `(${usd(cashFlow.operatingExpenses)})`, { indent: 12, muted: true })
-      line(t('accounting_cf_net_operating'), cashFlow.netOperating, { bold: true, rule: 'top', color: cashFlow.netOperating < 0 ? 'red' : undefined })
-      sectionHeading(t('accounting_cf_financing'))
-      line(t('accounting_cf_deposits_received'), cashFlow.depositsReceived, { indent: 12 })
-      line(t('accounting_cf_deposits_refunded'), `(${usd(cashFlow.depositsRefunded)})`, { indent: 12, muted: true })
-      line(t('accounting_cf_net_change'), cashFlow.netChange, { bold: true, rule: 'double', color: cashFlow.netChange < 0 ? 'red' : undefined })
-
-      // ---------- Security Deposits Schedule ----------
-      newPage()
-      pageTitle(t('accounting_deposits_schedule'), branchLabel)
-      if (balanceSheet.activeDeposits.length === 0) {
-        pdf.setFont('helvetica', 'normal'); pdf.setFontSize(10); muted(); pdf.text('—', M, y + 10)
-      } else {
-        const w0 = 170, wr = 90, wb = 90, wm = 80
-        grid(
-          [t('tenant'), t('room'), t('branch'), t('accounting_move_in'), t('accounting_security_deposits')],
-          balanceSheet.activeDeposits.map((tn) => [
-            tn.fullName, tn.room?.roomNumber ?? '—', tn.room?.branch ?? '—', tn.moveInDate || '—', usd(tn.depositAmount),
-          ]),
-          ['l', 'l', 'l', 'l', 'r'],
-          [w0, wr, wb, wm, RIGHT - M - w0 - wr - wb - wm],
-        )
-        line(t('accounting_total'), balanceSheet.securityDeposits, { bold: true, rule: 'top' })
-      }
-
-      // ---------- Period Lock status ----------
-      const lockedMonths = lockMonths.filter((m) => locks.some((l) => l.month === m))
-      sectionHeading(t('accounting_period_lock'))
-      pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9); ink()
-      ensure(16)
-      pdf.text(lockedMonths.length ? `${t('accounting_locked')}: ${lockedMonths.join(', ')}` : '—', M, y + 9)
-      y += 16
-
-      pdf.save(`audit-pack-${branchLabel}-${rangeLabel}.pdf`.replace(/[^a-z0-9._-]/gi, '_'))
+      pdf.save(`audit-pack-${branchLabelText}-${rangeLabel}.pdf`.replace(/[^a-z0-9._-]/gi, '_'))
     } catch (e) {
       toast({ title: e instanceof Error ? e.message : 'PDF export failed', variant: 'destructive' })
     } finally {
@@ -657,6 +484,42 @@ export function AccountingClient({ billings, expenses, tenants, locks: initialLo
     return out
   }, [yearsInRange])
 
+  // ---- Audit Pack print-template helpers (plain functions returning JSX so
+  // they stay independent of the app theme / dark mode). ----
+  const generatedAt = new Date().toISOString().slice(0, 16).replace('T', ' ')
+  const lockedMonthsList = lockMonths.filter((m) => locks.some((l) => l.month === m))
+  type DocRowOpts = { indent?: boolean; bold?: boolean; muted?: boolean; rule?: boolean; doubleRule?: boolean; red?: boolean }
+  function docRow(key: string, label: string, value: number | string, o: DocRowOpts = {}) {
+    return (
+      <div key={key} style={{
+        display: 'flex', justifyContent: 'space-between', gap: 16, padding: '3px 0',
+        paddingLeft: o.indent ? 18 : 0,
+        fontWeight: o.bold ? 700 : 400,
+        color: o.red ? '#dc2626' : o.muted ? '#6b7280' : '#111827',
+        borderTop: o.doubleRule ? '3px double #9ca3af' : o.rule ? '1px solid #d1d5db' : undefined,
+        marginTop: o.rule || o.doubleRule ? 4 : 0,
+      }}>
+        <span>{label}</span>
+        <span style={{ fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
+          {typeof value === 'number' ? formatCurrency(value) : value}
+        </span>
+      </div>
+    )
+  }
+  function docSection(key: string, label: string) {
+    return <div key={key} style={{ fontSize: 11, fontWeight: 700, color: '#2563eb', textTransform: 'uppercase', letterSpacing: 0.6, margin: '16px 0 4px' }}>{label}</div>
+  }
+  function docStmtTitle(title1: string, sub?: string) {
+    return (
+      <div style={{ margin: '26px 0 8px', borderBottom: '1px solid #e5e7eb', paddingBottom: 6 }}>
+        <div style={{ fontSize: 16, fontWeight: 700 }}>{title1}</div>
+        {sub && <div style={{ color: '#6b7280', fontSize: 11, marginTop: 2 }}>{sub}</div>}
+      </div>
+    )
+  }
+  const thStyle: React.CSSProperties = { textAlign: 'left', padding: '6px 6px', fontSize: 10, color: '#6b7280', borderBottom: '1px solid #d1d5db', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4 }
+  const tdStyle: React.CSSProperties = { padding: '5px 6px', borderBottom: '1px solid #f0f1f3' }
+
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
@@ -711,7 +574,7 @@ export function AccountingClient({ billings, expenses, tenants, locks: initialLo
         </div>
       </div>
 
-      <div ref={exportRootRef} className="space-y-6 bg-background">
+      <div className="space-y-6 bg-background">
         {/* Annual income statement */}
         <Card>
           <CardHeader>
@@ -1065,6 +928,133 @@ export function AccountingClient({ billings, expenses, tenants, locks: initialLo
             </table>
           </TableScroll>
         </Card>
+      </div>
+
+      {/* ===== Hidden Audit Pack print template (captured to PDF) ===== */}
+      <div aria-hidden style={{ position: 'fixed', left: -99999, top: 0, pointerEvents: 'none' }}>
+        <div ref={auditDocRef} style={{ width: 760, background: '#ffffff', color: '#111827', padding: '44px 48px', fontSize: 13, lineHeight: 1.5, fontFamily: 'inherit' }}>
+          {/* Header */}
+          <div style={{ textAlign: 'center', borderBottom: '2px solid #2563eb', paddingBottom: 18, marginBottom: 8 }}>
+            <div style={{ fontSize: 24, fontWeight: 700 }}>{title}</div>
+            {subtitle && <div style={{ color: '#6b7280', marginTop: 2 }}>{subtitle}</div>}
+            <div style={{ fontSize: 18, fontWeight: 700, color: '#2563eb', marginTop: 14 }}>{t('accounting_audit_pack')}</div>
+            <div style={{ color: '#374151', marginTop: 8 }}>{t('accounting_for_period')}: {periodStart} → {periodEnd}</div>
+            <div style={{ color: '#6b7280', fontSize: 11, marginTop: 3 }}>{t('branch')}: {branchLabelText} · {t('accounting_generated')}: {generatedAt}</div>
+          </div>
+
+          {/* Income Statement */}
+          {docStmtTitle(t('accounting_income_statement_annual'), `${rangeLabel} · ${branchLabelText} · ${periodStart} → ${periodEnd}`)}
+          {docSection('is-rev', t('reports_revenue_billed'))}
+          {docRow('is-rent', t('reports_revenue_room_rent'), rangeTotals.rent, { indent: true })}
+          {docRow('is-water', t('reports_revenue_water'), rangeTotals.water, { indent: true })}
+          {docRow('is-elec', t('reports_revenue_electric'), rangeTotals.electric, { indent: true })}
+          {docRow('is-pen', t('reports_revenue_penalty'), rangeTotals.penalty, { indent: true })}
+          {docRow('is-disc', t('reports_revenue_discount'), `(${formatCurrency(rangeTotals.discount)})`, { indent: true, muted: true })}
+          {docRow('is-net', t('reports_net_revenue'), rangeTotals.netRevenue, { bold: true, rule: true })}
+          {docRow('is-coll', t('reports_of_which_collected'), rangeTotals.collected, { indent: true, muted: true })}
+          {docRow('is-out', t('reports_of_which_outstanding'), rangeTotals.outstanding, { indent: true, muted: true })}
+          {docSection('is-exp', t('reports_total_expenses'))}
+          {expenseCategories.map((cat) => docRow(`is-e-${cat}`, catLabel(cat), rangeTotals.expensesByCat.get(cat) ?? 0, { indent: true }))}
+          {docRow('is-exptot', t('reports_total_expenses'), rangeTotals.expenseTotal, { bold: true, rule: true })}
+          {docRow('is-ni', t('reports_net_income'), rangeTotals.netIncome, { bold: true, doubleRule: true, red: rangeTotals.netIncome < 0 })}
+
+          {/* Quarterly Summary (single year only) */}
+          {isSingleYear && (
+            <>
+              {docStmtTitle(t('accounting_quarterly_summary'), `${fromYear} · ${branchLabelText}`)}
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontVariantNumeric: 'tabular-nums' }}>
+                <thead>
+                  <tr>
+                    <th style={thStyle}>&nbsp;</th>
+                    <th style={{ ...thStyle, textAlign: 'right' }}>{t('accounting_quarter_q1')}</th>
+                    <th style={{ ...thStyle, textAlign: 'right' }}>{t('accounting_quarter_q2')}</th>
+                    <th style={{ ...thStyle, textAlign: 'right' }}>{t('accounting_quarter_q3')}</th>
+                    <th style={{ ...thStyle, textAlign: 'right' }}>{t('accounting_quarter_q4')}</th>
+                    <th style={{ ...thStyle, textAlign: 'right' }}>{t('accounting_total')}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {([
+                    [t('reports_revenue_billed'), quarters.map((q) => q.billed), rangeTotals.netRevenue, false],
+                    [t('reports_revenue_collected'), quarters.map((q) => q.collected), rangeTotals.collected, false],
+                    [t('reports_outstanding'), quarters.map((q) => q.outstanding), rangeTotals.outstanding, false],
+                    [t('reports_total_expenses'), quarters.map((q) => q.expenses), rangeTotals.expenseTotal, false],
+                    [t('reports_net_income'), quarters.map((q) => q.net), rangeTotals.netIncome, true],
+                  ] as [string, number[], number, boolean][]).map(([label, vals, total, bold]) => (
+                    <tr key={label} style={{ fontWeight: bold ? 700 : 400 }}>
+                      <td style={tdStyle}>{label}</td>
+                      {vals.map((v, i) => <td key={i} style={{ ...tdStyle, textAlign: 'right' }}>{formatCurrency(v)}</td>)}
+                      <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 700 }}>{formatCurrency(total)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </>
+          )}
+
+          {/* Balance Sheet */}
+          {docStmtTitle(t('accounting_balance_sheet'), `${t('accounting_balance_sheet_as_of')} ${balanceSheetCutoff} · ${branchLabelText}`)}
+          {docSection('bs-a', t('accounting_assets'))}
+          {docRow('bs-ar', t('accounting_accounts_receivable'), balanceSheet.accountsReceivable, { indent: true })}
+          {docRow('bs-cash', t('accounting_cash_position'), balanceSheet.netCash, { indent: true, red: balanceSheet.netCash < 0 })}
+          {docRow('bs-ta', t('accounting_total_assets'), balanceSheet.totalAssets, { bold: true, rule: true })}
+          {docSection('bs-l', t('accounting_liabilities'))}
+          {docRow('bs-dep', t('accounting_security_deposits'), balanceSheet.securityDeposits, { indent: true })}
+          {docRow('bs-tl', t('accounting_total_liabilities'), balanceSheet.totalLiabilities, { bold: true, rule: true })}
+          {docSection('bs-e', t('accounting_equity'))}
+          {docRow('bs-re', t('accounting_retained_earnings'), balanceSheet.retainedEarnings, { indent: true, red: balanceSheet.retainedEarnings < 0 })}
+          {docRow('bs-tle', t('accounting_total_liab_equity'), balanceSheet.totalLiabilities + balanceSheet.retainedEarnings, { bold: true, doubleRule: true })}
+
+          {/* Cash Flow */}
+          {docStmtTitle(t('accounting_cash_flow'), `${rangeLabel} · ${branchLabelText} · ${periodStart} → ${periodEnd}`)}
+          {docSection('cf-o', t('accounting_cf_operating'))}
+          {docRow('cf-rr', t('accounting_cf_rental_receipts'), cashFlow.rentalReceipts, { indent: true })}
+          {docRow('cf-oe', t('accounting_cf_operating_expenses'), `(${formatCurrency(cashFlow.operatingExpenses)})`, { indent: true, muted: true })}
+          {docRow('cf-no', t('accounting_cf_net_operating'), cashFlow.netOperating, { bold: true, rule: true, red: cashFlow.netOperating < 0 })}
+          {docSection('cf-f', t('accounting_cf_financing'))}
+          {docRow('cf-dr', t('accounting_cf_deposits_received'), cashFlow.depositsReceived, { indent: true })}
+          {docRow('cf-drf', t('accounting_cf_deposits_refunded'), `(${formatCurrency(cashFlow.depositsRefunded)})`, { indent: true, muted: true })}
+          {docRow('cf-nc', t('accounting_cf_net_change'), cashFlow.netChange, { bold: true, doubleRule: true, red: cashFlow.netChange < 0 })}
+
+          {/* Security Deposits Schedule */}
+          {docStmtTitle(t('accounting_deposits_schedule'), branchLabelText)}
+          {balanceSheet.activeDeposits.length === 0 ? (
+            <div style={{ color: '#6b7280' }}>—</div>
+          ) : (
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontVariantNumeric: 'tabular-nums' }}>
+              <thead>
+                <tr>
+                  <th style={thStyle}>{t('tenant')}</th>
+                  <th style={thStyle}>{t('room')}</th>
+                  <th style={thStyle}>{t('branch')}</th>
+                  <th style={thStyle}>{t('accounting_move_in')}</th>
+                  <th style={{ ...thStyle, textAlign: 'right' }}>{t('accounting_security_deposits')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {balanceSheet.activeDeposits.map((tn) => (
+                  <tr key={tn.id}>
+                    <td style={tdStyle}>{tn.fullName}</td>
+                    <td style={tdStyle}>{tn.room?.roomNumber ?? '—'}</td>
+                    <td style={tdStyle}>{tn.room?.branch ?? '—'}</td>
+                    <td style={tdStyle}>{tn.moveInDate || '—'}</td>
+                    <td style={{ ...tdStyle, textAlign: 'right' }}>{formatCurrency(tn.depositAmount)}</td>
+                  </tr>
+                ))}
+                <tr style={{ fontWeight: 700 }}>
+                  <td style={{ ...tdStyle, borderTop: '1px solid #d1d5db' }} colSpan={4}>{t('accounting_total')}</td>
+                  <td style={{ ...tdStyle, borderTop: '1px solid #d1d5db', textAlign: 'right' }}>{formatCurrency(balanceSheet.securityDeposits)}</td>
+                </tr>
+              </tbody>
+            </table>
+          )}
+
+          {/* Period Lock status */}
+          {docSection('pl', t('accounting_period_lock'))}
+          <div style={{ fontSize: 12 }}>
+            {lockedMonthsList.length ? `${t('accounting_locked')}: ${lockedMonthsList.join(', ')}` : '—'}
+          </div>
+        </div>
       </div>
     </div>
   )
