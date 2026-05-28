@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { formatCurrency, cn } from '@/lib/utils'
-import { Calculator, FileText, Lock, LockOpen, Search } from 'lucide-react'
+import { Calculator, FileText, Lock, LockOpen, Search, X } from 'lucide-react'
 import { useLanguage } from '@/contexts/language-context'
 import { useBranches } from '@/contexts/branches-context'
 import { usePersistentState } from '@/hooks/use-persistent-state'
@@ -59,6 +59,8 @@ type Lock = {
 
 interface Props { billings: Billing[]; expenses: Expense[]; tenants: Tenant[]; locks: Lock[] }
 
+const NONE_YEAR = '__none__'
+
 type MonthTotals = {
   rent: number; water: number; electric: number; penalty: number; discount: number
   netRevenue: number; collected: number; outstanding: number
@@ -76,87 +78,115 @@ export function AccountingClient({ billings, expenses, tenants, locks: initialLo
   const branchOptions = ['all', ...useBranches().map((b) => b.name)]
   const [locks, setLocks] = useState<Lock[]>(initialLocks)
 
-  // Year + branch state.
+  // Year-range + branch state.
+  const currentYear = new Date().getFullYear()
   const years = useMemo(() => {
     const set = new Set<number>()
     billings.forEach((b) => { const y = Number(b.billingMonth.slice(0, 4)); if (Number.isFinite(y)) set.add(y) })
     expenses.forEach((e) => { const y = Number(e.expenseDate.slice(0, 4)); if (Number.isFinite(y)) set.add(y) })
-    set.add(new Date().getFullYear())
+    set.add(currentYear)
     return Array.from(set).sort((a, b) => b - a)
-  }, [billings, expenses])
-  const [year, setYear] = usePersistentState<number>('accounting/year', new Date().getFullYear())
+  }, [billings, expenses, currentYear])
+  // Two ways to choose the period (mirrors the Reports page's single-month +
+  // month-range pattern): a single Year picker, plus an optional From→To year
+  // range. When the range is set it overrides the single year; rangeFrom/To of
+  // 0 means "unset" so the single year applies.
+  const [year, setYear] = usePersistentState<number>('accounting/year', currentYear)
+  const [rangeFrom, setRangeFrom] = usePersistentState<number>('accounting/rangeFrom', 0)
+  const [rangeTo, setRangeTo] = usePersistentState<number>('accounting/rangeTo', 0)
   const [branchFilter, setBranchFilter] = usePersistentState<string>('accounting/branch', 'all')
+  const rangeActive = rangeFrom > 0 && rangeTo > 0
+  const fromYear = rangeActive ? Math.min(rangeFrom, rangeTo) : year
+  const toYear = rangeActive ? Math.max(rangeFrom, rangeTo) : year
+  const isSingleYear = fromYear === toYear
+  const yearsInRange = useMemo(
+    () => Array.from({ length: toYear - fromYear + 1 }, (_, i) => fromYear + i),
+    [fromYear, toYear],
+  )
+  // Picking a single year clears any active range; setting a range leaves the
+  // single year untouched but overridden until the range is cleared.
+  function pickYear(y: number) { setYear(y); setRangeFrom(0); setRangeTo(0) }
+  function clearRange() { setRangeFrom(0); setRangeTo(0) }
 
   // Filter once per render — every section pulls from these.
   function inScope(branch: string | null | undefined): boolean {
     return branchFilter === 'all' || branch === branchFilter
   }
-  function billingsForYear(y: number) {
-    return billings.filter((b) => b.billingMonth.startsWith(String(y)) && inScope(b.room?.branch))
+  function inRange(ym: string): boolean {
+    const y = Number(ym.slice(0, 4))
+    return y >= fromYear && y <= toYear
   }
-  function expensesForYear(y: number) {
-    return expenses.filter((e) => e.expenseDate.startsWith(String(y)) && inScope(e.room?.branch))
+  function billingsInRange() {
+    return billings.filter((b) => inRange(b.billingMonth) && inScope(b.room?.branch))
+  }
+  function expensesInRange() {
+    return expenses.filter((e) => inRange(e.expenseDate.slice(0, 7)) && inScope(e.room?.branch))
   }
 
-  // ---- Monthly income statement matrix (12 columns + Year) ----
-  const monthly: MonthTotals[] = useMemo(() => {
-    const months = Array.from({ length: 12 }, () => newMonthTotals())
-    for (const b of billingsForYear(year)) {
-      const m = Number(b.billingMonth.slice(5, 7)) - 1
-      if (m < 0 || m > 11) continue
-      const ms = months[m]
+  // Accumulate one income-statement column over the billings/expenses whose
+  // period (YYYY-MM) matches the predicate. Used for both the monthly columns
+  // (single year) and the per-year columns (multi-year range).
+  function computeTotals(matches: (ym: string) => boolean): MonthTotals {
+    const tot = newMonthTotals()
+    for (const b of billings) {
+      if (!inScope(b.room?.branch) || !matches(b.billingMonth)) continue
       const rate = b.exchangeRate || 4100
-      ms.rent += b.roomRentUsd
-      ms.water += b.waterCostRiel / rate
-      ms.electric += b.electricCostRiel / rate
-      ms.penalty += b.latePenaltyUsd
-      ms.discount += b.discountUsd
+      tot.rent += b.roomRentUsd
+      tot.water += b.waterCostRiel / rate
+      tot.electric += b.electricCostRiel / rate
+      tot.penalty += b.latePenaltyUsd
+      tot.discount += b.discountUsd
       const paid = b.payments.reduce((s, p) => s + p.amountUsd, 0)
-      if (b.paymentStatus === 'paid') ms.collected += b.totalUsd
+      if (b.paymentStatus === 'paid') tot.collected += b.totalUsd
       else {
-        ms.collected += Math.min(paid, b.totalUsd)
-        ms.outstanding += Math.max(0, b.totalUsd - paid)
+        tot.collected += Math.min(paid, b.totalUsd)
+        tot.outstanding += Math.max(0, b.totalUsd - paid)
       }
     }
-    for (const e of expensesForYear(year)) {
-      const m = Number(e.expenseDate.slice(5, 7)) - 1
-      if (m < 0 || m > 11) continue
-      months[m].expensesByCat.set(e.category, (months[m].expensesByCat.get(e.category) ?? 0) + e.amountUsd)
+    for (const e of expenses) {
+      if (!inScope(e.room?.branch) || !matches(e.expenseDate.slice(0, 7))) continue
+      tot.expensesByCat.set(e.category, (tot.expensesByCat.get(e.category) ?? 0) + e.amountUsd)
     }
-    // Finalize derived fields per month.
-    for (const ms of months) {
-      ms.netRevenue = ms.rent + ms.water + ms.electric + ms.penalty - ms.discount
-      ms.expenseTotal = Array.from(ms.expensesByCat.values()).reduce((s, v) => s + v, 0)
-      ms.netIncome = ms.collected - ms.expenseTotal
-    }
-    return months
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [billings, expenses, year, branchFilter])
+    tot.netRevenue = tot.rent + tot.water + tot.electric + tot.penalty - tot.discount
+    tot.expenseTotal = Array.from(tot.expensesByCat.values()).reduce((s, v) => s + v, 0)
+    tot.netIncome = tot.collected - tot.expenseTotal
+    return tot
+  }
 
-  // All expense categories that appear in any month of the year — drives the
-  // rows of the expense block in the matrix.
+  // ---- Income statement matrix columns ----
+  // Single year → 12 monthly columns (Jan–Dec). Multi-year → one column/year.
+  const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+  const columns = useMemo(() => {
+    if (isSingleYear) {
+      return MONTH_LABELS.map((label, i) => ({ label, prefix: `${fromYear}-${String(i + 1).padStart(2, '0')}` }))
+    }
+    return yearsInRange.map((y) => ({ label: String(y), prefix: String(y) }))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSingleYear, fromYear, yearsInRange])
+
+  const columnTotals = useMemo(
+    () => columns.map((c) => computeTotals((ym) => ym.startsWith(c.prefix))),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [columns, billings, expenses, branchFilter],
+  )
+  const rangeTotals = useMemo(
+    () => computeTotals(inRange),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [billings, expenses, fromYear, toYear, branchFilter],
+  )
   const expenseCategories = useMemo(() => {
     const all = new Set<string>()
-    monthly.forEach((m) => m.expensesByCat.forEach((_, k) => all.add(k)))
+    columnTotals.forEach((c) => c.expensesByCat.forEach((_, k) => all.add(k)))
+    rangeTotals.expensesByCat.forEach((_, k) => all.add(k))
     return Array.from(all).sort()
-  }, [monthly])
+  }, [columnTotals, rangeTotals])
 
-  const yearTotals: MonthTotals = useMemo(() => {
-    const t = newMonthTotals()
-    for (const m of monthly) {
-      t.rent += m.rent; t.water += m.water; t.electric += m.electric; t.penalty += m.penalty; t.discount += m.discount
-      t.netRevenue += m.netRevenue; t.collected += m.collected; t.outstanding += m.outstanding
-      t.expenseTotal += m.expenseTotal; t.netIncome += m.netIncome
-      m.expensesByCat.forEach((v, k) => t.expensesByCat.set(k, (t.expensesByCat.get(k) ?? 0) + v))
-    }
-    return t
-  }, [monthly])
-
-  // ---- Quarterly summary + YoY ----
-  function quarterTotals(year: number, q: 1 | 2 | 3 | 4) {
+  // ---- Quarterly summary + YoY (single year only) ----
+  function quarterTotals(y: number, q: 1 | 2 | 3 | 4) {
     const monthsInQ = q === 1 ? [1, 2, 3] : q === 2 ? [4, 5, 6] : q === 3 ? [7, 8, 9] : [10, 11, 12]
     let billed = 0, collected = 0, outstanding = 0, expensesUsd = 0
-    for (const b of billingsForYear(year)) {
+    for (const b of billings) {
+      if (!inScope(b.room?.branch) || !b.billingMonth.startsWith(String(y))) continue
       const m = Number(b.billingMonth.slice(5, 7))
       if (!monthsInQ.includes(m)) continue
       billed += b.totalUsd
@@ -164,52 +194,44 @@ export function AccountingClient({ billings, expenses, tenants, locks: initialLo
       if (b.paymentStatus === 'paid') collected += b.totalUsd
       else { collected += Math.min(paid, b.totalUsd); outstanding += Math.max(0, b.totalUsd - paid) }
     }
-    for (const e of expensesForYear(year)) {
+    for (const e of expenses) {
+      if (!inScope(e.room?.branch) || !e.expenseDate.startsWith(String(y))) continue
       const m = Number(e.expenseDate.slice(5, 7))
       if (!monthsInQ.includes(m)) continue
       expensesUsd += e.amountUsd
     }
     return { billed, collected, outstanding, expenses: expensesUsd, net: collected - expensesUsd }
   }
-  const quarters = useMemo(() => ([1, 2, 3, 4] as const).map((q) => quarterTotals(year, q)),
+  const quarters = useMemo(() => ([1, 2, 3, 4] as const).map((q) => quarterTotals(fromYear, q)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [billings, expenses, year, branchFilter])
-  const prevYearTotals = useMemo(() => {
-    let billed = 0, collected = 0, outstanding = 0, expensesUsd = 0
-    for (const b of billingsForYear(year - 1)) {
-      billed += b.totalUsd
-      const paid = b.payments.reduce((s, p) => s + p.amountUsd, 0)
-      if (b.paymentStatus === 'paid') collected += b.totalUsd
-      else { collected += Math.min(paid, b.totalUsd); outstanding += Math.max(0, b.totalUsd - paid) }
-    }
-    for (const e of expensesForYear(year - 1)) expensesUsd += e.amountUsd
-    return { billed, collected, outstanding, expenses: expensesUsd, net: collected - expensesUsd }
+    [billings, expenses, fromYear, branchFilter])
+  const prevYearTotals = useMemo(() => computeTotals((ym) => ym.startsWith(String(fromYear - 1))),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [billings, expenses, year, branchFilter])
-  const hasPrevYearData = prevYearTotals.billed > 0 || prevYearTotals.expenses > 0
+    [billings, expenses, fromYear, branchFilter])
+  const hasPrevYearData = prevYearTotals.netRevenue !== 0 || prevYearTotals.expenseTotal !== 0
   function yoyPct(current: number, prev: number): number | null {
     if (prev === 0) return null
     return ((current - prev) / Math.abs(prev)) * 100
   }
 
   // ---- Balance Sheet snapshot ----
-  // Cutoff = year-end (Dec 31 of selected year) for past years, or today for
-  // the current year so the snapshot reflects live data without future-dating.
+  // Cutoff = end of the "to" year (or today if that year is current/future), so
+  // the snapshot reflects live data without future-dating.
   const todayStr = new Date().toISOString().slice(0, 10)
   const balanceSheetCutoff = useMemo(() => {
-    const now = new Date()
-    if (year < now.getFullYear()) return `${year}-12-31`
+    if (toYear < currentYear) return `${toYear}-12-31`
     return todayStr
-  }, [year, todayStr])
+  }, [toYear, currentYear, todayStr])
   const cutoffYearMonth = balanceSheetCutoff.slice(0, 7)
 
-  // Period span shown on each statement header. Income statement / quarterly /
-  // cash flow cover a range; for the current year the data only runs to today,
-  // so label it "year to date" and end the span at today.
-  const isCurrentYear = year >= new Date().getFullYear()
-  const periodStart = `${year}-01-01`
-  const periodEnd = isCurrentYear ? todayStr : `${year}-12-31`
-  const periodLabel = `${isCurrentYear ? t('accounting_year_to_date') : t('accounting_for_period')}: ${periodStart} → ${periodEnd}`
+  // Period span shown on each statement header. The range runs from Jan 1 of
+  // the "from" year to the end of the "to" year (or today if it's current).
+  const periodStart = `${fromYear}-01-01`
+  const periodEnd = balanceSheetCutoff
+  const periodIsToDate = toYear >= currentYear
+  const periodLabel = `${periodIsToDate ? t('accounting_year_to_date') : t('accounting_for_period')}: ${periodStart} → ${periodEnd}`
+  // Short label for PDF filenames / titles.
+  const rangeLabel = isSingleYear ? String(fromYear) : `${fromYear}-${toYear}`
 
   const balanceSheet = useMemo(() => {
     // Accounts Receivable: outstanding USD on every unpaid/partial billing
@@ -250,27 +272,26 @@ export function AccountingClient({ billings, expenses, tenants, locks: initialLo
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [billings, expenses, tenants, balanceSheetCutoff, cutoffYearMonth, branchFilter])
 
-  // ---- Cash Flow Statement for the selected year ----
+  // ---- Cash Flow Statement over the selected year range ----
   const cashFlow = useMemo(() => {
-    const ys = String(year)
     let rentalReceipts = 0
     for (const b of billings) {
       if (!inScope(b.room?.branch)) continue
       for (const p of b.payments) {
         const d = typeof p.createdAt === 'string' ? new Date(p.createdAt) : p.createdAt
         const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-        if (ym.startsWith(ys)) rentalReceipts += p.amountUsd
+        if (inRange(ym)) rentalReceipts += p.amountUsd
       }
     }
-    const operatingExpenses = expensesForYear(year).reduce((s, e) => s + e.amountUsd, 0)
+    const operatingExpenses = expensesInRange().reduce((s, e) => s + e.amountUsd, 0)
     const netOperating = rentalReceipts - operatingExpenses
-    // Deposits received: every tenant whose moveInDate falls in the year.
+    // Deposits received/refunded: tenants whose move-in / move-out falls in range.
     const inScopeTenants = tenants.filter((tn) => branchFilter === 'all' || tn.room?.branch === branchFilter)
     const depositsReceived = inScopeTenants
-      .filter((tn) => tn.moveInDate && tn.moveInDate.startsWith(ys))
+      .filter((tn) => tn.moveInDate && inRange(tn.moveInDate.slice(0, 7)))
       .reduce((s, tn) => s + tn.depositAmount, 0)
     const depositsRefunded = inScopeTenants
-      .filter((tn) => tn.moveOutDate && tn.moveOutDate.startsWith(ys))
+      .filter((tn) => tn.moveOutDate && inRange(tn.moveOutDate.slice(0, 7)))
       .reduce((s, tn) => s + tn.depositAmount, 0)
     const netDeposits = depositsReceived - depositsRefunded
     return {
@@ -279,7 +300,7 @@ export function AccountingClient({ billings, expenses, tenants, locks: initialLo
       netChange: netOperating + netDeposits,
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [billings, expenses, tenants, year, branchFilter])
+  }, [billings, expenses, tenants, fromYear, toYear, branchFilter])
 
   // ---- Tenant ledger ----
   const [tenantSearch, setTenantSearch] = useState('')
@@ -293,18 +314,18 @@ export function AccountingClient({ billings, expenses, tenants, locks: initialLo
     if (!selectedTenantId) return null
     const tenant = tenants.find((tn) => tn.id === selectedTenantId)
     if (!tenant) return null
-    const ts = String(year)
-    // Opening balance: sum of outstanding from any billing whose month is BEFORE this year.
-    // (Use totalUsd − sum(payments) for those billings.)
-    const priorBillings = billings.filter((b) => b.tenant?.id === tenant.id && b.billingMonth < ts)
+    const fromStr = String(fromYear)
+    // Opening balance: sum of outstanding from any billing whose month is
+    // BEFORE the start of the range. (totalUsd − sum(payments) for those.)
+    const priorBillings = billings.filter((b) => b.tenant?.id === tenant.id && b.billingMonth < fromStr)
     const openingBalance = priorBillings.reduce((s, b) => {
       const paid = b.payments.reduce((ps, p) => ps + p.amountUsd, 0)
       return s + Math.max(0, b.totalUsd - paid)
     }, 0)
     type Entry = { date: string; kind: 'charge' | 'payment'; description: string; amount: number; balance: number }
     const entries: Entry[] = []
-    const yearBillings = billings.filter((b) => b.tenant?.id === tenant.id && b.billingMonth.startsWith(ts))
-    for (const b of yearBillings) {
+    const rangeBillings = billings.filter((b) => b.tenant?.id === tenant.id && inRange(b.billingMonth))
+    for (const b of rangeBillings) {
       entries.push({
         date: `${b.billingMonth}-01`,
         kind: 'charge',
@@ -315,7 +336,7 @@ export function AccountingClient({ billings, expenses, tenants, locks: initialLo
       for (const p of b.payments) {
         const d = typeof p.createdAt === 'string' ? new Date(p.createdAt) : p.createdAt
         const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-        if (!ym.startsWith(ts)) continue // payment posted in a different year
+        if (!inRange(ym)) continue // payment posted outside the range
         entries.push({
           date: d.toISOString().slice(0, 10),
           kind: 'payment',
@@ -332,7 +353,8 @@ export function AccountingClient({ billings, expenses, tenants, locks: initialLo
     const payments = -entries.filter((e) => e.kind === 'payment').reduce((s, e) => s + e.amount, 0)
     const closingBalance = running
     return { tenant, openingBalance, entries, charges, payments, closingBalance }
-  }, [selectedTenantId, tenants, billings, year, t])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedTenantId, tenants, billings, fromYear, toYear, t])
 
   // ---- Period lock manager ----
   async function setLockState(month: string, lock: boolean) {
@@ -399,7 +421,7 @@ export function AccountingClient({ billings, expenses, tenants, locks: initialLo
       const imgH = (canvas.height * imgW) / canvas.width
       const branchLabel = branchFilter === 'all' ? t('all_branches') : branchFilter
       pdf.setFontSize(14)
-      pdf.text(`${t('accounting_audit_pack')} — ${year}`, 10, 12)
+      pdf.text(`${t('accounting_audit_pack')} — ${rangeLabel}`, 10, 12)
       pdf.setFontSize(9)
       pdf.text(`${branchLabel} · ${new Date().toISOString().slice(0, 16).replace('T', ' ')}`, 10, 18)
       const topMargin = 22
@@ -421,7 +443,7 @@ export function AccountingClient({ billings, expenses, tenants, locks: initialLo
         remaining -= bandHmm
         if (remaining > 0) { pdf.addPage(); positionMm = topMargin }
       }
-      pdf.save(`audit-pack-${branchLabel}-${year}.pdf`.replace(/[^a-z0-9._-]/gi, '_'))
+      pdf.save(`audit-pack-${branchLabel}-${rangeLabel}.pdf`.replace(/[^a-z0-9._-]/gi, '_'))
     } finally {
       // Always restore the layout — even on error — so the page doesn't stay
       // in a max-content state.
@@ -456,11 +478,11 @@ export function AccountingClient({ billings, expenses, tenants, locks: initialLo
       const imgW = pageW
       const imgH = (canvas.height * imgW) / canvas.width
       pdf.setFontSize(14)
-      pdf.text(`${tenantLedger.tenant.fullName} — ${year}`, 10, 12)
+      pdf.text(`${tenantLedger.tenant.fullName} — ${rangeLabel}`, 10, 12)
       pdf.setFontSize(9)
       pdf.text(new Date().toISOString().slice(0, 16).replace('T', ' '), 10, 18)
       pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 24, imgW, imgH)
-      pdf.save(`statement-${tenantLedger.tenant.fullName.replace(/\s+/g, '-')}-${year}.pdf`.replace(/[^a-z0-9._-]/gi, '_'))
+      pdf.save(`statement-${tenantLedger.tenant.fullName.replace(/\s+/g, '-')}-${rangeLabel}.pdf`.replace(/[^a-z0-9._-]/gi, '_'))
     } finally {
       root.style.width = originalRootWidth
       scrolls.forEach((el, i) => {
@@ -470,14 +492,19 @@ export function AccountingClient({ billings, expenses, tenants, locks: initialLo
     }
   }
 
-  const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
   function catLabel(cat: string) {
     const key = `expense_cat_${cat}` as Parameters<typeof t>[0]
     const v = t(key)
     return v === key ? cat : v
   }
-  const lockedSet = useMemo(() => new Set(locks.map((l) => l.month)), [locks])
-  const months12 = useMemo(() => Array.from({ length: 12 }, (_, i) => `${year}-${String(i + 1).padStart(2, '0')}`), [year])
+  // Period-lock manager lists every month across the selected year range.
+  const lockMonths = useMemo(() => {
+    const out: string[] = []
+    for (const y of yearsInRange) {
+      for (let m = 1; m <= 12; m++) out.push(`${y}-${String(m).padStart(2, '0')}`)
+    }
+    return out
+  }, [yearsInRange])
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -495,12 +522,38 @@ export function AccountingClient({ billings, expenses, tenants, locks: initialLo
               </Button>
             ))}
           </div>
-          <Select value={String(year)} onValueChange={(v) => setYear(Number(v))}>
-            <SelectTrigger className="w-32 h-10"><SelectValue /></SelectTrigger>
+          {/* Single-year quick picker (disabled while a range is active). */}
+          <Select value={rangeActive ? '' : String(year)} onValueChange={(v) => pickYear(Number(v))}>
+            <SelectTrigger className="w-28 h-10" disabled={rangeActive}>
+              <SelectValue placeholder={t('accounting_year')} />
+            </SelectTrigger>
             <SelectContent>
               {years.map((y) => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
             </SelectContent>
           </Select>
+          {/* From → To year range. Setting both overrides the single year. */}
+          <div className="flex items-center gap-1.5">
+            <Select value={rangeFrom > 0 ? String(rangeFrom) : NONE_YEAR} onValueChange={(v) => setRangeFrom(v === NONE_YEAR ? 0 : Number(v))}>
+              <SelectTrigger className="w-28 h-10 text-sm"><SelectValue placeholder={t('month_from')} /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NONE_YEAR}>{t('month_from')}</SelectItem>
+                {years.map((y) => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <span className="text-xs text-muted-foreground select-none">—</span>
+            <Select value={rangeTo > 0 ? String(rangeTo) : NONE_YEAR} onValueChange={(v) => setRangeTo(v === NONE_YEAR ? 0 : Number(v))}>
+              <SelectTrigger className="w-28 h-10 text-sm"><SelectValue placeholder={t('month_to')} /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NONE_YEAR}>{t('month_to')}</SelectItem>
+                {years.map((y) => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            {(rangeFrom > 0 || rangeTo > 0) && (
+              <Button variant="ghost" size="sm" className="h-10 w-9 p-0" onClick={clearRange} aria-label={t('month_range_clear')} title={t('month_range_clear')}>
+                <X className="w-3.5 h-3.5" />
+              </Button>
+            )}
+          </div>
           <Button variant="outline" className="h-10" onClick={handleExportAuditPack} disabled={exportingPdf}>
             <FileText className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">{t('accounting_audit_pack')}</span>
           </Button>
@@ -511,7 +564,7 @@ export function AccountingClient({ billings, expenses, tenants, locks: initialLo
         {/* Annual income statement */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">{t('accounting_income_statement_annual')} — {year}</CardTitle>
+            <CardTitle className="text-base">{t('accounting_income_statement_annual')} — {rangeLabel}</CardTitle>
             <p className="text-xs text-muted-foreground mt-0.5">{periodLabel}</p>
           </CardHeader>
           <TableScroll>
@@ -519,40 +572,41 @@ export function AccountingClient({ billings, expenses, tenants, locks: initialLo
               <thead>
                 <tr className="border-b border-border bg-muted/30">
                   <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground w-48">&nbsp;</th>
-                  {MONTH_LABELS.map((m) => <th key={m} className="text-right px-2 py-2 text-xs font-medium text-muted-foreground">{m}</th>)}
-                  <th className="text-right px-3 py-2 text-xs font-semibold">{t('accounting_year_total')}</th>
+                  {columns.map((c) => <th key={c.prefix} className="text-right px-2 py-2 text-xs font-medium text-muted-foreground">{c.label}</th>)}
+                  <th className="text-right px-3 py-2 text-xs font-semibold">{t('accounting_total')}</th>
                 </tr>
               </thead>
               <tbody>
-                <MatrixRow label={t('reports_revenue_room_rent')} values={monthly.map((m) => m.rent)} total={yearTotals.rent} />
-                <MatrixRow label={t('reports_revenue_water')} values={monthly.map((m) => m.water)} total={yearTotals.water} />
-                <MatrixRow label={t('reports_revenue_electric')} values={monthly.map((m) => m.electric)} total={yearTotals.electric} />
-                <MatrixRow label={t('reports_revenue_penalty')} values={monthly.map((m) => m.penalty)} total={yearTotals.penalty} />
-                <MatrixRow label={t('reports_revenue_discount')} values={monthly.map((m) => -m.discount)} total={-yearTotals.discount} muted />
-                <MatrixRow label={t('reports_net_revenue')} values={monthly.map((m) => m.netRevenue)} total={yearTotals.netRevenue} bold border />
-                <MatrixRow label={t('reports_of_which_collected')} values={monthly.map((m) => m.collected)} total={yearTotals.collected} muted />
-                <MatrixRow label={t('reports_of_which_outstanding')} values={monthly.map((m) => m.outstanding)} total={yearTotals.outstanding} muted />
-                <tr><td colSpan={14} className="px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{t('reports_total_expenses')}</td></tr>
+                <MatrixRow label={t('reports_revenue_room_rent')} values={columnTotals.map((m) => m.rent)} total={rangeTotals.rent} />
+                <MatrixRow label={t('reports_revenue_water')} values={columnTotals.map((m) => m.water)} total={rangeTotals.water} />
+                <MatrixRow label={t('reports_revenue_electric')} values={columnTotals.map((m) => m.electric)} total={rangeTotals.electric} />
+                <MatrixRow label={t('reports_revenue_penalty')} values={columnTotals.map((m) => m.penalty)} total={rangeTotals.penalty} />
+                <MatrixRow label={t('reports_revenue_discount')} values={columnTotals.map((m) => -m.discount)} total={-rangeTotals.discount} muted />
+                <MatrixRow label={t('reports_net_revenue')} values={columnTotals.map((m) => m.netRevenue)} total={rangeTotals.netRevenue} bold border />
+                <MatrixRow label={t('reports_of_which_collected')} values={columnTotals.map((m) => m.collected)} total={rangeTotals.collected} muted />
+                <MatrixRow label={t('reports_of_which_outstanding')} values={columnTotals.map((m) => m.outstanding)} total={rangeTotals.outstanding} muted />
+                <tr><td colSpan={columns.length + 2} className="px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{t('reports_total_expenses')}</td></tr>
                 {expenseCategories.map((cat) => (
                   <MatrixRow
                     key={cat}
                     label={catLabel(cat)}
-                    values={monthly.map((m) => m.expensesByCat.get(cat) ?? 0)}
-                    total={yearTotals.expensesByCat.get(cat) ?? 0}
+                    values={columnTotals.map((m) => m.expensesByCat.get(cat) ?? 0)}
+                    total={rangeTotals.expensesByCat.get(cat) ?? 0}
                     indent
                   />
                 ))}
-                <MatrixRow label={t('reports_total_expenses')} values={monthly.map((m) => m.expenseTotal)} total={yearTotals.expenseTotal} bold border />
-                <MatrixRow label={t('reports_net_income')} values={monthly.map((m) => m.netIncome)} total={yearTotals.netIncome} bold border highlight />
+                <MatrixRow label={t('reports_total_expenses')} values={columnTotals.map((m) => m.expenseTotal)} total={rangeTotals.expenseTotal} bold border />
+                <MatrixRow label={t('reports_net_income')} values={columnTotals.map((m) => m.netIncome)} total={rangeTotals.netIncome} bold border highlight />
               </tbody>
             </table>
           </TableScroll>
         </Card>
 
-        {/* Quarterly summary */}
+        {/* Quarterly summary — only meaningful for a single fiscal year. */}
+        {isSingleYear && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">{t('accounting_quarterly_summary')} — {year}</CardTitle>
+            <CardTitle className="text-base">{t('accounting_quarterly_summary')} — {fromYear}</CardTitle>
             <p className="text-xs text-muted-foreground mt-0.5">{periodLabel}</p>
           </CardHeader>
           <TableScroll>
@@ -570,11 +624,11 @@ export function AccountingClient({ billings, expenses, tenants, locks: initialLo
               </thead>
               <tbody>
                 {([
-                  { label: t('reports_revenue_billed'), values: quarters.map((q) => q.billed), year: yearTotals.netRevenue, prev: prevYearTotals.billed, bold: false },
-                  { label: t('reports_revenue_collected'), values: quarters.map((q) => q.collected), year: yearTotals.collected, prev: prevYearTotals.collected, bold: false },
-                  { label: t('reports_outstanding'), values: quarters.map((q) => q.outstanding), year: yearTotals.outstanding, prev: prevYearTotals.outstanding, bold: false },
-                  { label: t('reports_total_expenses'), values: quarters.map((q) => q.expenses), year: yearTotals.expenseTotal, prev: prevYearTotals.expenses, bold: false },
-                  { label: t('reports_net_income'), values: quarters.map((q) => q.net), year: yearTotals.netIncome, prev: prevYearTotals.net, bold: true },
+                  { label: t('reports_revenue_billed'), values: quarters.map((q) => q.billed), year: rangeTotals.netRevenue, prev: prevYearTotals.netRevenue, bold: false },
+                  { label: t('reports_revenue_collected'), values: quarters.map((q) => q.collected), year: rangeTotals.collected, prev: prevYearTotals.collected, bold: false },
+                  { label: t('reports_outstanding'), values: quarters.map((q) => q.outstanding), year: rangeTotals.outstanding, prev: prevYearTotals.outstanding, bold: false },
+                  { label: t('reports_total_expenses'), values: quarters.map((q) => q.expenses), year: rangeTotals.expenseTotal, prev: prevYearTotals.expenseTotal, bold: false },
+                  { label: t('reports_net_income'), values: quarters.map((q) => q.net), year: rangeTotals.netIncome, prev: prevYearTotals.netIncome, bold: true },
                 ] as const).map((row) => {
                   const delta = hasPrevYearData ? yoyPct(row.year, row.prev) : null
                   return (
@@ -594,6 +648,7 @@ export function AccountingClient({ billings, expenses, tenants, locks: initialLo
             </table>
           </TableScroll>
         </Card>
+        )}
 
         {/* Balance Sheet */}
         <Card>
@@ -644,7 +699,7 @@ export function AccountingClient({ billings, expenses, tenants, locks: initialLo
         {/* Cash Flow Statement */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">{t('accounting_cash_flow')} — {year}</CardTitle>
+            <CardTitle className="text-base">{t('accounting_cash_flow')} — {rangeLabel}</CardTitle>
             <p className="text-xs text-muted-foreground mt-0.5">{periodLabel}</p>
           </CardHeader>
           <CardContent>
@@ -714,7 +769,7 @@ export function AccountingClient({ billings, expenses, tenants, locks: initialLo
         {/* Tenant ledger */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">{t('accounting_tenant_ledger')} — {year}</CardTitle>
+            <CardTitle className="text-base">{t('accounting_tenant_ledger')} — {rangeLabel}</CardTitle>
             <p className="text-xs text-muted-foreground mt-0.5">{periodLabel}</p>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -787,7 +842,7 @@ export function AccountingClient({ billings, expenses, tenants, locks: initialLo
                         </thead>
                         <tbody>
                           <tr className="border-b border-border text-muted-foreground">
-                            <td className="px-3 py-1.5 font-mono text-xs">{year}-01-01</td>
+                            <td className="px-3 py-1.5 font-mono text-xs">{periodStart}</td>
                             <td className="px-3 py-1.5 italic text-xs">{t('accounting_opening_balance')}</td>
                             <td className="px-3 py-1.5 text-right">—</td>
                             <td className="px-3 py-1.5 text-right">—</td>
@@ -815,7 +870,7 @@ export function AccountingClient({ billings, expenses, tenants, locks: initialLo
         {/* Period lock manager */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">{t('accounting_period_lock')} — {year}</CardTitle>
+            <CardTitle className="text-base">{t('accounting_period_lock')} — {rangeLabel}</CardTitle>
             <p className="text-xs text-muted-foreground mt-0.5">{t('accounting_period_lock_help')}</p>
           </CardHeader>
           <TableScroll>
@@ -830,7 +885,7 @@ export function AccountingClient({ billings, expenses, tenants, locks: initialLo
                 </tr>
               </thead>
               <tbody>
-                {months12.map((m, i) => {
+                {lockMonths.map((m) => {
                   const lock = locks.find((l) => l.month === m)
                   const locked = !!lock
                   return (
