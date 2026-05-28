@@ -8,7 +8,8 @@ export const dynamic = 'force-dynamic'
 
 export default async function PromisesPage() {
   const session = await auth()
-  if (session?.user?.role !== 'admin') redirect('/dashboard')
+  const role = session?.user?.role
+  if (role !== 'admin' && role !== 'manager') redirect('/dashboard')
 
   const promises = await readAllPromises()
   const billingIds = [...promises.keys()]

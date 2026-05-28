@@ -31,7 +31,7 @@ const navItems: NavItem[] = [
   { href: '/rooms', labelKey: 'nav_rooms', icon: DoorOpen },
   { href: '/room-map', labelKey: 'nav_room_map', icon: LayoutGrid },
   { href: '/billing', labelKey: 'nav_billing', icon: FileText },
-  { href: '/promises', labelKey: 'nav_promises', icon: CalendarClock, roles: ['admin'] },
+  { href: '/promises', labelKey: 'nav_promises', icon: CalendarClock, roles: ['admin', 'manager'] },
   { href: '/invoices', labelKey: 'nav_invoices', icon: Receipt },
   { href: '/maintenance', labelKey: 'nav_maintenance', icon: Wrench },
   { href: '/expenses', labelKey: 'nav_expenses', icon: TrendingDown },
