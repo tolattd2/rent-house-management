@@ -65,6 +65,7 @@ export function BillingListClient({ billings: initial }: Props) {
   const router = useRouter()
   const { data: session } = useSession()
   const isAdmin = session?.user?.role === 'admin'
+  const canViewPromises = session?.user?.role === 'admin' || session?.user?.role === 'manager'
   const canBatch = session?.user?.role ? session.user.role !== 'guest' : false
   const canExport = session?.user?.role ? session.user.role !== 'guest' : false
   const { t, language } = useLanguage()
@@ -342,17 +343,24 @@ export function BillingListClient({ billings: initial }: Props) {
               {!isPaid && b.promiseDate && (() => {
                 const overdue = promiseDaysOverdue(b.promiseDate)
                 const isOverdue = overdue !== null && overdue > 0 && balance > 0
-                return (
-                  <div className={cn(
-                    'flex items-center gap-1.5 text-xs font-medium rounded-md px-2 py-1.5 mb-3',
-                    isOverdue
-                      ? 'text-red-600 bg-red-500/10'
-                      : 'text-blue-600 bg-blue-500/10',
-                  )}>
+                const cls = cn(
+                  'flex items-center gap-1.5 text-xs font-medium rounded-md px-2 py-1.5 mb-3',
+                  isOverdue ? 'text-red-600 bg-red-500/10' : 'text-blue-600 bg-blue-500/10',
+                  canViewPromises && 'hover:brightness-95 transition cursor-pointer',
+                )
+                const inner = (
+                  <>
                     <CalendarClock className="w-3.5 h-3.5 shrink-0" />
                     <span>{t('promise_promised')} {formatDate(b.promiseDate, language)}</span>
-                    {isOverdue && <span>· {t('promise_overdue')} {overdue}{t('billing_due_days')}</span>}
-                  </div>
+                    {isOverdue && <span>· {overdue}{t('billing_due_days')} {t('promise_overdue')}</span>}
+                  </>
+                )
+                return canViewPromises ? (
+                  <Link href={`/promises?billing=${b.id}`} className={cls} title={t('promise_view_history')}>
+                    {inner}
+                  </Link>
+                ) : (
+                  <div className={cls}>{inner}</div>
                 )
               })()}
               <div className="flex flex-wrap gap-2 pt-2 border-t border-border">

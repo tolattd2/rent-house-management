@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { CalendarClock, Trash2 } from 'lucide-react'
+import Link from 'next/link'
+import { CalendarClock, Trash2, History } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -137,6 +138,11 @@ export function PromiseDialog({ billingId, onClose, onSaved }: Props) {
             </div>
 
             <div className="flex justify-end gap-2">
+              <Link href={`/promises?billing=${billingId}&scope=tenant`} className="mr-auto">
+                <Button type="button" variant="outline">
+                  <History className="w-3.5 h-3.5 mr-1.5" />View history
+                </Button>
+              </Link>
               {record?.current && (
                 <Button
                   type="button"
