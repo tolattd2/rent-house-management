@@ -45,6 +45,10 @@ type Expense = {
 
 type Tenant = {
   id: string; fullName: string
+  status: string
+  depositAmount: number
+  moveInDate: string
+  moveOutDate: string
   room: { roomNumber: string; branch: string } | null
 }
 
@@ -188,6 +192,87 @@ export function AccountingClient({ billings, expenses, tenants, locks: initialLo
     return ((current - prev) / Math.abs(prev)) * 100
   }
 
+  // ---- Balance Sheet snapshot ----
+  // Cutoff = year-end (Dec 31 of selected year) for past years, or today for
+  // the current year so the snapshot reflects live data without future-dating.
+  const todayStr = new Date().toISOString().slice(0, 10)
+  const balanceSheetCutoff = useMemo(() => {
+    const now = new Date()
+    if (year < now.getFullYear()) return `${year}-12-31`
+    return todayStr
+  }, [year, todayStr])
+  const cutoffYearMonth = balanceSheetCutoff.slice(0, 7)
+
+  const balanceSheet = useMemo(() => {
+    // Accounts Receivable: outstanding USD on every unpaid/partial billing
+    // whose month is <= cutoff month, ignoring payments dated after cutoff.
+    let accountsReceivable = 0
+    for (const b of billings) {
+      if (!inScope(b.room?.branch)) continue
+      if (b.billingMonth > cutoffYearMonth) continue
+      const paidByCutoff = b.payments.reduce((s, p) => {
+        const d = typeof p.createdAt === 'string' ? new Date(p.createdAt) : p.createdAt
+        return d.toISOString().slice(0, 10) <= balanceSheetCutoff ? s + p.amountUsd : s
+      }, 0)
+      accountsReceivable += Math.max(0, b.totalUsd - paidByCutoff)
+    }
+    // Net Cash Position (derived): all payments collected through cutoff
+    // minus all expenses paid through cutoff. Not a true cash account.
+    let lifetimeReceipts = 0
+    for (const b of billings) {
+      if (!inScope(b.room?.branch)) continue
+      for (const p of b.payments) {
+        const d = typeof p.createdAt === 'string' ? new Date(p.createdAt) : p.createdAt
+        if (d.toISOString().slice(0, 10) <= balanceSheetCutoff) lifetimeReceipts += p.amountUsd
+      }
+    }
+    let lifetimeExpenses = 0
+    for (const e of expenses) {
+      if (!inScope(e.room?.branch)) continue
+      if (e.expenseDate <= balanceSheetCutoff) lifetimeExpenses += e.amountUsd
+    }
+    const netCash = lifetimeReceipts - lifetimeExpenses
+    // Security Deposits liability: every active tenant in scope.
+    const activeDeposits = tenants.filter((tn) => tn.status === 'active' && (branchFilter === 'all' || tn.room?.branch === branchFilter))
+    const securityDeposits = activeDeposits.reduce((s, tn) => s + tn.depositAmount, 0)
+    const totalAssets = accountsReceivable + netCash
+    const totalLiabilities = securityDeposits
+    const retainedEarnings = totalAssets - totalLiabilities
+    return { accountsReceivable, netCash, totalAssets, securityDeposits, totalLiabilities, retainedEarnings, activeDeposits }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [billings, expenses, tenants, balanceSheetCutoff, cutoffYearMonth, branchFilter])
+
+  // ---- Cash Flow Statement for the selected year ----
+  const cashFlow = useMemo(() => {
+    const ys = String(year)
+    let rentalReceipts = 0
+    for (const b of billings) {
+      if (!inScope(b.room?.branch)) continue
+      for (const p of b.payments) {
+        const d = typeof p.createdAt === 'string' ? new Date(p.createdAt) : p.createdAt
+        const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+        if (ym.startsWith(ys)) rentalReceipts += p.amountUsd
+      }
+    }
+    const operatingExpenses = expensesForYear(year).reduce((s, e) => s + e.amountUsd, 0)
+    const netOperating = rentalReceipts - operatingExpenses
+    // Deposits received: every tenant whose moveInDate falls in the year.
+    const inScopeTenants = tenants.filter((tn) => branchFilter === 'all' || tn.room?.branch === branchFilter)
+    const depositsReceived = inScopeTenants
+      .filter((tn) => tn.moveInDate && tn.moveInDate.startsWith(ys))
+      .reduce((s, tn) => s + tn.depositAmount, 0)
+    const depositsRefunded = inScopeTenants
+      .filter((tn) => tn.moveOutDate && tn.moveOutDate.startsWith(ys))
+      .reduce((s, tn) => s + tn.depositAmount, 0)
+    const netDeposits = depositsReceived - depositsRefunded
+    return {
+      rentalReceipts, operatingExpenses, netOperating,
+      depositsReceived, depositsRefunded, netDeposits,
+      netChange: netOperating + netDeposits,
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [billings, expenses, tenants, year, branchFilter])
+
   // ---- Tenant ledger ----
   const [tenantSearch, setTenantSearch] = useState('')
   const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null)
@@ -271,15 +356,35 @@ export function AccountingClient({ billings, expenses, tenants, locks: initialLo
   const exportRootRef = useRef<HTMLDivElement | null>(null)
   const [exportingPdf, setExportingPdf] = useState(false)
   async function handleExportAuditPack() {
-    if (!exportRootRef.current || exportingPdf) return
+    const root = exportRootRef.current
+    if (!root || exportingPdf) return
     setExportingPdf(true)
+
+    // Wide tables (e.g. the 12-month income statement matrix) live inside
+    // <TableScroll>, which clips horizontally with overflow-x:auto. html2canvas
+    // captures only what's visually rendered — so the right side of those
+    // tables gets cropped. Temporarily un-clip during capture, then restore.
+    const scrolls = Array.from(root.querySelectorAll<HTMLElement>('.table-scroll'))
+    const originalScrollStyles = scrolls.map((el) => ({ overflow: el.style.overflow, width: el.style.width }))
+    const originalRootWidth = root.style.width
+    const originalRootMaxWidth = root.style.maxWidth
     try {
+      root.style.width = 'max-content'
+      root.style.maxWidth = 'none'
+      scrolls.forEach((el) => { el.style.overflow = 'visible'; el.style.width = 'max-content' })
+
       const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
         import('html2canvas'),
         import('jspdf'),
       ])
-      const canvas = await html2canvas(exportRootRef.current, { scale: 2, backgroundColor: '#ffffff', useCORS: true })
-      const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' })
+      const canvas = await html2canvas(root, {
+        scale: 2,
+        backgroundColor: '#ffffff',
+        useCORS: true,
+        windowWidth: root.scrollWidth,
+      })
+      // Landscape A4 fits the wide P&L matrix at a readable size.
+      const pdf = new jsPDF({ orientation: 'l', unit: 'mm', format: 'a4' })
       const pageW = pdf.internal.pageSize.getWidth()
       const pageH = pdf.internal.pageSize.getHeight()
       const imgW = pageW
@@ -289,7 +394,7 @@ export function AccountingClient({ billings, expenses, tenants, locks: initialLo
       pdf.text(`${t('accounting_audit_pack')} — ${year}`, 10, 12)
       pdf.setFontSize(9)
       pdf.text(`${branchLabel} · ${new Date().toISOString().slice(0, 16).replace('T', ' ')}`, 10, 18)
-      const topMargin = 24
+      const topMargin = 22
       const usableH = pageH - topMargin - 6
       let remaining = imgH
       let yCanvas = 0
@@ -309,28 +414,52 @@ export function AccountingClient({ billings, expenses, tenants, locks: initialLo
         if (remaining > 0) { pdf.addPage(); positionMm = topMargin }
       }
       pdf.save(`audit-pack-${branchLabel}-${year}.pdf`.replace(/[^a-z0-9._-]/gi, '_'))
-    } finally { setExportingPdf(false) }
+    } finally {
+      // Always restore the layout — even on error — so the page doesn't stay
+      // in a max-content state.
+      root.style.width = originalRootWidth
+      root.style.maxWidth = originalRootMaxWidth
+      scrolls.forEach((el, i) => {
+        el.style.overflow = originalScrollStyles[i].overflow
+        el.style.width = originalScrollStyles[i].width
+      })
+      setExportingPdf(false)
+    }
   }
 
   // Tenant statement PDF (a single-tenant PDF for the selected ledger).
   const ledgerRef = useRef<HTMLDivElement | null>(null)
   async function handleExportTenantStatement() {
-    if (!ledgerRef.current || !tenantLedger) return
-    const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
-      import('html2canvas'),
-      import('jspdf'),
-    ])
-    const canvas = await html2canvas(ledgerRef.current, { scale: 2, backgroundColor: '#ffffff', useCORS: true })
-    const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' })
-    const pageW = pdf.internal.pageSize.getWidth()
-    const imgW = pageW
-    const imgH = (canvas.height * imgW) / canvas.width
-    pdf.setFontSize(14)
-    pdf.text(`${tenantLedger.tenant.fullName} — ${year}`, 10, 12)
-    pdf.setFontSize(9)
-    pdf.text(new Date().toISOString().slice(0, 16).replace('T', ' '), 10, 18)
-    pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 24, imgW, imgH)
-    pdf.save(`statement-${tenantLedger.tenant.fullName.replace(/\s+/g, '-')}-${year}.pdf`.replace(/[^a-z0-9._-]/gi, '_'))
+    const root = ledgerRef.current
+    if (!root || !tenantLedger) return
+    const scrolls = Array.from(root.querySelectorAll<HTMLElement>('.table-scroll'))
+    const originalScrollStyles = scrolls.map((el) => ({ overflow: el.style.overflow, width: el.style.width }))
+    const originalRootWidth = root.style.width
+    try {
+      root.style.width = 'max-content'
+      scrolls.forEach((el) => { el.style.overflow = 'visible'; el.style.width = 'max-content' })
+      const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
+        import('html2canvas'),
+        import('jspdf'),
+      ])
+      const canvas = await html2canvas(root, { scale: 2, backgroundColor: '#ffffff', useCORS: true, windowWidth: root.scrollWidth })
+      const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' })
+      const pageW = pdf.internal.pageSize.getWidth()
+      const imgW = pageW
+      const imgH = (canvas.height * imgW) / canvas.width
+      pdf.setFontSize(14)
+      pdf.text(`${tenantLedger.tenant.fullName} — ${year}`, 10, 12)
+      pdf.setFontSize(9)
+      pdf.text(new Date().toISOString().slice(0, 16).replace('T', ' '), 10, 18)
+      pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 24, imgW, imgH)
+      pdf.save(`statement-${tenantLedger.tenant.fullName.replace(/\s+/g, '-')}-${year}.pdf`.replace(/[^a-z0-9._-]/gi, '_'))
+    } finally {
+      root.style.width = originalRootWidth
+      scrolls.forEach((el, i) => {
+        el.style.overflow = originalScrollStyles[i].overflow
+        el.style.width = originalScrollStyles[i].width
+      })
+    }
   }
 
   const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -447,6 +576,119 @@ export function AccountingClient({ billings, expenses, tenants, locks: initialLo
                     </tr>
                   )
                 })}
+              </tbody>
+            </table>
+          </TableScroll>
+        </Card>
+
+        {/* Balance Sheet */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">{t('accounting_balance_sheet')}</CardTitle>
+            <p className="text-xs text-muted-foreground mt-0.5">{t('accounting_balance_sheet_as_of')} {balanceSheetCutoff}</p>
+          </CardHeader>
+          <CardContent>
+            <div className="max-w-2xl mx-auto space-y-1 text-sm">
+              <p className="font-semibold text-muted-foreground uppercase text-xs tracking-wider">{t('accounting_assets')}</p>
+              <div className="flex justify-between pl-3">
+                <span>{t('accounting_accounts_receivable')} <span className="text-xs text-muted-foreground">({t('accounting_ar_help')})</span></span>
+                <span className="tabular-nums">{formatCurrency(balanceSheet.accountsReceivable)}</span>
+              </div>
+              <div className="flex justify-between pl-3">
+                <span>{t('accounting_cash_position')} <span className="text-xs text-muted-foreground">({t('accounting_cash_help')})</span></span>
+                <span className={cn('tabular-nums', balanceSheet.netCash < 0 && 'text-red-600')}>{formatCurrency(balanceSheet.netCash)}</span>
+              </div>
+              <div className="flex justify-between font-semibold border-t border-border pt-1.5 mt-1.5">
+                <span>{t('accounting_total_assets')}</span>
+                <span className="tabular-nums">{formatCurrency(balanceSheet.totalAssets)}</span>
+              </div>
+              <div className="h-3" />
+              <p className="font-semibold text-muted-foreground uppercase text-xs tracking-wider">{t('accounting_liabilities')}</p>
+              <div className="flex justify-between pl-3">
+                <span>{t('accounting_security_deposits')} <span className="text-xs text-muted-foreground">({t('accounting_deposits_help')})</span></span>
+                <span className="tabular-nums">{formatCurrency(balanceSheet.securityDeposits)}</span>
+              </div>
+              <div className="flex justify-between font-semibold border-t border-border pt-1.5 mt-1.5">
+                <span>{t('accounting_total_liabilities')}</span>
+                <span className="tabular-nums">{formatCurrency(balanceSheet.totalLiabilities)}</span>
+              </div>
+              <div className="h-3" />
+              <p className="font-semibold text-muted-foreground uppercase text-xs tracking-wider">{t('accounting_equity')}</p>
+              <div className="flex justify-between pl-3">
+                <span>{t('accounting_retained_earnings')}</span>
+                <span className={cn('tabular-nums', balanceSheet.retainedEarnings < 0 && 'text-red-600')}>{formatCurrency(balanceSheet.retainedEarnings)}</span>
+              </div>
+              <div className={cn('flex justify-between font-bold text-base border-t-2 border-border pt-2 mt-2',
+                balanceSheet.retainedEarnings >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-700 dark:text-red-400')}>
+                <span>{t('accounting_total_liab_equity')}</span>
+                <span className="tabular-nums">{formatCurrency(balanceSheet.totalLiabilities + balanceSheet.retainedEarnings)}</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Cash Flow Statement */}
+        <Card>
+          <CardHeader><CardTitle className="text-base">{t('accounting_cash_flow')} — {year}</CardTitle></CardHeader>
+          <CardContent>
+            <div className="max-w-2xl mx-auto space-y-1 text-sm">
+              <p className="font-semibold text-muted-foreground uppercase text-xs tracking-wider">{t('accounting_cf_operating')}</p>
+              <div className="flex justify-between pl-3"><span>{t('accounting_cf_rental_receipts')}</span><span className="tabular-nums text-emerald-600">{formatCurrency(cashFlow.rentalReceipts)}</span></div>
+              <div className="flex justify-between pl-3 text-muted-foreground"><span>{t('accounting_cf_operating_expenses')}</span><span className="tabular-nums">({formatCurrency(cashFlow.operatingExpenses)})</span></div>
+              <div className="flex justify-between font-semibold border-t border-border pt-1.5 mt-1.5">
+                <span>{t('accounting_cf_net_operating')}</span>
+                <span className={cn('tabular-nums', cashFlow.netOperating < 0 && 'text-red-600')}>{formatCurrency(cashFlow.netOperating)}</span>
+              </div>
+              <div className="h-3" />
+              <p className="font-semibold text-muted-foreground uppercase text-xs tracking-wider">{t('accounting_cf_financing')}</p>
+              <div className="flex justify-between pl-3"><span>{t('accounting_cf_deposits_received')}</span><span className="tabular-nums text-emerald-600">{formatCurrency(cashFlow.depositsReceived)}</span></div>
+              <div className="flex justify-between pl-3 text-muted-foreground"><span>{t('accounting_cf_deposits_refunded')}</span><span className="tabular-nums">({formatCurrency(cashFlow.depositsRefunded)})</span></div>
+              <div className={cn('flex justify-between font-bold text-base border-t-2 border-border pt-2 mt-2',
+                cashFlow.netChange >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-700 dark:text-red-400')}>
+                <span>{t('accounting_cf_net_change')}</span>
+                <span className="tabular-nums">{formatCurrency(cashFlow.netChange)}</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Security Deposits schedule */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">{t('accounting_deposits_schedule')}</CardTitle>
+            <p className="text-xs text-muted-foreground mt-0.5">{t('accounting_deposits_schedule_help')}</p>
+          </CardHeader>
+          <TableScroll>
+            <table className="w-full min-w-[560px] text-sm">
+              <thead>
+                <tr className="border-b border-border bg-muted/30">
+                  <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">{t('tenant')}</th>
+                  <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">{t('room')}</th>
+                  <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">{t('branch')}</th>
+                  <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">{t('accounting_move_in')}</th>
+                  <th className="text-right px-3 py-2 text-xs font-medium text-muted-foreground">{t('accounting_security_deposits')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {balanceSheet.activeDeposits.length === 0 ? (
+                  <tr><td colSpan={5} className="text-center text-sm text-muted-foreground py-6">—</td></tr>
+                ) : (
+                  <>
+                    {balanceSheet.activeDeposits.map((tn) => (
+                      <tr key={tn.id} className="border-b border-border last:border-0">
+                        <td className="px-3 py-2">{tn.fullName}</td>
+                        <td className="px-3 py-2">{tn.room?.roomNumber ?? '—'}</td>
+                        <td className="px-3 py-2 text-muted-foreground">{tn.room?.branch ?? '—'}</td>
+                        <td className="px-3 py-2 font-mono text-xs text-muted-foreground">{tn.moveInDate || '—'}</td>
+                        <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(tn.depositAmount)}</td>
+                      </tr>
+                    ))}
+                    <tr className="border-t-2 border-border bg-muted/30">
+                      <td colSpan={4} className="px-3 py-2 font-semibold text-right">{t('accounting_total')}</td>
+                      <td className="px-3 py-2 text-right tabular-nums font-bold">{formatCurrency(balanceSheet.securityDeposits)}</td>
+                    </tr>
+                  </>
+                )}
               </tbody>
             </table>
           </TableScroll>

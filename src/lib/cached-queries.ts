@@ -283,7 +283,11 @@ export const getAccountingData = unstable_cache(
         orderBy: { expenseDate: 'desc' },
       }),
       db.tenant.findMany({
-        select: { id: true, fullName: true, room: { select: { roomNumber: true, branch: true } } },
+        select: {
+          id: true, fullName: true, status: true,
+          depositAmount: true, moveInDate: true, moveOutDate: true,
+          room: { select: { roomNumber: true, branch: true } },
+        },
         orderBy: { fullName: 'asc' },
       }),
       locksPromise,
