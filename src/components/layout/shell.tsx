@@ -14,7 +14,7 @@ export function Shell({ children, title }: ShellProps) {
   const [mobileOpen, setMobileOpen] = useState(false)
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className="flex h-dvh overflow-hidden bg-background">
       {/* Desktop Sidebar */}
       <div className="hidden lg:flex flex-shrink-0 print:hidden">
         <Sidebar collapsed={collapsed} onCollapse={setCollapsed} />
