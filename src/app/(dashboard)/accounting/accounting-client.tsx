@@ -405,7 +405,10 @@ export function AccountingClient({ billings, expenses, tenants, locks: initialLo
       // noticeably crisper in the exported PDF.
       const SCALE = 4
       const canvas = await html2canvas(el, { scale: SCALE, backgroundColor: '#ffffff', useCORS: true, windowWidth: el.scrollWidth })
-      const pdf = new jsPDF({ orientation: 'p', unit: 'pt', format: 'a4' })
+      // compress: true zips the PDF streams; pages are encoded as JPEG (far
+      // smaller than PNG for rendered documents) — at this high resolution the
+      // text stays sharp while the file shrinks dramatically.
+      const pdf = new jsPDF({ orientation: 'p', unit: 'pt', format: 'a4', compress: true })
       const pageW = pdf.internal.pageSize.getWidth()
       const pageH = pdf.internal.pageSize.getHeight()
       const MT = 34, MB = 34 // top/bottom page margins (pt) so content never touches the edge
@@ -451,7 +454,7 @@ export function AccountingClient({ billings, expenses, tenants, locks: initialLo
         ctx.fillRect(0, 0, band.width, band.height)
         ctx.drawImage(canvas, 0, s.start, canvas.width, s.h, 0, 0, canvas.width, s.h)
         if (i > 0) pdf.addPage()
-        pdf.addImage(band.toDataURL('image/png'), 'PNG', 0, MT, pageW, s.h / cpx)
+        pdf.addImage(band.toDataURL('image/jpeg', 0.85), 'JPEG', 0, MT, pageW, s.h / cpx, undefined, 'FAST')
       })
       pdf.save(`audit-pack-${branchLabelText}-${rangeLabel}.pdf`.replace(/[^a-z0-9._-]/gi, '_'))
     } catch (e) {
