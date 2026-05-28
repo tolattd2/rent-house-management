@@ -80,7 +80,7 @@ export function MaintenanceClient({ records: initial, rooms, tenants }: Props) {
   const router = useRouter()
   const { data: session } = useSession()
   const canManage = session?.user?.role ? session.user.role !== 'guest' : false
-  const { t } = useLanguage()
+  const { t, language } = useLanguage()
   const roomLabel = useRoomLabel()
   const [records, setRecords] = useState(initial)
   useEffect(() => { setRecords(initial) }, [initial])
@@ -150,38 +150,61 @@ export function MaintenanceClient({ records: initial, rooms, tenants }: Props) {
     if (occupant) setForm((f) => ({ ...f, tenantId: occupant.id }))
   }, [form.roomId, form.tenantId, tenants])
 
-  // Categories: built-in plus any custom ones the user has added. We persist
-  // additions to localStorage so they survive page reloads without a backend.
+  // Categories: built-in plus any custom ones the user has added. Custom
+  // categories are bilingual { en, km } pairs persisted to localStorage —
+  // the English name is the canonical id stored on records.
+  type CustomCat = { en: string; km: string }
   const CATEGORIES_STORAGE = 'maintenance/custom-categories'
-  const [customCategories, setCustomCategories] = useState<string[]>([])
+  const [customCategories, setCustomCategories] = useState<CustomCat[]>([])
   useEffect(() => {
     try {
       const raw = localStorage.getItem(CATEGORIES_STORAGE)
-      if (raw) setCustomCategories(JSON.parse(raw))
+      if (!raw) return
+      const parsed: unknown = JSON.parse(raw)
+      if (!Array.isArray(parsed)) return
+      // Migrate legacy string[] entries: both en and km default to the string.
+      const next: CustomCat[] = parsed.map((c) =>
+        typeof c === 'string'
+          ? { en: c, km: c }
+          : { en: String((c as CustomCat).en ?? ''), km: String((c as CustomCat).km ?? '') }
+      ).filter((c) => c.en)
+      setCustomCategories(next)
     } catch { /* ignore */ }
   }, [])
-  const allCategories = [...CATEGORIES, ...customCategories.filter((c) => !CATEGORIES.includes(c))]
+  const allCategories = [
+    ...CATEGORIES,
+    ...customCategories.map((c) => c.en).filter((e) => e && !CATEGORIES.includes(e)),
+  ]
+  function catLabel(cat: string) {
+    const custom = customCategories.find((c) => c.en === cat)
+    if (custom) return language === 'kh' ? (custom.km || custom.en) : custom.en
+    return cat
+  }
   const [addingCategory, setAddingCategory] = useState(false)
-  const [newCategory, setNewCategory] = useState('')
+  const [newCatEn, setNewCatEn] = useState('')
+  const [newCatKm, setNewCatKm] = useState('')
   function commitNewCategory() {
-    // Preserve the user's exact casing.
-    const name = newCategory.trim()
-    if (!name) { setAddingCategory(false); return }
-    if (!allCategories.includes(name)) {
-      const next = [...customCategories, name]
+    const en = newCatEn.trim()
+    const km = newCatKm.trim()
+    if (!en && !km) { setAddingCategory(false); return }
+    const enFinal = en || km
+    const kmFinal = km || en
+    if (!allCategories.includes(enFinal)) {
+      const next = [...customCategories, { en: enFinal, km: kmFinal }]
       setCustomCategories(next)
       try { localStorage.setItem(CATEGORIES_STORAGE, JSON.stringify(next)) } catch { /* ignore */ }
     }
-    setForm((f) => ({ ...f, category: name }))
-    setNewCategory('')
+    setForm((f) => ({ ...f, category: enFinal }))
+    setNewCatEn('')
+    setNewCatKm('')
     setAddingCategory(false)
   }
-  function deleteCategory(c: string) {
-    if ((CATEGORIES as readonly string[]).includes(c)) return
-    const next = customCategories.filter((x) => x !== c)
+  function deleteCategory(en: string) {
+    if ((CATEGORIES as readonly string[]).includes(en)) return
+    const next = customCategories.filter((x) => x.en !== en)
     setCustomCategories(next)
     try { localStorage.setItem(CATEGORIES_STORAGE, JSON.stringify(next)) } catch { /* ignore */ }
-    if (form.category === c) setForm((f) => ({ ...f, category: 'general' }))
+    if (form.category === en) setForm((f) => ({ ...f, category: 'general' }))
   }
 
   function openNew() {
@@ -376,7 +399,7 @@ export function MaintenanceClient({ records: initial, rooms, tenants }: Props) {
                 categoryFilter === cat && 'ring-2 ring-primary/70',
               )}>
               <Wrench className="w-4 h-4 text-muted-foreground" />
-              <span className="text-xs font-medium leading-tight capitalize">{cat}</span>
+              <span className="text-xs font-medium leading-tight capitalize">{catLabel(cat)}</span>
               <span className="text-sm font-bold tabular-nums">{formatCurrency(byCategory[cat])}</span>
             </button>
           ))}
@@ -404,7 +427,7 @@ export function MaintenanceClient({ records: initial, rooms, tenants }: Props) {
           <SelectContent>
             <SelectItem value="all">{t('all')}</SelectItem>
             {allCategories.map((c) => (
-              <SelectItem key={c} value={c} className="capitalize">{c}</SelectItem>
+              <SelectItem key={c} value={c} className="capitalize">{catLabel(c)}</SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -427,7 +450,7 @@ export function MaintenanceClient({ records: initial, rooms, tenants }: Props) {
               <div className="flex items-start justify-between gap-2 mb-2">
                 <div className="min-w-0">
                   <p className="font-semibold truncate">{r.title}</p>
-                  <p className="text-xs text-muted-foreground capitalize">{r.category}</p>
+                  <p className="text-xs text-muted-foreground capitalize">{catLabel(r.category)}</p>
                 </div>
                 <div className="shrink-0">
                   <StatusControl record={r} />
@@ -494,7 +517,7 @@ export function MaintenanceClient({ records: initial, rooms, tenants }: Props) {
                   >
                     <td className="px-4 py-3">
                       <p className="font-medium">{r.title}</p>
-                      <p className="text-xs text-muted-foreground capitalize">{r.category}</p>
+                      <p className="text-xs text-muted-foreground capitalize">{catLabel(r.category)}</p>
                     </td>
                     <td className="px-4 py-3">
                       {r.room ? (
@@ -625,15 +648,20 @@ export function MaintenanceClient({ records: initial, rooms, tenants }: Props) {
                               <Settings className="w-3.5 h-3.5" /> {t('manage')}
                             </button>
                           </PopoverTrigger>
-                          <PopoverContent className="w-60 p-2" align="end">
+                          <PopoverContent className="w-64 p-2" align="end">
                             <p className="text-xs font-semibold text-muted-foreground px-1 pb-1">{t('expenses_manage_categories')}</p>
                             <ul className="space-y-0.5">
                               {customCategories.map((c) => (
-                                <li key={c} className="flex items-center justify-between text-sm pl-2 pr-1 py-1 rounded hover:bg-muted">
-                                  <span className="capitalize">{c}</span>
+                                <li key={c.en} className="flex items-center justify-between text-sm pl-2 pr-1 py-1 rounded hover:bg-muted">
+                                  <span className="capitalize truncate">
+                                    {c.en}
+                                    {c.km && c.km !== c.en && (
+                                      <span className="text-muted-foreground"> · {c.km}</span>
+                                    )}
+                                  </span>
                                   <button type="button" aria-label="Delete category"
                                     className="w-6 h-6 inline-flex items-center justify-center text-muted-foreground hover:text-destructive"
-                                    onClick={() => deleteCategory(c)}>
+                                    onClick={() => deleteCategory(c.en)}>
                                     <Trash2 className="w-3.5 h-3.5" />
                                   </button>
                                 </li>
@@ -643,29 +671,36 @@ export function MaintenanceClient({ records: initial, rooms, tenants }: Props) {
                         </Popover>
                       )}
                       <button type="button" className="text-xs text-primary hover:underline"
-                        onClick={() => { setNewCategory(''); setAddingCategory(true) }}>
+                        onClick={() => { setNewCatEn(''); setNewCatKm(''); setAddingCategory(true) }}>
                         + {t('add')}
                       </button>
                     </div>
                   )}
                 </div>
                 {addingCategory ? (
-                  <div className="flex gap-1">
-                    <Input autoFocus placeholder={t('maintenance_form_category')} value={newCategory}
-                      onChange={(e) => setNewCategory(e.target.value)}
+                  <div className="space-y-1">
+                    <Input autoFocus placeholder={t('category_form_en_placeholder')} value={newCatEn}
+                      onChange={(e) => setNewCatEn(e.target.value)}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') { e.preventDefault(); commitNewCategory() }
-                        if (e.key === 'Escape') { setAddingCategory(false); setNewCategory('') }
-                      }}
-                      onBlur={commitNewCategory} />
-                    <Button type="button" size="sm" onClick={commitNewCategory}>{t('save')}</Button>
+                        if (e.key === 'Escape') { setAddingCategory(false); setNewCatEn(''); setNewCatKm('') }
+                      }} />
+                    <div className="flex gap-1">
+                      <Input placeholder={t('category_form_km_placeholder')} value={newCatKm}
+                        onChange={(e) => setNewCatKm(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') { e.preventDefault(); commitNewCategory() }
+                          if (e.key === 'Escape') { setAddingCategory(false); setNewCatEn(''); setNewCatKm('') }
+                        }} />
+                      <Button type="button" size="sm" onClick={commitNewCategory}>{t('save')}</Button>
+                    </div>
                   </div>
                 ) : (
                   <Select value={form.category} onValueChange={(v) => setForm((f) => ({ ...f, category: v }))}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {allCategories.map((c) => (
-                        <SelectItem key={c} value={c} className="capitalize">{c}</SelectItem>
+                        <SelectItem key={c} value={c} className="capitalize">{catLabel(c)}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>

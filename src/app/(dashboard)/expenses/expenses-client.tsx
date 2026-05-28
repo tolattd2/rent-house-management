@@ -177,44 +177,57 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
   }, [filteredNoCategory])
 
   // Custom categories: user-added via the form's "+ Add" link, persisted to
-  // localStorage. Deletes only remove from the dropdown; existing expense
-  // records keep their saved category string so the breakdown / list can
-  // still render them (just without re-listing in the picker).
+  // localStorage as bilingual { en, km } pairs. The English name is the
+  // canonical identifier stored on expense records — Khmer is shown when the
+  // UI is in Khmer mode and falls back to English if missing.
+  type CustomCat = { en: string; km: string }
   const CATEGORIES_STORAGE = 'expenses/custom-categories'
-  const [customCategories, setCustomCategories] = useState<string[]>([])
+  const [customCategories, setCustomCategories] = useState<CustomCat[]>([])
   useEffect(() => {
     try {
       const raw = localStorage.getItem(CATEGORIES_STORAGE)
-      if (raw) setCustomCategories(JSON.parse(raw))
+      if (!raw) return
+      const parsed: unknown = JSON.parse(raw)
+      if (!Array.isArray(parsed)) return
+      // Migrate legacy string[] entries: { en, km } both default to the string.
+      const next: CustomCat[] = parsed.map((c) =>
+        typeof c === 'string'
+          ? { en: c, km: c }
+          : { en: String((c as CustomCat).en ?? ''), km: String((c as CustomCat).km ?? '') }
+      ).filter((c) => c.en)
+      setCustomCategories(next)
     } catch { /* ignore */ }
   }, [])
   const allCategories = useMemo(() => {
     const built = new Set<string>(CATEGORIES)
-    const extras = customCategories.filter((c) => c && !built.has(c))
+    const extras = customCategories.map((c) => c.en).filter((e) => e && !built.has(e))
     return [...CATEGORIES, ...Array.from(new Set(extras))]
   }, [customCategories])
   const [addingCategory, setAddingCategory] = useState(false)
-  const [newCategory, setNewCategory] = useState('')
+  const [newCatEn, setNewCatEn] = useState('')
+  const [newCatKm, setNewCatKm] = useState('')
   function commitNewCategory() {
-    // Preserve the user's exact casing — "Internet", "WIFI", "rent" should all
-    // appear as typed in the dropdown and in records.
-    const name = newCategory.trim()
-    if (!name) { setAddingCategory(false); return }
-    if (!allCategories.includes(name)) {
-      const next = [...customCategories, name]
+    const en = newCatEn.trim()
+    const km = newCatKm.trim()
+    if (!en && !km) { setAddingCategory(false); return }
+    const enFinal = en || km
+    const kmFinal = km || en
+    if (!allCategories.includes(enFinal)) {
+      const next = [...customCategories, { en: enFinal, km: kmFinal }]
       setCustomCategories(next)
       try { localStorage.setItem(CATEGORIES_STORAGE, JSON.stringify(next)) } catch { /* ignore */ }
     }
-    setForm((f) => ({ ...f, category: name }))
-    setNewCategory('')
+    setForm((f) => ({ ...f, category: enFinal }))
+    setNewCatEn('')
+    setNewCatKm('')
     setAddingCategory(false)
   }
-  function deleteCategory(c: string) {
-    if ((CATEGORIES as readonly string[]).includes(c)) return
-    const next = customCategories.filter((x) => x !== c)
+  function deleteCategory(en: string) {
+    if ((CATEGORIES as readonly string[]).includes(en)) return
+    const next = customCategories.filter((x) => x.en !== en)
     setCustomCategories(next)
     try { localStorage.setItem(CATEGORIES_STORAGE, JSON.stringify(next)) } catch { /* ignore */ }
-    if (form.category === c) setForm((f) => ({ ...f, category: 'other' }))
+    if (form.category === en) setForm((f) => ({ ...f, category: 'other' }))
   }
 
   // Favorites: templates for recurring monthly expenses. Persisted in
@@ -364,9 +377,12 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
   function catLabel(cat: string) {
     const key = `expense_cat_${cat}` as Parameters<typeof t>[0]
     const v = t(key)
-    // Custom (user-added) categories have no translation key, so t() falls
-    // back to returning the key itself — show the raw category instead.
-    return v === key ? cat : v
+    if (v !== key) return v
+    // Custom (user-added) bilingual entry — show Khmer in kh mode, fall back
+    // to English when km is empty or UI is in English mode.
+    const custom = customCategories.find((c) => c.en === cat)
+    if (custom) return language === 'kh' ? (custom.km || custom.en) : custom.en
+    return cat
   }
 
   const DEFAULT_CAT_COLOR = 'text-gray-600 bg-gray-50 dark:bg-gray-900/30'
@@ -699,15 +715,20 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
                                 <Settings className="w-3.5 h-3.5" /> {t('manage')}
                               </button>
                             </PopoverTrigger>
-                            <PopoverContent className="w-60 p-2" align="end">
+                            <PopoverContent className="w-64 p-2" align="end">
                               <p className="text-xs font-semibold text-muted-foreground px-1 pb-1">{t('expenses_manage_categories')}</p>
                               <ul className="space-y-0.5">
                                 {customCategories.map((c) => (
-                                  <li key={c} className="flex items-center justify-between text-sm pl-2 pr-1 py-1 rounded hover:bg-muted">
-                                    <span>{c}</span>
+                                  <li key={c.en} className="flex items-center justify-between text-sm pl-2 pr-1 py-1 rounded hover:bg-muted">
+                                    <span className="truncate">
+                                      {c.en}
+                                      {c.km && c.km !== c.en && (
+                                        <span className="text-muted-foreground"> · {c.km}</span>
+                                      )}
+                                    </span>
                                     <button type="button" aria-label="Delete category"
                                       className="w-6 h-6 inline-flex items-center justify-center text-muted-foreground hover:text-destructive"
-                                      onClick={() => deleteCategory(c)}>
+                                      onClick={() => deleteCategory(c.en)}>
                                       <Trash2 className="w-3.5 h-3.5" />
                                     </button>
                                   </li>
@@ -717,22 +738,29 @@ export function ExpensesClient({ expenses: initialExpenses, rooms }: Props) {
                           </Popover>
                         )}
                         <button type="button" className="text-xs text-primary hover:underline"
-                          onClick={() => { setNewCategory(''); setAddingCategory(true) }}>
+                          onClick={() => { setNewCatEn(''); setNewCatKm(''); setAddingCategory(true) }}>
                           + {t('add')}
                         </button>
                       </div>
                     )}
                   </div>
                   {addingCategory ? (
-                    <div className="flex gap-1">
-                      <Input autoFocus placeholder={t('expenses_form_category_label')} value={newCategory}
-                        onChange={(e) => setNewCategory(e.target.value)}
+                    <div className="space-y-1">
+                      <Input autoFocus placeholder={t('category_form_en_placeholder')} value={newCatEn}
+                        onChange={(e) => setNewCatEn(e.target.value)}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') { e.preventDefault(); commitNewCategory() }
-                          if (e.key === 'Escape') { setAddingCategory(false); setNewCategory('') }
-                        }}
-                        onBlur={commitNewCategory} />
-                      <Button type="button" size="sm" onClick={commitNewCategory}>{t('save')}</Button>
+                          if (e.key === 'Escape') { setAddingCategory(false); setNewCatEn(''); setNewCatKm('') }
+                        }} />
+                      <div className="flex gap-1">
+                        <Input placeholder={t('category_form_km_placeholder')} value={newCatKm}
+                          onChange={(e) => setNewCatKm(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') { e.preventDefault(); commitNewCategory() }
+                            if (e.key === 'Escape') { setAddingCategory(false); setNewCatEn(''); setNewCatKm('') }
+                          }} />
+                        <Button type="button" size="sm" onClick={commitNewCategory}>{t('save')}</Button>
+                      </div>
                     </div>
                   ) : (
                     <Select value={form.category} onValueChange={(v) => setForm((f) => ({ ...f, category: v }))}>
