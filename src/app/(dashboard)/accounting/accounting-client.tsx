@@ -308,11 +308,15 @@ export function AccountingClient({ billings, expenses, tenants, locks: initialLo
   // ---- Tenant ledger ----
   const [tenantSearch, setTenantSearch] = useState('')
   const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null)
+  const [tenantScope, setTenantScope] = usePersistentState<'active' | 'all'>('accounting/tenantScope', 'active')
   const filteredTenants = useMemo(() => {
     const q = tenantSearch.trim().toLowerCase()
-    if (!q) return tenants
-    return tenants.filter((tn) => tn.fullName.toLowerCase().includes(q) || (tn.room?.roomNumber ?? '').toLowerCase().includes(q))
-  }, [tenants, tenantSearch])
+    return tenants.filter((tn) => {
+      if (tenantScope === 'active' && tn.status !== 'active') return false
+      if (!q) return true
+      return tn.fullName.toLowerCase().includes(q) || (tn.room?.roomNumber ?? '').toLowerCase().includes(q)
+    })
+  }, [tenants, tenantSearch, tenantScope])
   // Tenant picker grouped by branch (consistent with the other tables).
   const tenantPickerGroups = useMemo(
     () => groupByBranch(filteredTenants.map((tn) => ({ ...tn, roomNumber: tn.room?.roomNumber ?? '', branch: tn.room?.branch ?? '' }))),
@@ -843,6 +847,14 @@ export function AccountingClient({ billings, expenses, tenants, locks: initialLo
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input placeholder={t('accounting_search_tenant')} className="pl-9" value={tenantSearch} onChange={(e) => setTenantSearch(e.target.value)} />
+                </div>
+                <div className="flex gap-1">
+                  {(['active', 'all'] as const).map((s) => (
+                    <Button key={s} size="sm" variant={tenantScope === s ? 'default' : 'outline'} className="h-8 px-3 text-xs flex-1"
+                      onClick={() => setTenantScope(s)}>
+                      {s === 'active' ? t('accounting_active_only') : t('accounting_all_tenants')}
+                    </Button>
+                  ))}
                 </div>
                 <ul className="max-h-72 overflow-auto border border-border rounded-lg">
                   {tenantPickerGroups.map((g) => (
