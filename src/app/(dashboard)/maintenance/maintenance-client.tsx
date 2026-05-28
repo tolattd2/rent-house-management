@@ -176,6 +176,9 @@ export function MaintenanceClient({ records: initial, rooms, tenants }: Props) {
     ...customCategories.map((c) => c.en).filter((e) => e && !CATEGORIES.includes(e)),
   ]
   function catLabel(cat: string) {
+    const key = `maint_cat_${cat}` as Parameters<typeof t>[0]
+    const v = t(key)
+    if (v !== key) return v
     const custom = customCategories.find((c) => c.en === cat)
     if (custom) return language === 'kh' ? (custom.km || custom.en) : custom.en
     return cat

@@ -489,6 +489,15 @@ export const translations = {
     expense_cat_supplies: 'Supplies & Equipment',
     expense_cat_administrative: 'Administrative',
     expense_cat_other: 'Other',
+    // Maintenance categories
+    maint_cat_general: 'General',
+    maint_cat_electrical: 'Electrical',
+    maint_cat_plumbing: 'Plumbing',
+    maint_cat_furniture: 'Furniture',
+    maint_cat_appliance: 'Appliance',
+    maint_cat_structural: 'Structural',
+    maint_cat_cleaning: 'Cleaning',
+    maint_cat_other: 'Other',
     // Dashboard expense stats
     dashboard_monthly_expenses: 'Monthly Expenses',
     dashboard_this_month_expenses: 'This month spent',
@@ -1292,6 +1301,15 @@ export const translations = {
     expense_cat_supplies: 'សម្ភារៈ & បរិក្ខារ',
     expense_cat_administrative: 'រដ្ឋបាល',
     expense_cat_other: 'ផ្សេងៗ',
+    // Maintenance categories
+    maint_cat_general: 'ទូទៅ',
+    maint_cat_electrical: 'អគ្គិសនី',
+    maint_cat_plumbing: 'ប្រព័ន្ធទឹក',
+    maint_cat_furniture: 'គ្រឿងសង្ហារឹម',
+    maint_cat_appliance: 'គ្រឿងបរិក្ខារ',
+    maint_cat_structural: 'រចនាសម្ព័ន្ធ',
+    maint_cat_cleaning: 'ការសម្អាត',
+    maint_cat_other: 'ផ្សេងៗ',
     // Dashboard expense stats
     dashboard_monthly_expenses: 'ចំណាយប្រចាំខែ',
     dashboard_this_month_expenses: 'ចំណាយខែនេះ',
