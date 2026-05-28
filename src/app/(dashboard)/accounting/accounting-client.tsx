@@ -250,10 +250,18 @@ export function AccountingClient({ billings, expenses, tenants, locks: initialLo
         headers: { 'Content-Type': 'application/json' },
         ...(lock ? { body: JSON.stringify({ month }) } : {}),
       })
-      const data = await res.json()
-      if (!data.ok) { toast({ title: data.error ?? 'Error', variant: 'destructive' }); return }
-      if (lock) setLocks((prev) => [...prev.filter((l) => l.month !== month), data.lock].sort((a, b) => a.month.localeCompare(b.month)))
-      else setLocks((prev) => prev.filter((l) => l.month !== month))
+      const text = await res.text()
+      let data: { ok?: boolean; error?: string; lock?: Lock } = {}
+      try { data = text ? JSON.parse(text) : {} } catch { /* non-JSON body */ }
+      if (!res.ok || !data.ok) {
+        toast({
+          title: data.error ?? `Server returned ${res.status}${text ? `: ${text.slice(0, 140)}` : ''}`,
+          variant: 'destructive',
+        })
+        return
+      }
+      if (lock && data.lock) setLocks((prev) => [...prev.filter((l) => l.month !== month), data.lock as Lock].sort((a, b) => a.month.localeCompare(b.month)))
+      else if (!lock) setLocks((prev) => prev.filter((l) => l.month !== month))
     } catch (e) {
       toast({ title: e instanceof Error ? e.message : 'Error', variant: 'destructive' })
     }
