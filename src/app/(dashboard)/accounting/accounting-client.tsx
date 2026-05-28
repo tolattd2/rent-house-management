@@ -873,7 +873,7 @@ export function AccountingClient({ billings, expenses, tenants, locks: initialLo
                 <ul className="max-h-72 overflow-auto border border-border rounded-lg">
                   {tenantPickerGroups.map((g) => (
                     <Fragment key={g.branch}>
-                      <li className="px-3 py-1.5 bg-muted/40 text-xs font-semibold text-muted-foreground uppercase tracking-wider sticky top-0">
+                      <li className="px-3 py-1.5 bg-muted text-xs font-semibold text-muted-foreground uppercase tracking-wider sticky top-0 z-10 border-b border-border">
                         {g.branch === '—' ? t('branch_shared') : g.branch}
                         <span className="ml-2 tabular-nums">({g.items.length})</span>
                       </li>
