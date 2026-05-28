@@ -222,25 +222,31 @@ export const getMaintenanceData = unstable_cache(
 
 export const getReportsData = unstable_cache(
   async () => {
-    const [billings, expenses] = await Promise.all([
+    const [billings, expenses, rooms] = await Promise.all([
       db.billing.findMany({
         include: {
           tenant: { select: { id: true, fullName: true } },
           room: { select: { id: true, roomNumber: true, branch: true } },
-          payments: true,
+          payments: { include: { receivedBy: { select: { name: true } } } },
         },
         orderBy: { billingMonth: 'desc' },
       }),
       db.expense.findMany({
-        include: { room: { select: { id: true, roomNumber: true, branch: true } } },
+        include: {
+          room: { select: { id: true, roomNumber: true, branch: true } },
+          maintenance: { select: { id: true, title: true } },
+        },
         orderBy: { expenseDate: 'desc' },
       }),
+      db.room.findMany({
+        select: { id: true, branch: true, status: true },
+      }),
     ])
-    return { billings, expenses }
+    return { billings, expenses, rooms }
   },
   ['reports-data'],
   {
-    tags: [TAGS.billings, TAGS.expenses, TAGS.payments, TAGS.tenants, TAGS.rooms],
+    tags: [TAGS.billings, TAGS.expenses, TAGS.payments, TAGS.tenants, TAGS.rooms, TAGS.maintenance],
     revalidate: REVALIDATE_SECONDS,
   },
 )

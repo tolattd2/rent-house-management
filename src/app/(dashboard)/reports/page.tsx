@@ -4,6 +4,6 @@ import { ReportsClient } from './reports-client'
 export const dynamic = 'force-dynamic'
 
 export default async function ReportsPage() {
-  const { billings, expenses } = await getReportsData()
-  return <ReportsClient billings={billings} expenses={expenses} />
+  const { billings, expenses, rooms } = await getReportsData()
+  return <ReportsClient billings={billings} expenses={expenses} rooms={rooms} />
 }
