@@ -1,6 +1,6 @@
 'use client'
 
-import { Fragment, useState, useMemo } from 'react'
+import { Fragment, useState, useMemo, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis,
@@ -109,6 +109,34 @@ export function ReportsClient({ billings, expenses }: Props) {
     monthExpenses.forEach((e) => { map[e.category] = (map[e.category] ?? 0) + e.amountUsd })
     return Object.entries(map).sort((a, b) => b[1] - a[1])
   }, [monthExpenses])
+
+  // Read bilingual custom expense categories so the summary card can display
+  // them in Khmer when the UI language is set to kh. The expenses page is the
+  // source of truth — we just mirror that localStorage entry here.
+  type CustomCat = { en: string; km: string }
+  const [customCategories, setCustomCategories] = useState<CustomCat[]>([])
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('expenses/custom-categories')
+      if (!raw) return
+      const parsed: unknown = JSON.parse(raw)
+      if (!Array.isArray(parsed)) return
+      const next: CustomCat[] = parsed.map((c) =>
+        typeof c === 'string'
+          ? { en: c, km: c }
+          : { en: String((c as CustomCat).en ?? ''), km: String((c as CustomCat).km ?? '') }
+      ).filter((c) => c.en)
+      setCustomCategories(next)
+    } catch { /* ignore */ }
+  }, [])
+  function catLabel(cat: string) {
+    const key = `expense_cat_${cat}` as Parameters<typeof t>[0]
+    const v = t(key)
+    if (v !== key) return v
+    const custom = customCategories.find((c) => c.en === cat)
+    if (custom) return language === 'kh' ? (custom.km || custom.en) : custom.en
+    return cat
+  }
 
   // Billing-detail table sort (applied within each branch group).
   type SortKey = 'room' | 'tenant' | 'month' | 'totalUsd' | 'totalRiel' | 'status'
@@ -257,7 +285,7 @@ export function ReportsClient({ billings, expenses }: Props) {
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
               {expenseByCategory.map(([cat, amt]) => (
                 <div key={cat} className="text-center p-3 bg-muted/40 rounded-xl">
-                  <p className="text-xs text-muted-foreground capitalize">{cat}</p>
+                  <p className="text-xs text-muted-foreground capitalize">{catLabel(cat)}</p>
                   <p className="font-bold text-orange-600">{formatCurrency(amt)}</p>
                   <p className="text-xs text-muted-foreground">{totalExpenses > 0 ? Math.round((amt / totalExpenses) * 100) : 0}%</p>
                 </div>
