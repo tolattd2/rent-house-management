@@ -28,11 +28,10 @@ function blank(): PromiseRecord {
   return { current: null, currentSetAt: null, history: [], alerted: [] }
 }
 
-export async function readPromise(billingId: string): Promise<PromiseRecord> {
-  const row = await db.setting.findUnique({ where: { key: key(billingId) } })
-  if (!row?.value) return blank()
+function parseRecord(value: string | null | undefined): PromiseRecord {
+  if (!value) return blank()
   try {
-    const parsed = JSON.parse(row.value)
+    const parsed = JSON.parse(value)
     return {
       current: typeof parsed.current === 'string' ? parsed.current : null,
       currentSetAt: typeof parsed.currentSetAt === 'string' ? parsed.currentSetAt : null,
@@ -47,6 +46,38 @@ export async function readPromise(billingId: string): Promise<PromiseRecord> {
   } catch {
     return blank()
   }
+}
+
+export async function readPromise(billingId: string): Promise<PromiseRecord> {
+  const row = await db.setting.findUnique({ where: { key: key(billingId) } })
+  return parseRecord(row?.value)
+}
+
+/**
+ * Bulk-read the promise records for many billings in one query. Returns a map
+ * keyed by billingId; billings with no recorded promise are simply absent.
+ */
+export async function readPromisesForBillings(ids: string[]): Promise<Map<string, PromiseRecord>> {
+  const map = new Map<string, PromiseRecord>()
+  if (ids.length === 0) return map
+  const rows = await db.setting.findMany({ where: { key: { in: ids.map(key) } } })
+  for (const row of rows) {
+    map.set(row.key.slice(KEY_PREFIX.length), parseRecord(row.value))
+  }
+  return map
+}
+
+/**
+ * Read every promise record ever written, paired with its billingId. Used by
+ * the consolidated promise-history timeline.
+ */
+export async function readAllPromises(): Promise<Map<string, PromiseRecord>> {
+  const rows = await db.setting.findMany({ where: { key: { startsWith: KEY_PREFIX } } })
+  const map = new Map<string, PromiseRecord>()
+  for (const row of rows) {
+    map.set(row.key.slice(KEY_PREFIX.length), parseRecord(row.value))
+  }
+  return map
 }
 
 async function write(billingId: string, record: PromiseRecord): Promise<void> {

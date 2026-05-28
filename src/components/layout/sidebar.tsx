@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   LayoutDashboard, Users, DoorOpen, FileText, Receipt,
   BarChart3, Bell, Settings, ChevronLeft, Building2, LogOut, Wrench, TrendingDown,
-  ClipboardList, LayoutGrid, Calculator,
+  ClipboardList, LayoutGrid, Calculator, CalendarClock,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useSession } from 'next-auth/react'
@@ -31,6 +31,7 @@ const navItems: NavItem[] = [
   { href: '/rooms', labelKey: 'nav_rooms', icon: DoorOpen },
   { href: '/room-map', labelKey: 'nav_room_map', icon: LayoutGrid },
   { href: '/billing', labelKey: 'nav_billing', icon: FileText },
+  { href: '/promises', labelKey: 'nav_promises', icon: CalendarClock, roles: ['admin'] },
   { href: '/invoices', labelKey: 'nav_invoices', icon: Receipt },
   { href: '/maintenance', labelKey: 'nav_maintenance', icon: Wrench },
   { href: '/expenses', labelKey: 'nav_expenses', icon: TrendingDown },

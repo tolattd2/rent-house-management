@@ -16,7 +16,7 @@ import { GenerateMonthlyDialog } from '@/components/billing/generate-monthly-dia
 import { BatchGenerateInvoiceDialog } from '@/components/invoices/batch-generate-dialog'
 import { NoticeDialog } from '@/components/tenants/notice-dialog'
 import { PromiseDialog } from '@/components/invoices/promise-dialog'
-import { formatCurrency, formatCompact, formatMonth, exportToCSV, groupByBranch, cn } from '@/lib/utils'
+import { formatCurrency, formatCompact, formatMonth, formatDate, exportToCSV, groupByBranch, cn } from '@/lib/utils'
 import { CARD_STYLES } from '@/lib/card-colors'
 import { toast } from '@/hooks/use-toast'
 import { useSession } from 'next-auth/react'
@@ -32,6 +32,7 @@ type Billing = {
   totalUsd: number; totalRiel: number; outstandingDebtUsd: number; lateDays: number
   discountUsd: number; latePenaltyUsd: number; paymentStatus: string; paymentDate: string
   exchangeRate: number; createdAt: Date
+  promiseDate?: string | null; promiseSetAt?: string | null
   tenant: { id: string; fullName: string; phone: string; payDay: number } | null
   room: { id: string; roomNumber: string; branch: string | null } | null
   payments: Array<{ id: string; amountUsd: number }>
@@ -49,6 +50,17 @@ function getDueInfo(billingMonth: string, payDay: number, paymentStatus: string)
   return { dueDate, daysLate: diffDays, isPaid: paymentStatus === 'paid' }
 }
 
+// Days the promised pay date is past (>0 = overdue). null when no promise set.
+function promiseDaysOverdue(promiseDate: string | null | undefined): number | null {
+  if (!promiseDate) return null
+  const d = new Date(promiseDate)
+  if (Number.isNaN(d.getTime())) return null
+  d.setHours(0, 0, 0, 0)
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  return Math.floor((today.getTime() - d.getTime()) / 86_400_000)
+}
+
 export function BillingListClient({ billings: initial }: Props) {
   const router = useRouter()
   const { data: session } = useSession()
@@ -61,6 +73,7 @@ export function BillingListClient({ billings: initial }: Props) {
   useEffect(() => { setBillings(initial) }, [initial])
   const [search, setSearch] = usePersistentState('billing/search', '')
   const [statusFilter, setStatusFilter] = usePersistentState('billing/status', 'all')
+  const [promiseFilter, setPromiseFilter] = usePersistentState('billing/promise', 'all')
   const latestMonth = [...new Set(initial.map((b) => b.billingMonth))].sort().reverse()[0] ?? 'all'
   const [monthFilter, setMonthFilter] = usePersistentState('billing/month', latestMonth)
   const [monthFrom, setMonthFrom] = usePersistentState('billing/monthFrom', '')
@@ -102,7 +115,15 @@ export function BillingListClient({ billings: initial }: Props) {
       ? b.billingMonth >= range[0] && b.billingMonth <= range[1]
       : monthFilter === 'all' || b.billingMonth === monthFilter
     const matchBranch = branchFilter === 'all' || b.room?.branch === branchFilter
-    return matchSearch && matchStatus && matchMonth && matchBranch
+    let matchPromise = true
+    if (promiseFilter !== 'all') {
+      const unpaid = b.paymentStatus !== 'paid'
+      const overdue = promiseDaysOverdue(b.promiseDate)
+      if (promiseFilter === 'has_promise') matchPromise = unpaid && !!b.promiseDate
+      else if (promiseFilter === 'overdue_promise') matchPromise = unpaid && overdue !== null && overdue > 0
+      else if (promiseFilter === 'no_promise') matchPromise = unpaid && !b.promiseDate
+    }
+    return matchSearch && matchStatus && matchMonth && matchBranch && matchPromise
   }).map((b) => ({ ...b, roomNumber: b.room?.roomNumber ?? '', branch: b.room?.branch ?? '' }))
 
   const grouped = groupByBranch(filtered)
@@ -232,6 +253,15 @@ export function BillingListClient({ billings: initial }: Props) {
             <SelectItem value="partial">{t('status_partial')}</SelectItem>
           </SelectContent>
         </Select>
+        <Select value={promiseFilter} onValueChange={setPromiseFilter}>
+          <SelectTrigger className="w-40 h-9"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{t('promise_filter_all')}</SelectItem>
+            <SelectItem value="has_promise">{t('promise_filter_has')}</SelectItem>
+            <SelectItem value="overdue_promise">{t('promise_filter_overdue')}</SelectItem>
+            <SelectItem value="no_promise">{t('promise_filter_none')}</SelectItem>
+          </SelectContent>
+        </Select>
         <Select
           value={monthFilter}
           onValueChange={(v) => { setMonthFilter(v); setMonthFrom(''); setMonthTo('') }}
@@ -309,6 +339,22 @@ export function BillingListClient({ billings: initial }: Props) {
                   )}
                 </div>
               </div>
+              {!isPaid && b.promiseDate && (() => {
+                const overdue = promiseDaysOverdue(b.promiseDate)
+                const isOverdue = overdue !== null && overdue > 0 && balance > 0
+                return (
+                  <div className={cn(
+                    'flex items-center gap-1.5 text-xs font-medium rounded-md px-2 py-1.5 mb-3',
+                    isOverdue
+                      ? 'text-red-600 bg-red-500/10'
+                      : 'text-blue-600 bg-blue-500/10',
+                  )}>
+                    <CalendarClock className="w-3.5 h-3.5 shrink-0" />
+                    <span>{t('promise_promised')} {formatDate(b.promiseDate, language)}</span>
+                    {isOverdue && <span>· {t('promise_overdue')} {overdue}{t('billing_due_days')}</span>}
+                  </div>
+                )
+              })()}
               <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
                 <Link href={`/billing/${b.id}`} className="flex-1 min-w-[5rem]">
                   <Button variant="outline" size="sm" className="w-full h-10">{t('view')}</Button>
@@ -418,6 +464,7 @@ export function BillingListClient({ billings: initial }: Props) {
         <PromiseDialog
           billingId={promiseBillingId}
           onClose={() => setPromiseBillingId(null)}
+          onSaved={() => router.refresh()}
         />
       )}
     </div>
