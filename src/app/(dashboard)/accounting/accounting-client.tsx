@@ -1,14 +1,15 @@
 'use client'
 
-import { useMemo, useRef, useState } from 'react'
+import { Fragment, useMemo, useRef, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { TableScroll } from '@/components/ui/table-scroll'
+import { SortableTh, type SortDir } from '@/components/ui/sortable-th'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { formatCurrency, cn } from '@/lib/utils'
+import { formatCurrency, groupByBranch, cn } from '@/lib/utils'
 import { Calculator, FileText, Lock, LockOpen, Search, X } from 'lucide-react'
 import { useLanguage } from '@/contexts/language-context'
 import { useBranches } from '@/contexts/branches-context'
@@ -312,6 +313,11 @@ export function AccountingClient({ billings, expenses, tenants, locks: initialLo
     if (!q) return tenants.slice(0, 50)
     return tenants.filter((tn) => tn.fullName.toLowerCase().includes(q) || (tn.room?.roomNumber ?? '').toLowerCase().includes(q)).slice(0, 50)
   }, [tenants, tenantSearch])
+  // Tenant picker grouped by branch (consistent with the other tables).
+  const tenantPickerGroups = useMemo(
+    () => groupByBranch(filteredTenants.map((tn) => ({ ...tn, roomNumber: tn.room?.roomNumber ?? '', branch: tn.room?.branch ?? '' }))),
+    [filteredTenants],
+  )
   const tenantLedger = useMemo(() => {
     if (!selectedTenantId) return null
     const tenant = tenants.find((tn) => tn.id === selectedTenantId)
@@ -504,6 +510,32 @@ export function AccountingClient({ billings, expenses, tenants, locks: initialLo
     const v = t(key)
     return v === key ? cat : v
   }
+  // Security Deposits Schedule grouped by branch, with sortable columns within
+  // each group (mirrors the Reports billing-detail layout).
+  type DepSortKey = 'tenant' | 'room' | 'moveIn' | 'deposit'
+  const [depSort, setDepSort] = useState<{ key: DepSortKey; dir: SortDir }>({ key: 'tenant', dir: 'asc' })
+  const toggleDepSort = (k: DepSortKey) => setDepSort((s) => s.key === k ? { key: k, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key: k, dir: 'asc' })
+  const depositGroups = useMemo(() => {
+    const mapped = balanceSheet.activeDeposits.map((tn) => ({
+      ...tn,
+      roomNumber: tn.room?.roomNumber ?? '',
+      branch: tn.room?.branch ?? '',
+    }))
+    const sign = depSort.dir === 'asc' ? 1 : -1
+    return groupByBranch(mapped).map((g) => ({
+      branch: g.branch,
+      subtotal: g.items.reduce((s, t) => s + t.depositAmount, 0),
+      items: [...g.items].sort((a, b) => {
+        switch (depSort.key) {
+          case 'tenant': return sign * a.fullName.localeCompare(b.fullName)
+          case 'room': return sign * a.roomNumber.localeCompare(b.roomNumber)
+          case 'moveIn': return sign * (a.moveInDate || '').localeCompare(b.moveInDate || '')
+          case 'deposit': return sign * (a.depositAmount - b.depositAmount)
+        }
+      }),
+    }))
+  }, [balanceSheet.activeDeposits, depSort])
+
   // Period-lock manager lists every month across the selected year range.
   const lockMonths = useMemo(() => {
     const out: string[] = []
@@ -610,13 +642,20 @@ export function AccountingClient({ billings, expenses, tenants, locks: initialLo
             <CardTitle className="text-base">{t('accounting_income_statement_annual')} — {rangeLabel}</CardTitle>
             <p className="text-xs text-muted-foreground mt-0.5">{periodLabel}</p>
           </CardHeader>
-          <TableScroll>
-            <table className="w-full min-w-[1100px] text-sm">
+          <CardContent>
+            {/* Full-width, no horizontal scroll: fixed layout fits all columns
+                into the card and the figures shrink to match. */}
+            <table className="w-full table-fixed text-[10px] sm:text-[11px]">
+              <colgroup>
+                <col style={{ width: '13%' }} />
+                {columns.map((c) => <col key={c.prefix} />)}
+                <col style={{ width: '9%' }} />
+              </colgroup>
               <thead>
                 <tr className="border-b border-border bg-muted/30">
-                  <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground w-48">&nbsp;</th>
-                  {columns.map((c) => <th key={c.prefix} className="text-right px-2 py-2 text-xs font-medium text-muted-foreground">{c.label}</th>)}
-                  <th className="text-right px-3 py-2 text-xs font-semibold">{t('accounting_total')}</th>
+                  <th className="text-left px-1 py-1.5 font-medium text-muted-foreground">&nbsp;</th>
+                  {columns.map((c) => <th key={c.prefix} className="text-right px-1 py-1.5 font-medium text-muted-foreground">{c.label}</th>)}
+                  <th className="text-right px-1 py-1.5 font-semibold">{t('accounting_total')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -628,7 +667,7 @@ export function AccountingClient({ billings, expenses, tenants, locks: initialLo
                 <MatrixRow label={t('reports_net_revenue')} values={columnTotals.map((m) => m.netRevenue)} total={rangeTotals.netRevenue} bold border />
                 <MatrixRow label={t('reports_of_which_collected')} values={columnTotals.map((m) => m.collected)} total={rangeTotals.collected} muted />
                 <MatrixRow label={t('reports_of_which_outstanding')} values={columnTotals.map((m) => m.outstanding)} total={rangeTotals.outstanding} muted />
-                <tr><td colSpan={columns.length + 2} className="px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{t('reports_total_expenses')}</td></tr>
+                <tr><td colSpan={columns.length + 2} className="px-1 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{t('reports_total_expenses')}</td></tr>
                 {expenseCategories.map((cat) => (
                   <MatrixRow
                     key={cat}
@@ -642,7 +681,7 @@ export function AccountingClient({ billings, expenses, tenants, locks: initialLo
                 <MatrixRow label={t('reports_net_income')} values={columnTotals.map((m) => m.netIncome)} total={rangeTotals.netIncome} bold border highlight />
               </tbody>
             </table>
-          </TableScroll>
+          </CardContent>
         </Card>
 
         {/* Quarterly summary — only meaningful for a single fiscal year. */}
@@ -777,29 +816,38 @@ export function AccountingClient({ billings, expenses, tenants, locks: initialLo
             <table className="w-full min-w-[560px] text-sm">
               <thead>
                 <tr className="border-b border-border bg-muted/30">
-                  <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">{t('tenant')}</th>
-                  <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">{t('room')}</th>
-                  <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">{t('branch')}</th>
-                  <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">{t('accounting_move_in')}</th>
-                  <th className="text-right px-3 py-2 text-xs font-medium text-muted-foreground">{t('accounting_security_deposits')}</th>
+                  <SortableTh align="left" k="tenant" label={t('tenant')} active={depSort.key} dir={depSort.dir} onSort={toggleDepSort} />
+                  <SortableTh align="left" k="room" label={t('room')} active={depSort.key} dir={depSort.dir} onSort={toggleDepSort} />
+                  <SortableTh align="left" k="moveIn" label={t('accounting_move_in')} active={depSort.key} dir={depSort.dir} onSort={toggleDepSort} />
+                  <SortableTh align="right" k="deposit" label={t('accounting_security_deposits')} active={depSort.key} dir={depSort.dir} onSort={toggleDepSort} />
                 </tr>
               </thead>
               <tbody>
                 {balanceSheet.activeDeposits.length === 0 ? (
-                  <tr><td colSpan={5} className="text-center text-sm text-muted-foreground py-6">—</td></tr>
+                  <tr><td colSpan={4} className="text-center text-sm text-muted-foreground py-6">—</td></tr>
                 ) : (
                   <>
-                    {balanceSheet.activeDeposits.map((tn) => (
-                      <tr key={tn.id} className="border-b border-border last:border-0">
-                        <td className="px-3 py-2">{tn.fullName}</td>
-                        <td className="px-3 py-2">{tn.room?.roomNumber ?? '—'}</td>
-                        <td className="px-3 py-2 text-muted-foreground">{tn.room?.branch ?? '—'}</td>
-                        <td className="px-3 py-2 font-mono text-xs text-muted-foreground">{tn.moveInDate || '—'}</td>
-                        <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(tn.depositAmount)}</td>
-                      </tr>
+                    {depositGroups.map((g) => (
+                      <Fragment key={g.branch}>
+                        <tr className="bg-muted/40">
+                          <td colSpan={3} className="px-3 py-1.5">
+                            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{g.branch === '—' ? t('branch_shared') : g.branch}</span>
+                            <span className="ml-2 text-xs text-muted-foreground tabular-nums">({g.items.length})</span>
+                          </td>
+                          <td className="px-3 py-1.5 text-right text-xs font-semibold tabular-nums text-muted-foreground">{formatCurrency(g.subtotal)}</td>
+                        </tr>
+                        {g.items.map((tn) => (
+                          <tr key={tn.id} className="border-b border-border last:border-0">
+                            <td className="px-3 py-2">{tn.fullName}</td>
+                            <td className="px-3 py-2">{tn.roomNumber || '—'}</td>
+                            <td className="px-3 py-2 font-mono text-xs text-muted-foreground">{tn.moveInDate || '—'}</td>
+                            <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(tn.depositAmount)}</td>
+                          </tr>
+                        ))}
+                      </Fragment>
                     ))}
                     <tr className="border-t-2 border-border bg-muted/30">
-                      <td colSpan={4} className="px-3 py-2 font-semibold text-right">{t('accounting_total')}</td>
+                      <td colSpan={3} className="px-3 py-2 font-semibold text-right">{t('accounting_total')}</td>
                       <td className="px-3 py-2 text-right tabular-nums font-bold">{formatCurrency(balanceSheet.securityDeposits)}</td>
                     </tr>
                   </>
@@ -822,18 +870,26 @@ export function AccountingClient({ billings, expenses, tenants, locks: initialLo
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input placeholder={t('accounting_search_tenant')} className="pl-9" value={tenantSearch} onChange={(e) => setTenantSearch(e.target.value)} />
                 </div>
-                <ul className="max-h-72 overflow-auto border border-border rounded-lg divide-y divide-border">
-                  {filteredTenants.map((tn) => (
-                    <li key={tn.id}>
-                      <button
-                        type="button"
-                        className={cn('w-full text-left px-3 py-2 text-sm hover:bg-muted/50', selectedTenantId === tn.id && 'bg-primary/10 font-semibold')}
-                        onClick={() => setSelectedTenantId(tn.id)}
-                      >
-                        {tn.fullName}
-                        {tn.room && <span className="text-xs text-muted-foreground ml-1.5">· {tn.room.roomNumber}</span>}
-                      </button>
-                    </li>
+                <ul className="max-h-72 overflow-auto border border-border rounded-lg">
+                  {tenantPickerGroups.map((g) => (
+                    <Fragment key={g.branch}>
+                      <li className="px-3 py-1.5 bg-muted/40 text-xs font-semibold text-muted-foreground uppercase tracking-wider sticky top-0">
+                        {g.branch === '—' ? t('branch_shared') : g.branch}
+                        <span className="ml-2 tabular-nums">({g.items.length})</span>
+                      </li>
+                      {g.items.map((tn) => (
+                        <li key={tn.id} className="border-b border-border last:border-0">
+                          <button
+                            type="button"
+                            className={cn('w-full text-left px-3 py-2 text-sm hover:bg-muted/50', selectedTenantId === tn.id && 'bg-primary/10 font-semibold')}
+                            onClick={() => setSelectedTenantId(tn.id)}
+                          >
+                            {tn.fullName}
+                            {tn.roomNumber && <span className="text-xs text-muted-foreground ml-1.5">· {tn.roomNumber}</span>}
+                          </button>
+                        </li>
+                      ))}
+                    </Fragment>
                   ))}
                   {filteredTenants.length === 0 && (
                     <li className="px-3 py-4 text-sm text-center text-muted-foreground">—</li>
@@ -1105,13 +1161,13 @@ function MatrixRow({ label, values, total, bold, muted, border, highlight, inden
       border && 'border-t-2 border-t-border',
       highlight && (total >= 0 ? 'bg-emerald-50/40 dark:bg-emerald-900/10' : 'bg-red-50/40 dark:bg-red-900/10'),
     )}>
-      <td className={cn('px-3 py-1.5', bold && 'font-semibold', muted && 'text-muted-foreground', indent && 'pl-6 text-muted-foreground')}>{label}</td>
+      <td className={cn('px-1 py-1 break-words', bold && 'font-semibold', muted && 'text-muted-foreground', indent && 'pl-3 text-muted-foreground')}>{label}</td>
       {values.map((v, i) => (
-        <td key={i} className={cn('px-2 py-1.5 text-right tabular-nums', muted && 'text-muted-foreground', bold && 'font-semibold')}>
+        <td key={i} className={cn('px-1 py-1 text-right tabular-nums break-all', muted && 'text-muted-foreground', bold && 'font-semibold')}>
           {v === 0 ? <span className="text-muted-foreground/40">·</span> : formatCurrency(v)}
         </td>
       ))}
-      <td className={cn('px-3 py-1.5 text-right tabular-nums', bold ? 'font-bold' : 'font-medium', muted && 'text-muted-foreground')}>
+      <td className={cn('px-1 py-1 text-right tabular-nums break-all', bold ? 'font-bold' : 'font-medium', muted && 'text-muted-foreground')}>
         {formatCurrency(total)}
       </td>
     </tr>
