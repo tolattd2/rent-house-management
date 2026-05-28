@@ -12,6 +12,7 @@ export const TAGS = {
   settings: 'settings',
   maintenance: 'maintenance',
   notifications: 'notifications',
+  period_locks: 'period_locks',
 } as const
 
 const REVALIDATE_SECONDS = 300
@@ -247,6 +248,42 @@ export const getReportsData = unstable_cache(
   ['reports-data'],
   {
     tags: [TAGS.billings, TAGS.expenses, TAGS.payments, TAGS.tenants, TAGS.rooms, TAGS.maintenance],
+    revalidate: REVALIDATE_SECONDS,
+  },
+)
+
+export const getAccountingData = unstable_cache(
+  async () => {
+    const [billings, expenses, tenants, locks] = await Promise.all([
+      db.billing.findMany({
+        include: {
+          tenant: { select: { id: true, fullName: true } },
+          room: { select: { id: true, roomNumber: true, branch: true } },
+          payments: { include: { receivedBy: { select: { name: true } } } },
+        },
+        orderBy: { billingMonth: 'desc' },
+      }),
+      db.expense.findMany({
+        include: {
+          room: { select: { id: true, roomNumber: true, branch: true } },
+          maintenance: { select: { id: true, title: true } },
+        },
+        orderBy: { expenseDate: 'desc' },
+      }),
+      db.tenant.findMany({
+        select: { id: true, fullName: true, room: { select: { roomNumber: true, branch: true } } },
+        orderBy: { fullName: 'asc' },
+      }),
+      db.periodLock.findMany({
+        include: { lockedBy: { select: { id: true, name: true } } },
+        orderBy: { month: 'asc' },
+      }),
+    ])
+    return { billings, expenses, tenants, locks }
+  },
+  ['accounting-data'],
+  {
+    tags: [TAGS.billings, TAGS.expenses, TAGS.payments, TAGS.tenants, TAGS.rooms, TAGS.period_locks, TAGS.maintenance],
     revalidate: REVALIDATE_SECONDS,
   },
 )

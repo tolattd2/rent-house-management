@@ -2,6 +2,7 @@ import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { invalidate } from '@/lib/revalidate'
+import { assertPeriodOpen, PeriodLockedError } from '@/lib/period-locks'
 import { z } from 'zod'
 
 const schema = z.object({
@@ -47,6 +48,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
     const data = schema.parse(body)
+    await assertPeriodOpen(data.expenseDate.slice(0, 7))
     const expense = await db.expense.create({
       data: {
         title: data.title,
@@ -67,6 +69,12 @@ export async function POST(req: NextRequest) {
     invalidate('expenses')
     return NextResponse.json({ ok: true, data: expense })
   } catch (e) {
+    if (e instanceof PeriodLockedError) {
+      return NextResponse.json(
+        { ok: false, error: `Period ${e.month} is locked. Unlock it first to edit.`, code: 'period_locked' },
+        { status: 423 },
+      )
+    }
     return NextResponse.json({ ok: false, error: String(e) }, { status: 500 })
   }
 }

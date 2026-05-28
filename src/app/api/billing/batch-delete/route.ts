@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { invalidate } from '@/lib/revalidate'
+import { assertPeriodOpen, PeriodLockedError } from '@/lib/period-locks'
 
 export async function POST(req: NextRequest) {
   const session = await auth()
@@ -13,6 +14,7 @@ export async function POST(req: NextRequest) {
   try {
     const { month, branch } = await req.json()
     if (!month) return NextResponse.json({ ok: false, error: 'Month is required' }, { status: 400 })
+    await assertPeriodOpen(month)
 
     // Build where clause
     const where: Record<string, unknown> = { billingMonth: month }
@@ -24,6 +26,12 @@ export async function POST(req: NextRequest) {
     if (count > 0) invalidate('billings', 'tenants', 'invoices')
     return NextResponse.json({ ok: true, deleted: count })
   } catch (e) {
+    if (e instanceof PeriodLockedError) {
+      return NextResponse.json(
+        { ok: false, error: `Period ${e.month} is locked. Unlock it first to edit.`, code: 'period_locked' },
+        { status: 423 },
+      )
+    }
     return NextResponse.json({ ok: false, error: e instanceof Error ? e.message : 'Error' }, { status: 500 })
   }
 }

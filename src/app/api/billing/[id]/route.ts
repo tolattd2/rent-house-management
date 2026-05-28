@@ -4,6 +4,14 @@ import { db } from '@/lib/db'
 import { calculateBilling } from '@/lib/billing'
 import { parseBranches, resolveBranchRates } from '@/lib/branches'
 import { invalidate } from '@/lib/revalidate'
+import { assertPeriodOpen, PeriodLockedError } from '@/lib/period-locks'
+
+function periodLockedResponse(err: PeriodLockedError) {
+  return NextResponse.json(
+    { ok: false, error: `Period ${err.month} is locked. Unlock it first to edit.`, code: 'period_locked' },
+    { status: 423 },
+  )
+}
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth()
@@ -32,6 +40,15 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   try {
     const body = await req.json()
     const recalcFields = ['currWaterReading', 'currElectricReading', 'lateDays', 'discountUsd', 'roomRentUsd', 'outstandingDebtUsd']
+
+    // Resolve the billing's month for the period-lock guard. Need this even
+    // when no recalc fields changed (e.g. notes-only update).
+    const lockGuardExisting = await db.billing.findUnique({ where: { id }, select: { billingMonth: true, room: true } })
+    if (!lockGuardExisting) return NextResponse.json({ ok: false, error: 'Not found' }, { status: 404 })
+    await assertPeriodOpen(lockGuardExisting.billingMonth)
+    if (typeof body.billingMonth === 'string' && body.billingMonth !== lockGuardExisting.billingMonth) {
+      await assertPeriodOpen(body.billingMonth)
+    }
 
     if (Object.keys(body).some((k) => recalcFields.includes(k))) {
       const existing = await db.billing.findUnique({ where: { id }, include: { room: true } })
@@ -70,6 +87,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     invalidate('billings', 'tenants', 'invoices')
     return NextResponse.json({ ok: true })
   } catch (e) {
+    if (e instanceof PeriodLockedError) return periodLockedResponse(e)
     return NextResponse.json({ ok: false, error: e instanceof Error ? e.message : 'Error' }, { status: 400 })
   }
 }
@@ -80,7 +98,15 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   if (session.user.role !== 'admin') return NextResponse.json({ ok: false, error: 'Forbidden' }, { status: 403 })
   const { id } = await params
 
-  await db.billing.delete({ where: { id } })
-  invalidate('billings', 'tenants', 'invoices')
-  return NextResponse.json({ ok: true })
+  try {
+    const existing = await db.billing.findUnique({ where: { id }, select: { billingMonth: true } })
+    if (!existing) return NextResponse.json({ ok: false, error: 'Not found' }, { status: 404 })
+    await assertPeriodOpen(existing.billingMonth)
+    await db.billing.delete({ where: { id } })
+    invalidate('billings', 'tenants', 'invoices')
+    return NextResponse.json({ ok: true })
+  } catch (e) {
+    if (e instanceof PeriodLockedError) return periodLockedResponse(e)
+    return NextResponse.json({ ok: false, error: e instanceof Error ? e.message : 'Error' }, { status: 400 })
+  }
 }

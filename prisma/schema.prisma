@@ -81,9 +81,22 @@ model User {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  payments   Payment[]
+  payments    Payment[]
+  periodLocks PeriodLock[]
 
   @@map("users")
+}
+
+model PeriodLock {
+  id         String   @id @default(cuid())
+  month      String   @unique
+  lockedAt   DateTime @default(now())
+  notes      String   @default("")
+
+  lockedById String?
+  lockedBy   User?   @relation(fields: [lockedById], references: [id], onDelete: SetNull)
+
+  @@map("period_locks")
 }
 
 model Room {

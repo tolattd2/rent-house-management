@@ -4,7 +4,15 @@ import { db } from '@/lib/db'
 import { calculateBilling } from '@/lib/billing'
 import { parseBranches, resolveBranchRates } from '@/lib/branches'
 import { invalidate } from '@/lib/revalidate'
+import { assertPeriodOpen, PeriodLockedError } from '@/lib/period-locks'
 import { z } from 'zod'
+
+function periodLockedResponse(err: PeriodLockedError) {
+  return NextResponse.json(
+    { ok: false, error: `Period ${err.month} is locked. Unlock it first to edit.`, code: 'period_locked' },
+    { status: 423 },
+  )
+}
 
 const billingSchema = z.object({
   tenantId: z.string().min(1),
@@ -51,6 +59,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
     const data = billingSchema.parse(body)
+    await assertPeriodOpen(data.billingMonth)
 
     // Get tenant's room
     const tenant = await db.tenant.findUnique({
@@ -103,6 +112,7 @@ export async function POST(req: NextRequest) {
     invalidate('billings', 'tenants')
     return NextResponse.json({ ok: true, id: billing.id })
   } catch (e) {
+    if (e instanceof PeriodLockedError) return periodLockedResponse(e)
     return NextResponse.json({ ok: false, error: e instanceof Error ? e.message : 'Error' }, { status: 400 })
   }
 }

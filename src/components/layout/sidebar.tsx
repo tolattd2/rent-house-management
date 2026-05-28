@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   LayoutDashboard, Users, DoorOpen, FileText, Receipt,
   BarChart3, Bell, Settings, ChevronLeft, Building2, LogOut, Wrench, TrendingDown,
-  ClipboardList, LayoutGrid,
+  ClipboardList, LayoutGrid, Calculator,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useSession } from 'next-auth/react'
@@ -35,6 +35,7 @@ const navItems: NavItem[] = [
   { href: '/maintenance', labelKey: 'nav_maintenance', icon: Wrench },
   { href: '/expenses', labelKey: 'nav_expenses', icon: TrendingDown },
   { href: '/reports', labelKey: 'nav_reports', icon: BarChart3 },
+  { href: '/accounting', labelKey: 'nav_accounting', icon: Calculator, roles: ['admin', 'manager'] },
   { href: '/notices', labelKey: 'nav_notices', icon: ClipboardList },
   { href: '/notifications', labelKey: 'nav_notifications', icon: Bell },
   { href: '/settings', labelKey: 'nav_settings', icon: Settings, roles: ['admin'] },

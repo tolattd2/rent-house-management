@@ -2,7 +2,15 @@ import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { invalidate } from '@/lib/revalidate'
+import { assertPeriodOpen, PeriodLockedError } from '@/lib/period-locks'
 import { z } from 'zod'
+
+function periodLockedResponse(err: PeriodLockedError) {
+  return NextResponse.json(
+    { ok: false, error: `Period ${err.month} is locked. Unlock it first to edit.`, code: 'period_locked' },
+    { status: 423 },
+  )
+}
 
 const schema = z.object({
   title: z.string().min(1).optional(),
@@ -37,6 +45,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const { id } = await params
     const body = await req.json()
     const data = schema.parse(body)
+    const existing = await db.expense.findUnique({ where: { id }, select: { expenseDate: true } })
+    if (!existing) return NextResponse.json({ ok: false, error: 'Not found' }, { status: 404 })
+    await assertPeriodOpen(existing.expenseDate.slice(0, 7))
+    if (data.expenseDate && data.expenseDate.slice(0, 7) !== existing.expenseDate.slice(0, 7)) {
+      await assertPeriodOpen(data.expenseDate.slice(0, 7))
+    }
     const expense = await db.expense.update({
       where: { id },
       data,
@@ -48,6 +62,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     invalidate('expenses')
     return NextResponse.json({ ok: true, data: expense })
   } catch (e) {
+    if (e instanceof PeriodLockedError) return periodLockedResponse(e)
     return NextResponse.json({ ok: false, error: String(e) }, { status: 500 })
   }
 }
@@ -58,10 +73,14 @@ export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id:
   if (session.user.role !== 'admin') return NextResponse.json({ ok: false, error: 'Forbidden' }, { status: 403 })
   try {
     const { id } = await params
+    const existing = await db.expense.findUnique({ where: { id }, select: { expenseDate: true } })
+    if (!existing) return NextResponse.json({ ok: false, error: 'Not found' }, { status: 404 })
+    await assertPeriodOpen(existing.expenseDate.slice(0, 7))
     await db.expense.delete({ where: { id } })
     invalidate('expenses')
     return NextResponse.json({ ok: true })
   } catch (e) {
+    if (e instanceof PeriodLockedError) return periodLockedResponse(e)
     return NextResponse.json({ ok: false, error: String(e) }, { status: 500 })
   }
 }

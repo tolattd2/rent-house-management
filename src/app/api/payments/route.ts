@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { invalidate } from '@/lib/revalidate'
+import { assertPeriodOpen, PeriodLockedError } from '@/lib/period-locks'
 import { z } from 'zod'
 
 const paymentSchema = z.object({
@@ -28,6 +29,8 @@ export async function POST(req: NextRequest) {
       include: { payments: true },
     })
     if (!billing) return NextResponse.json({ ok: false, error: 'Billing not found' }, { status: 404 })
+    await assertPeriodOpen(billing.billingMonth)
+    if (data.paymentDate) await assertPeriodOpen(data.paymentDate.slice(0, 7))
 
     const payment = await db.payment.create({
       data: {
@@ -69,6 +72,12 @@ export async function POST(req: NextRequest) {
     invalidate('payments', 'billings', 'tenants')
     return NextResponse.json({ ok: true, id: payment.id })
   } catch (e) {
+    if (e instanceof PeriodLockedError) {
+      return NextResponse.json(
+        { ok: false, error: `Period ${e.month} is locked. Unlock it first to edit.`, code: 'period_locked' },
+        { status: 423 },
+      )
+    }
     return NextResponse.json({ ok: false, error: e instanceof Error ? e.message : 'Error' }, { status: 400 })
   }
 }
