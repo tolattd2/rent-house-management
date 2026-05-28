@@ -401,32 +401,58 @@ export function AccountingClient({ billings, expenses, tenants, locks: initialLo
         import('html2canvas'),
         import('jspdf'),
       ])
-      const canvas = await html2canvas(el, { scale: 2, backgroundColor: '#ffffff', useCORS: true, windowWidth: el.scrollWidth })
+      // scale 4 → 2× the linear resolution of the previous capture, so text is
+      // noticeably crisper in the exported PDF.
+      const SCALE = 4
+      const canvas = await html2canvas(el, { scale: SCALE, backgroundColor: '#ffffff', useCORS: true, windowWidth: el.scrollWidth })
       const pdf = new jsPDF({ orientation: 'p', unit: 'pt', format: 'a4' })
       const pageW = pdf.internal.pageSize.getWidth()
       const pageH = pdf.internal.pageSize.getHeight()
-      const imgW = pageW
-      const imgH = (canvas.height * imgW) / canvas.width
-      const pxPerPage = Math.floor((pageH * canvas.width) / imgW)
-      let remaining = canvas.height
-      let yCanvas = 0
-      let first = true
-      while (remaining > 0) {
-        const bandPx = Math.min(pxPerPage, remaining)
+      const MT = 34, MB = 34 // top/bottom page margins (pt) so content never touches the edge
+      const cpx = canvas.width / pageW               // canvas px per pt
+      const pageContentPx = (pageH - MT - MB) * cpx  // canvas px that fit one page's content area
+
+      // Find the vertical extent of each top-level block so page breaks can fall
+      // in the gaps BETWEEN rows/tables rather than slicing through a line.
+      const docTop = el.getBoundingClientRect().top
+      const ratio = canvas.height / el.scrollHeight  // canvas px per CSS px (≈ SCALE)
+      const bounds = Array.from(el.children).map((c) => {
+        const r = (c as HTMLElement).getBoundingClientRect()
+        return { top: (r.top - docTop) * ratio, bottom: (r.bottom - docTop) * ratio }
+      })
+
+      // Build page slices: each up to one page tall, cut back to the top of any
+      // block that would straddle the boundary (unless a single block is taller
+      // than a page, in which case we take a full page to guarantee progress).
+      const slices: { start: number; h: number }[] = []
+      const H = canvas.height
+      let start = 0
+      let guard = 0
+      while (start < H - 1 && guard++ < 2000) {
+        let end = Math.min(start + pageContentPx, H)
+        if (end < H) {
+          let cut = end
+          for (const b of bounds) {
+            if (b.top > start + 1 && b.top < end - 1 && b.bottom > end + 1) cut = Math.min(cut, b.top)
+          }
+          if (cut > start + 1) end = cut
+        }
+        slices.push({ start, h: end - start })
+        start = end
+      }
+
+      slices.forEach((s, i) => {
         const band = document.createElement('canvas')
         band.width = canvas.width
-        band.height = bandPx
+        band.height = Math.ceil(s.h)
         const ctx = band.getContext('2d')
-        if (!ctx) break
+        if (!ctx) return
         ctx.fillStyle = '#ffffff'
         ctx.fillRect(0, 0, band.width, band.height)
-        ctx.drawImage(canvas, 0, yCanvas, canvas.width, bandPx, 0, 0, canvas.width, bandPx)
-        if (!first) pdf.addPage()
-        pdf.addImage(band.toDataURL('image/png'), 'PNG', 0, 0, imgW, (bandPx * imgW) / canvas.width)
-        first = false
-        yCanvas += bandPx
-        remaining -= bandPx
-      }
+        ctx.drawImage(canvas, 0, s.start, canvas.width, s.h, 0, 0, canvas.width, s.h)
+        if (i > 0) pdf.addPage()
+        pdf.addImage(band.toDataURL('image/png'), 'PNG', 0, MT, pageW, s.h / cpx)
+      })
       pdf.save(`audit-pack-${branchLabelText}-${rangeLabel}.pdf`.replace(/[^a-z0-9._-]/gi, '_'))
     } catch (e) {
       toast({ title: e instanceof Error ? e.message : 'PDF export failed', variant: 'destructive' })
