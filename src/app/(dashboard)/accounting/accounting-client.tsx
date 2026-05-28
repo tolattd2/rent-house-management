@@ -640,7 +640,7 @@ export function AccountingClient({ billings, expenses, tenants, locks: initialLo
         <Card>
           <CardHeader>
             <CardTitle className="text-base">{t('accounting_income_statement_annual')} — {rangeLabel}</CardTitle>
-            <p className="text-xs text-muted-foreground mt-0.5">{periodLabel}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">{periodLabel} · USD</p>
           </CardHeader>
           <CardContent>
             {/* Full-width, no horizontal scroll: fixed layout fits all columns
@@ -1145,6 +1145,14 @@ export function AccountingClient({ billings, expenses, tenants, locks: initialLo
   )
 }
 
+// Compact figure for the income-statement matrix: no "$" (currency is stated
+// once in the caption) and a thin minus for negatives, so values stay narrow
+// enough to fit all 12 month columns without wrapping or horizontal scroll.
+function fmtMatrixNum(n: number): string {
+  const s = Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  return n < 0 ? `(${s})` : s
+}
+
 function MatrixRow({ label, values, total, bold, muted, border, highlight, indent }: {
   label: string
   values: number[]
@@ -1163,12 +1171,12 @@ function MatrixRow({ label, values, total, bold, muted, border, highlight, inden
     )}>
       <td className={cn('px-1 py-1 break-words', bold && 'font-semibold', muted && 'text-muted-foreground', indent && 'pl-3 text-muted-foreground')}>{label}</td>
       {values.map((v, i) => (
-        <td key={i} className={cn('px-1 py-1 text-right tabular-nums break-all', muted && 'text-muted-foreground', bold && 'font-semibold')}>
-          {v === 0 ? <span className="text-muted-foreground/40">·</span> : formatCurrency(v)}
+        <td key={i} className={cn('px-1 py-1 text-right tabular-nums whitespace-nowrap', muted && 'text-muted-foreground', bold && 'font-semibold')}>
+          {v === 0 ? <span className="text-muted-foreground/40">·</span> : fmtMatrixNum(v)}
         </td>
       ))}
-      <td className={cn('px-1 py-1 text-right tabular-nums break-all', bold ? 'font-bold' : 'font-medium', muted && 'text-muted-foreground')}>
-        {formatCurrency(total)}
+      <td className={cn('px-1 py-1 text-right tabular-nums whitespace-nowrap', bold ? 'font-bold' : 'font-medium', muted && 'text-muted-foreground')}>
+        {fmtMatrixNum(total)}
       </td>
     </tr>
   )
