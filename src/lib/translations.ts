@@ -602,6 +602,8 @@ export const translations = {
     accounting_deposits_schedule_help: 'Supporting detail for the Security Deposits Held line above',
     accounting_move_in: 'Move-in',
     accounting_total: 'Total',
+    accounting_for_period: 'For the period',
+    accounting_year_to_date: 'Year to date',
     // Maintenance expense link
     maintenance_linked_expense: 'Linked Expense',
     maintenance_expense_auto: 'Auto-created from repair fee',
@@ -1508,6 +1510,8 @@ export const translations = {
     accounting_deposits_schedule_help: 'ព័ត៌មានលម្អិតគាំទ្រសម្រាប់ប្រាក់កក់ខាងលើ',
     accounting_move_in: 'ចូលរស់',
     accounting_total: 'សរុប',
+    accounting_for_period: 'សម្រាប់រយៈពេល',
+    accounting_year_to_date: 'ពីដើមឆ្នាំដល់បច្ចុប្បន្ន',
     // Maintenance expense link
     maintenance_linked_expense: 'ការចំណាយដែលភ្ជាប់',
     maintenance_expense_auto: 'បង្កើតដោយស្វ័យប្រវត្តិពីថ្លៃជួសជុល',

@@ -203,6 +203,14 @@ export function AccountingClient({ billings, expenses, tenants, locks: initialLo
   }, [year, todayStr])
   const cutoffYearMonth = balanceSheetCutoff.slice(0, 7)
 
+  // Period span shown on each statement header. Income statement / quarterly /
+  // cash flow cover a range; for the current year the data only runs to today,
+  // so label it "year to date" and end the span at today.
+  const isCurrentYear = year >= new Date().getFullYear()
+  const periodStart = `${year}-01-01`
+  const periodEnd = isCurrentYear ? todayStr : `${year}-12-31`
+  const periodLabel = `${isCurrentYear ? t('accounting_year_to_date') : t('accounting_for_period')}: ${periodStart} → ${periodEnd}`
+
   const balanceSheet = useMemo(() => {
     // Accounts Receivable: outstanding USD on every unpaid/partial billing
     // whose month is <= cutoff month, ignoring payments dated after cutoff.
@@ -502,7 +510,10 @@ export function AccountingClient({ billings, expenses, tenants, locks: initialLo
       <div ref={exportRootRef} className="space-y-6 bg-background">
         {/* Annual income statement */}
         <Card>
-          <CardHeader><CardTitle className="text-base">{t('accounting_income_statement_annual')} — {year}</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle className="text-base">{t('accounting_income_statement_annual')} — {year}</CardTitle>
+            <p className="text-xs text-muted-foreground mt-0.5">{periodLabel}</p>
+          </CardHeader>
           <TableScroll>
             <table className="w-full min-w-[1100px] text-sm">
               <thead>
@@ -540,7 +551,10 @@ export function AccountingClient({ billings, expenses, tenants, locks: initialLo
 
         {/* Quarterly summary */}
         <Card>
-          <CardHeader><CardTitle className="text-base">{t('accounting_quarterly_summary')} — {year}</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle className="text-base">{t('accounting_quarterly_summary')} — {year}</CardTitle>
+            <p className="text-xs text-muted-foreground mt-0.5">{periodLabel}</p>
+          </CardHeader>
           <TableScroll>
             <table className="w-full min-w-[680px] text-sm">
               <thead>
@@ -629,7 +643,10 @@ export function AccountingClient({ billings, expenses, tenants, locks: initialLo
 
         {/* Cash Flow Statement */}
         <Card>
-          <CardHeader><CardTitle className="text-base">{t('accounting_cash_flow')} — {year}</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle className="text-base">{t('accounting_cash_flow')} — {year}</CardTitle>
+            <p className="text-xs text-muted-foreground mt-0.5">{periodLabel}</p>
+          </CardHeader>
           <CardContent>
             <div className="max-w-2xl mx-auto space-y-1 text-sm">
               <p className="font-semibold text-muted-foreground uppercase text-xs tracking-wider">{t('accounting_cf_operating')}</p>
@@ -696,7 +713,10 @@ export function AccountingClient({ billings, expenses, tenants, locks: initialLo
 
         {/* Tenant ledger */}
         <Card>
-          <CardHeader><CardTitle className="text-base">{t('accounting_tenant_ledger')} — {year}</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle className="text-base">{t('accounting_tenant_ledger')} — {year}</CardTitle>
+            <p className="text-xs text-muted-foreground mt-0.5">{periodLabel}</p>
+          </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="md:col-span-1 space-y-2">
