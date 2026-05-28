@@ -645,7 +645,7 @@ export function ReportsClient({ billings, expenses, rooms }: Props) {
               <tbody>
                 {branchPnL.map((r) => (
                   <tr key={r.branch} className="border-b border-border last:border-0">
-                    <td className="px-4 py-2.5 font-medium">{r.branch}</td>
+                    <td className="px-4 py-2.5 font-medium">{r.branch === '—' ? t('branch_shared') : r.branch}</td>
                     <td className="px-4 py-2.5 text-right tabular-nums">{formatCurrency(r.billed)}</td>
                     <td className="px-4 py-2.5 text-right tabular-nums text-emerald-600">{formatCurrency(r.collected)}</td>
                     <td className="px-4 py-2.5 text-right tabular-nums text-red-600">{formatCurrency(r.outstanding)}</td>
@@ -820,7 +820,7 @@ export function ReportsClient({ billings, expenses, rooms }: Props) {
                   <td className="px-4 py-2 capitalize">{catLabel(e.category)}</td>
                   <td className="px-4 py-2 text-muted-foreground">{e.paidTo || '—'}</td>
                   <td className="px-4 py-2 text-muted-foreground">
-                    {e.room ? `${e.room.roomNumber} · ${e.room.branch}` : '—'}
+                    {e.room ? `${e.room.roomNumber} · ${e.room.branch}` : t('branch_shared')}
                   </td>
                   <td className="px-4 py-2">
                     {e.receiptUrl ? (
