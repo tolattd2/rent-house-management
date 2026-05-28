@@ -842,9 +842,10 @@ export function ReportsClient({ billings, expenses, rooms }: Props) {
       {/* Mobile card list — grouped by branch */}
       <div className="md:hidden space-y-5">
         <h3 className="text-base font-semibold">{t('reports_billing_detail')} ({monthBillings.length} {t('billing_records')})</h3>
+        <div className="max-h-[60svh] overflow-y-auto overscroll-contain pr-1 space-y-5 scrollbar-thin">
         {detailGroups.map((group) => (
           <div key={group.branch} className="space-y-3">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 sticky top-0 z-10 bg-background/95 py-2 backdrop-blur supports-[backdrop-filter]:bg-background/80">
               <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">{group.branch}</h4>
               <span className="text-xs text-muted-foreground tabular-nums">({group.items.length})</span>
               <div className="flex-1 h-px bg-border" />
@@ -877,6 +878,7 @@ export function ReportsClient({ billings, expenses, rooms }: Props) {
             ))}
           </div>
         ))}
+        </div>
       </div>
 
       {/* Desktop billing table — branch header rows split each group */}
