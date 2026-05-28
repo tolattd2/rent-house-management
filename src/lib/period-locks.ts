@@ -13,11 +13,19 @@ export class PeriodLockedError extends Error {
 
 export const getLockedMonths = unstable_cache(
   async (): Promise<string[]> => {
-    const rows = await db.periodLock.findMany({
-      select: { month: true },
-      orderBy: { month: 'asc' },
-    })
-    return rows.map((r) => r.month)
+    try {
+      const rows = await db.periodLock.findMany({
+        select: { month: true },
+        orderBy: { month: 'asc' },
+      })
+      return rows.map((r) => r.month)
+    } catch (err) {
+      // The period_locks table may not exist yet on deployments where
+      // `prisma db push` hasn't been run. Fail open (no locks) so the rest
+      // of the app keeps working until the schema is applied.
+      console.warn('[period-locks] table missing — run `prisma db push`:', err instanceof Error ? err.message : err)
+      return []
+    }
   },
   ['period-locks-list'],
   { tags: [TAGS.period_locks], revalidate: 300 },

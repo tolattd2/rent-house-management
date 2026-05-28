@@ -254,6 +254,18 @@ export const getReportsData = unstable_cache(
 
 export const getAccountingData = unstable_cache(
   async () => {
+    type LockRow = { id: string; month: string; lockedAt: Date; notes: string; lockedBy: { id: string; name: string } | null }
+    // periodLock table may not exist yet on deployments where `prisma db
+    // push` hasn't been run — fail open (no locks) so the page still loads.
+    const locksPromise: Promise<LockRow[]> = db.periodLock
+      .findMany({
+        include: { lockedBy: { select: { id: true, name: true } } },
+        orderBy: { month: 'asc' },
+      })
+      .catch((err) => {
+        console.warn('[accounting] periodLock query failed (run `prisma db push`?):', err instanceof Error ? err.message : err)
+        return [] as LockRow[]
+      })
     const [billings, expenses, tenants, locks] = await Promise.all([
       db.billing.findMany({
         include: {
@@ -274,10 +286,7 @@ export const getAccountingData = unstable_cache(
         select: { id: true, fullName: true, room: { select: { roomNumber: true, branch: true } } },
         orderBy: { fullName: 'asc' },
       }),
-      db.periodLock.findMany({
-        include: { lockedBy: { select: { id: true, name: true } } },
-        orderBy: { month: 'asc' },
-      }),
+      locksPromise,
     ])
     return { billings, expenses, tenants, locks }
   },
