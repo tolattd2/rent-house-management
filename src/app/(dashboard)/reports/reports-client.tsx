@@ -328,23 +328,28 @@ export function ReportsClient({ billings, expenses, rooms }: Props) {
       .sort((a, b) => a.name.localeCompare(b.name))
   }, [paymentsJournal])
 
-  // On-screen payments journal — sortable columns (asc/desc).
-  type PaySortKey = 'date' | 'tenant' | 'room' | 'branch' | 'month' | 'method' | 'amount'
+  // On-screen payments journal — grouped by branch, with sortable columns
+  // (asc/desc) applied within each branch group.
+  type PaySortKey = 'date' | 'tenant' | 'room' | 'month' | 'method' | 'amount'
   const [paySort, setPaySort] = useState<{ key: PaySortKey; dir: SortDir }>({ key: 'date', dir: 'asc' })
   const togglePaySort = (k: PaySortKey) => setPaySort((s) => s.key === k ? { key: k, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key: k, dir: 'asc' })
-  const sortedPaymentsJournal = useMemo(() => {
+  const paymentsGroups = useMemo(() => {
     const sign = paySort.dir === 'asc' ? 1 : -1
-    return [...paymentsJournal].sort((a, b) => {
-      switch (paySort.key) {
-        case 'date': return sign * (a.date.getTime() - b.date.getTime())
-        case 'tenant': return sign * a.tenant.localeCompare(b.tenant)
-        case 'room': return sign * a.room.localeCompare(b.room)
-        case 'branch': return sign * a.branch.localeCompare(b.branch)
-        case 'month': return sign * a.billingMonth.localeCompare(b.billingMonth)
-        case 'method': return sign * a.method.localeCompare(b.method)
-        case 'amount': return sign * (a.amountUsd - b.amountUsd)
-      }
-    })
+    return groupByBranch(paymentsJournal.map((p) => ({ ...p, roomNumber: p.room, branch: p.branch })))
+      .map((g) => ({
+        branch: g.branch,
+        subtotal: g.items.reduce((s, p) => s + p.amountUsd, 0),
+        items: [...g.items].sort((a, b) => {
+          switch (paySort.key) {
+            case 'date': return sign * (a.date.getTime() - b.date.getTime())
+            case 'tenant': return sign * a.tenant.localeCompare(b.tenant)
+            case 'room': return sign * a.room.localeCompare(b.room)
+            case 'month': return sign * a.billingMonth.localeCompare(b.billingMonth)
+            case 'method': return sign * a.method.localeCompare(b.method)
+            case 'amount': return sign * (a.amountUsd - b.amountUsd)
+          }
+        }),
+      }))
   }, [paymentsJournal, paySort])
 
   // Expense register — every expense in the period (already filtered by
@@ -1178,19 +1183,30 @@ export function ReportsClient({ billings, expenses, rooms }: Props) {
               </tr>
             </thead>
             <tbody>
-              {sortedPaymentsJournal.length === 0 ? (
+              {paymentsJournal.length === 0 ? (
                 <tr><td colSpan={8} className="text-center text-sm text-muted-foreground py-6">—</td></tr>
-              ) : sortedPaymentsJournal.map((p, i) => (
-                <tr key={p.id} className={`border-b border-border last:border-0 hover:bg-muted/30 ${i % 2 ? 'bg-muted/10' : ''}`}>
-                  <td className="px-4 py-2 font-mono text-xs text-muted-foreground">{p.date.toISOString().slice(0, 10)}</td>
-                  <td className="px-4 py-2">{p.tenant}</td>
-                  <td className="px-4 py-2">{p.room} <span className="text-xs text-muted-foreground">· {p.branch}</span></td>
-                  <td className="px-4 py-2 font-mono text-xs">{p.billingMonth}</td>
-                  <td className="px-4 py-2 text-xs"><Badge variant="secondary">{p.method}</Badge></td>
-                  <td className="px-4 py-2 font-mono text-xs text-muted-foreground">{p.ref || '—'}</td>
-                  <td className="px-4 py-2 text-muted-foreground">{p.receivedBy || '—'}</td>
-                  <td className="px-4 py-2 text-right tabular-nums font-semibold text-emerald-600">{formatCurrency(p.amountUsd)}</td>
-                </tr>
+              ) : paymentsGroups.map((group) => (
+                <Fragment key={group.branch}>
+                  <tr className="bg-muted/40">
+                    <td colSpan={8} className="px-4 py-2">
+                      <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{group.branch === '—' ? t('branch_shared') : group.branch}</span>
+                      <span className="ml-2 text-xs text-muted-foreground tabular-nums">({group.items.length})</span>
+                      <span className="ml-2 text-xs font-semibold text-emerald-600 tabular-nums">{formatCurrency(group.subtotal)}</span>
+                    </td>
+                  </tr>
+                  {group.items.map((p, i) => (
+                    <tr key={p.id} className={`border-b border-border last:border-0 hover:bg-muted/30 ${i % 2 ? 'bg-muted/10' : ''}`}>
+                      <td className="px-4 py-2 font-mono text-xs text-muted-foreground">{p.date.toISOString().slice(0, 10)}</td>
+                      <td className="px-4 py-2">{p.tenant}</td>
+                      <td className="px-4 py-2">{p.room}</td>
+                      <td className="px-4 py-2 font-mono text-xs">{p.billingMonth}</td>
+                      <td className="px-4 py-2 text-xs"><Badge variant="secondary">{p.method}</Badge></td>
+                      <td className="px-4 py-2 font-mono text-xs text-muted-foreground">{p.ref || '—'}</td>
+                      <td className="px-4 py-2 text-muted-foreground">{p.receivedBy || '—'}</td>
+                      <td className="px-4 py-2 text-right tabular-nums font-semibold text-emerald-600">{formatCurrency(p.amountUsd)}</td>
+                    </tr>
+                  ))}
+                </Fragment>
               ))}
             </tbody>
           </table>
