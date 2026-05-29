@@ -423,24 +423,40 @@ export function AccountingClient({ billings, expenses, tenants, locks: initialLo
     const MT = 34, MB = 34
     const cpx = canvas.width / pageW
     const pageContentPx = (pageH - MT - MB) * cpx
+    const H = canvas.height
     const docTop = el.getBoundingClientRect().top
     const ratio = canvas.height / el.scrollHeight
-    const bounds = Array.from(el.children).map((c) => {
-      const r = (c as HTMLElement).getBoundingClientRect()
-      return { top: (r.top - docTop) * ratio, bottom: (r.bottom - docTop) * ratio }
+    const toY = (clientTop: number) => (clientTop - docTop) * ratio
+
+    // Collect safe page-break positions so a break never lands inside a block or
+    // (crucially) inside a table row — otherwise long tables like the deposits
+    // schedule get sliced mid-row and the page margins crop the data. We allow
+    // breaks between top-level blocks AND after each table row.
+    const cutSet = new Set<number>()
+    for (const child of Array.from(el.children)) {
+      const r = (child as HTMLElement).getBoundingClientRect()
+      cutSet.add(toY(r.top))
+      cutSet.add(toY(r.bottom))
+    }
+    el.querySelectorAll('tr').forEach((tr) => {
+      cutSet.add(toY((tr as HTMLElement).getBoundingClientRect().bottom))
     })
+    const cuts = Array.from(cutSet).filter((y) => y > 0 && y < H).sort((a, b) => a - b)
+
     const slices: { start: number; h: number }[] = []
-    const H = canvas.height
     let start = 0
     let guard = 0
     while (start < H - 1 && guard++ < 4000) {
       let end = Math.min(start + pageContentPx, H)
       if (end < H) {
-        let cut = end
-        for (const b of bounds) {
-          if (b.top > start + 1 && b.top < end - 1 && b.bottom > end + 1) cut = Math.min(cut, b.top)
+        // Cut at the last safe boundary that fits this page; if a single block
+        // is taller than a page, fall back to the hard cut to keep progressing.
+        let chosen = -1
+        for (const c of cuts) {
+          if (c > start + 1 && c <= end + 0.5) chosen = c
+          else if (c > end) break
         }
-        if (cut > start + 1) end = cut
+        if (chosen > start + 1) end = chosen
       }
       slices.push({ start, h: end - start })
       start = end
