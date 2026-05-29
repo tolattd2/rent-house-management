@@ -257,6 +257,7 @@ export async function saveRoomMapLayout(
     : { branch, NOT: { id: { in: keepShapeIds } } }
 
   await db.$transaction([
+    db.roomMapShape.deleteMany({ where: shapeDeleteWhere }),
     ...safe.map((b) =>
       db.roomMapLayout.upsert({
         where: { roomId: b.roomId },
@@ -283,7 +284,6 @@ export async function saveRoomMapLayout(
           })
         : db.roomMapShape.create({ data: s.data }),
     ),
-    db.roomMapShape.deleteMany({ where: shapeDeleteWhere }),
   ])
 }
 

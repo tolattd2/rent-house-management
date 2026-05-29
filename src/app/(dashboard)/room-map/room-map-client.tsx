@@ -200,6 +200,7 @@ export function RoomMapClient({ isAdmin, initialBranch, initialFloor, initialFlo
       })
       const data: { ok: boolean; error?: string } = await res.json()
       if (data.ok) {
+        hydratedKey.current = ''
         markClean()
         if (!silent) toast({ title: t('room_map_saved') })
         router.refresh()

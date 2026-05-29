@@ -338,20 +338,20 @@ function LineShape({ shape, selected, editable, zoom, onSelect }: LineProps) {
         />
         {selected && editable && (
           <>
-            <circle
-              cx={sx1} cy={sy1} r={6}
+            <rect
+              x={sx1 - 6} y={sy1 - 6} width={12} height={12} rx={3}
               fill="hsl(var(--background))"
               stroke="hsl(var(--primary))"
               strokeWidth={2}
-              style={{ cursor: 'crosshair' }}
+              style={{ cursor: 'nwse-resize', filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.15))' }}
               onPointerDown={onPointerDown('start')}
             />
-            <circle
-              cx={sx2} cy={sy2} r={6}
+            <rect
+              x={sx2 - 6} y={sy2 - 6} width={12} height={12} rx={3}
               fill="hsl(var(--background))"
               stroke="hsl(var(--primary))"
               strokeWidth={2}
-              style={{ cursor: 'crosshair' }}
+              style={{ cursor: 'nwse-resize', filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.15))' }}
               onPointerDown={onPointerDown('end')}
             />
           </>
