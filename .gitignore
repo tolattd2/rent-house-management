@@ -12,6 +12,7 @@ out/
 .env.production
 
 # self-hosted image artifacts
+*.tar
 *.tar.gz
 
 # build output
