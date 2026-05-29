@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils'
 import { useRoomMapStore, type DraftBlock } from '@/store/use-room-map-store'
 import type { RoomMapRoom } from '@/lib/room-map-service'
 import { RotationHandle } from './rotation-handle'
+import { selectedResizeHandleStyles } from './resize-handle-styles'
 
 interface Props {
   block: DraftBlock
@@ -240,6 +241,7 @@ function RoomRectangleInner({ block, room, selected, editable, zoom, onSelect }:
         // shift-axis lock live during the gesture instead of snap-on-release.
         disableDragging
         enableResizing={editable}
+        resizeHandleStyles={selectedResizeHandleStyles(selected && editable)}
         onResizeStart={handleResizeStart}
         onResize={handleResize}
         onResizeStop={handleResizeStop}

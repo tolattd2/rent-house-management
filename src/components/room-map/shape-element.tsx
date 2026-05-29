@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils'
 import { useRoomMapStore, type DraftShape } from '@/store/use-room-map-store'
 import { useShiftKeyRef } from '@/hooks/use-shift-key'
 import { RotationHandle } from './rotation-handle'
+import { selectedResizeHandleStyles } from './resize-handle-styles'
 
 interface Props {
   shape: DraftShape
@@ -165,6 +166,7 @@ function ShapeElementInner({ shape, selected, editable, zoom }: Props) {
         scale={zoom}
         disableDragging
         enableResizing={editable && !editingText}
+        resizeHandleStyles={selectedResizeHandleStyles(selected && editable && !editingText)}
         onResizeStop={(_, __, ref, ___, position) => {
           updateShape(shape.id, {
             width: parseFloat(ref.style.width),
