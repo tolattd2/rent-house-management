@@ -623,20 +623,13 @@ export function AccountingClient({ billings, expenses, tenants, locks: initialLo
             <CardTitle className="text-base">{t('accounting_income_statement_annual')} — {rangeLabel}</CardTitle>
             <p className="text-xs text-muted-foreground mt-0.5">{periodLabel} · USD</p>
           </CardHeader>
-          <CardContent>
-            {/* Full-width, no horizontal scroll: fixed layout fits all columns
-                into the card and the figures shrink to match. */}
-            <table className="w-full table-fixed text-[10px] sm:text-[11px]">
-              <colgroup>
-                <col style={{ width: '13%' }} />
-                {columns.map((c) => <col key={c.prefix} />)}
-                <col style={{ width: '9%' }} />
-              </colgroup>
+          <TableScroll>
+            <table className="w-full min-w-[1080px] text-xs sm:text-sm">
               <thead>
                 <tr className="border-b border-border bg-muted/30">
-                  <th className="text-left px-1 py-1.5 font-medium text-muted-foreground">&nbsp;</th>
-                  {columns.map((c) => <th key={c.prefix} className="text-right px-1 py-1.5 font-medium text-muted-foreground">{c.label}</th>)}
-                  <th className="text-right px-1 py-1.5 font-semibold">{t('accounting_total')}</th>
+                  <th className="text-left px-3 py-2.5 font-medium text-muted-foreground whitespace-nowrap">&nbsp;</th>
+                  {columns.map((c) => <th key={c.prefix} className="text-right px-3 py-2.5 font-medium text-muted-foreground whitespace-nowrap">{c.label}</th>)}
+                  <th className="text-right px-3 py-2.5 font-semibold whitespace-nowrap">{t('accounting_total')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -648,7 +641,7 @@ export function AccountingClient({ billings, expenses, tenants, locks: initialLo
                 <MatrixRow label={t('reports_net_revenue')} values={columnTotals.map((m) => m.netRevenue)} total={rangeTotals.netRevenue} bold border />
                 <MatrixRow label={t('reports_of_which_collected')} values={columnTotals.map((m) => m.collected)} total={rangeTotals.collected} muted />
                 <MatrixRow label={t('reports_of_which_outstanding')} values={columnTotals.map((m) => m.outstanding)} total={rangeTotals.outstanding} muted />
-                <tr><td colSpan={columns.length + 2} className="px-1 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{t('reports_total_expenses')}</td></tr>
+                <tr><td colSpan={columns.length + 2} className="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('reports_total_expenses')}</td></tr>
                 {expenseCategories.map((cat) => (
                   <MatrixRow
                     key={cat}
@@ -662,7 +655,7 @@ export function AccountingClient({ billings, expenses, tenants, locks: initialLo
                 <MatrixRow label={t('reports_net_income')} values={columnTotals.map((m) => m.netIncome)} total={rangeTotals.netIncome} bold border highlight />
               </tbody>
             </table>
-          </CardContent>
+          </TableScroll>
         </Card>
 
         {/* Quarterly summary — only meaningful for a single fiscal year. */}
@@ -1217,13 +1210,13 @@ function MatrixRow({ label, values, total, bold, muted, border, highlight, inden
       border && 'border-t-2 border-t-border',
       highlight && (total >= 0 ? 'bg-emerald-50/40 dark:bg-emerald-900/10' : 'bg-red-50/40 dark:bg-red-900/10'),
     )}>
-      <td className={cn('px-1 py-1 break-words', bold && 'font-semibold', muted && 'text-muted-foreground', indent && 'pl-3 text-muted-foreground')}>{label}</td>
+      <td className={cn('px-3 py-2 whitespace-nowrap', bold && 'font-semibold', muted && 'text-muted-foreground', indent && 'pl-6 text-muted-foreground')}>{label}</td>
       {values.map((v, i) => (
-        <td key={i} className={cn('px-1 py-1 text-right tabular-nums whitespace-nowrap', muted && 'text-muted-foreground', bold && 'font-semibold')}>
+        <td key={i} className={cn('px-3 py-2 text-right tabular-nums whitespace-nowrap', muted && 'text-muted-foreground', bold && 'font-semibold')}>
           {v === 0 ? <span className="text-muted-foreground/40">·</span> : fmtMatrixNum(v)}
         </td>
       ))}
-      <td className={cn('px-1 py-1 text-right tabular-nums whitespace-nowrap', bold ? 'font-bold' : 'font-medium', muted && 'text-muted-foreground')}>
+      <td className={cn('px-3 py-2 text-right tabular-nums whitespace-nowrap', bold ? 'font-bold' : 'font-medium', muted && 'text-muted-foreground')}>
         {fmtMatrixNum(total)}
       </td>
     </tr>
