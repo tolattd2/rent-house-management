@@ -314,6 +314,39 @@ export function ReportsClient({ billings, expenses, rooms }: Props) {
   }, [branchBillings, selectedMonth, range, currentMonth])
   const paymentsJournalTotal = paymentsJournal.reduce((s, p) => s + p.amountUsd, 0)
 
+  // PDF export groups the payments journal by tenant (with per-tenant subtotals).
+  const paymentsByTenant = useMemo(() => {
+    const m = new Map<string, typeof paymentsJournal>()
+    for (const p of paymentsJournal) {
+      const k = p.tenant || '—'
+      const arr = m.get(k)
+      if (arr) arr.push(p)
+      else m.set(k, [p])
+    }
+    return Array.from(m.entries())
+      .map(([name, items]) => ({ name, items, subtotal: items.reduce((s, p) => s + p.amountUsd, 0) }))
+      .sort((a, b) => a.name.localeCompare(b.name))
+  }, [paymentsJournal])
+
+  // On-screen payments journal — sortable columns (asc/desc).
+  type PaySortKey = 'date' | 'tenant' | 'room' | 'branch' | 'month' | 'method' | 'amount'
+  const [paySort, setPaySort] = useState<{ key: PaySortKey; dir: SortDir }>({ key: 'date', dir: 'asc' })
+  const togglePaySort = (k: PaySortKey) => setPaySort((s) => s.key === k ? { key: k, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key: k, dir: 'asc' })
+  const sortedPaymentsJournal = useMemo(() => {
+    const sign = paySort.dir === 'asc' ? 1 : -1
+    return [...paymentsJournal].sort((a, b) => {
+      switch (paySort.key) {
+        case 'date': return sign * (a.date.getTime() - b.date.getTime())
+        case 'tenant': return sign * a.tenant.localeCompare(b.tenant)
+        case 'room': return sign * a.room.localeCompare(b.room)
+        case 'branch': return sign * a.branch.localeCompare(b.branch)
+        case 'month': return sign * a.billingMonth.localeCompare(b.billingMonth)
+        case 'method': return sign * a.method.localeCompare(b.method)
+        case 'amount': return sign * (a.amountUsd - b.amountUsd)
+      }
+    })
+  }, [paymentsJournal, paySort])
+
   // Expense register — every expense in the period (already filtered by
   // branch/month via monthExpenses), sorted by date asc for an audit feel.
   const expenseRegister = useMemo(() => [...monthExpenses].sort((a, b) => a.expenseDate.localeCompare(b.expenseDate)), [monthExpenses])
@@ -638,25 +671,51 @@ export function ReportsClient({ billings, expenses, rooms }: Props) {
         </tbody>
       </table>
 
-      {/* Payments journal — kept last */}
+      {/* Payments journal — grouped by tenant, kept last */}
       {docSec(t('reports_payments_journal'))}
-      {docTable<(typeof paymentsJournal)[number]>(
-        [
-          { label: t('expenses_col_date'), width: '11%', cell: (p) => p.date.toISOString().slice(0, 10) },
-          { label: t('tenant'), cell: (p) => p.tenant },
-          { label: t('room'), width: '8%', cell: (p) => p.room },
-          { label: t('branch'), width: '11%', cell: (p) => p.branch },
-          { label: t('billing_col_month'), width: '11%', cell: (p) => p.billingMonth },
-          { label: t('payment_method'), width: '12%', cell: (p) => p.method },
-          { label: t('received_by'), cell: (p) => p.receivedBy || '—' },
-          { label: t('reports_total_usd'), align: 'right', cell: (p) => formatCurrency(p.amountUsd) },
-        ],
-        paymentsJournal,
-        <tr style={{ fontWeight: 700 }}>
-          <td style={{ ...dTd, borderTop: '1px solid #d1d5db' }} colSpan={7}>{t('accounting_total')}</td>
-          <td style={{ ...dTdR, borderTop: '1px solid #d1d5db' }}>{formatCurrency(paymentsJournalTotal)}</td>
-        </tr>,
-      )}
+      <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', marginTop: 4 }}>
+        <colgroup>
+          <col style={{ width: '12%' }} /><col style={{ width: '9%' }} /><col style={{ width: '12%' }} />
+          <col style={{ width: '12%' }} /><col style={{ width: '13%' }} /><col /><col style={{ width: '14%' }} />
+        </colgroup>
+        <thead>
+          <tr>
+            <th style={dTh}>{t('expenses_col_date')}</th>
+            <th style={dTh}>{t('room')}</th>
+            <th style={dTh}>{t('branch')}</th>
+            <th style={dTh}>{t('billing_col_month')}</th>
+            <th style={dTh}>{t('payment_method')}</th>
+            <th style={dTh}>{t('received_by')}</th>
+            <th style={dThR}>{t('reports_total_usd')}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {paymentsByTenant.map((g) => (
+            <Fragment key={g.name}>
+              <tr><td colSpan={7} style={{ ...dTd, background: '#f3f4f6', fontWeight: 700, color: '#2563eb', textTransform: 'uppercase', letterSpacing: 0.3, fontSize: 9 }}>{g.name} ({g.items.length})</td></tr>
+              {g.items.map((p) => (
+                <tr key={p.id}>
+                  <td style={dTd}>{p.date.toISOString().slice(0, 10)}</td>
+                  <td style={dTd}>{p.room}</td>
+                  <td style={dTd}>{p.branch}</td>
+                  <td style={dTd}>{p.billingMonth}</td>
+                  <td style={dTd}>{p.method}</td>
+                  <td style={dTd}>{p.receivedBy || '—'}</td>
+                  <td style={dTdR}>{formatCurrency(p.amountUsd)}</td>
+                </tr>
+              ))}
+              <tr style={{ fontWeight: 700 }}>
+                <td colSpan={6} style={{ ...dTd, color: '#6b7280' }}>{t('accounting_total')} · {g.name}</td>
+                <td style={dTdR}>{formatCurrency(g.subtotal)}</td>
+              </tr>
+            </Fragment>
+          ))}
+          <tr style={{ fontWeight: 700 }}>
+            <td colSpan={6} style={{ ...dTd, borderTop: '2px solid #9ca3af' }}>{t('accounting_total')}</td>
+            <td style={{ ...dTdR, borderTop: '2px solid #9ca3af' }}>{formatCurrency(paymentsJournalTotal)}</td>
+          </tr>
+        </tbody>
+      </table>
     </>
   )
 
@@ -936,20 +995,20 @@ export function ReportsClient({ billings, expenses, rooms }: Props) {
           <table className="w-full min-w-[860px] text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/30">
-                <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">{t('expenses_col_date')}</th>
-                <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">{t('tenant')}</th>
-                <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">{t('room')}</th>
-                <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">{t('billing_col_month')}</th>
-                <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">{t('payment_method')}</th>
+                <SortableTh align="left" k="date" label={t('expenses_col_date')} active={paySort.key} dir={paySort.dir} onSort={togglePaySort} />
+                <SortableTh align="left" k="tenant" label={t('tenant')} active={paySort.key} dir={paySort.dir} onSort={togglePaySort} />
+                <SortableTh align="left" k="room" label={t('room')} active={paySort.key} dir={paySort.dir} onSort={togglePaySort} />
+                <SortableTh align="left" k="month" label={t('billing_col_month')} active={paySort.key} dir={paySort.dir} onSort={togglePaySort} />
+                <SortableTh align="left" k="method" label={t('payment_method')} active={paySort.key} dir={paySort.dir} onSort={togglePaySort} />
                 <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">{t('payment_ref')}</th>
                 <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">{t('received_by')}</th>
-                <th className="text-right px-4 py-2.5 text-xs font-medium text-muted-foreground">{t('reports_total_usd')}</th>
+                <SortableTh align="right" k="amount" label={t('reports_total_usd')} active={paySort.key} dir={paySort.dir} onSort={togglePaySort} />
               </tr>
             </thead>
             <tbody>
-              {paymentsJournal.length === 0 ? (
+              {sortedPaymentsJournal.length === 0 ? (
                 <tr><td colSpan={8} className="text-center text-sm text-muted-foreground py-6">—</td></tr>
-              ) : paymentsJournal.map((p, i) => (
+              ) : sortedPaymentsJournal.map((p, i) => (
                 <tr key={p.id} className={`border-b border-border last:border-0 hover:bg-muted/30 ${i % 2 ? 'bg-muted/10' : ''}`}>
                   <td className="px-4 py-2 font-mono text-xs text-muted-foreground">{p.date.toISOString().slice(0, 10)}</td>
                   <td className="px-4 py-2">{p.tenant}</td>
