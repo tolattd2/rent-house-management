@@ -135,12 +135,12 @@ export async function loadRoomMapView(branch: string, floor: string, hasFloors: 
             fullName: true,
             phone: true,
             moveInDate: true,
-            notices: {
-              where: { status: 'open', type: 'move_out' },
-              select: { id: true },
-              take: 1,
-            },
           },
+          take: 1,
+        },
+        notices: {
+          where: { status: 'open', type: 'move_in' },
+          select: { id: true },
           take: 1,
         },
         billings: {
@@ -163,13 +163,14 @@ export async function loadRoomMapView(branch: string, floor: string, hasFloors: 
     const worst = r.billings.find((b) => b.paymentStatus === 'unpaid')
       ?? r.billings.find((b) => b.paymentStatus === 'partial')
     const tenant = r.tenants[0]
-    const reservation = (tenant?.notices?.length ?? 0) > 0
+    const effectiveStatus = tenant ? 'occupied' : r.status
+    const reservation = !tenant && r.notices.length > 0
     return {
       id: r.id,
       roomNumber: r.roomNumber,
       branch: r.branch,
       floor: r.floor,
-      status: r.status,
+      status: effectiveStatus,
       rentPriceUsd: r.rentPriceUsd,
       tenant: tenant
         ? { id: tenant.id, fullName: tenant.fullName, phone: tenant.phone, moveInDate: tenant.moveInDate }
