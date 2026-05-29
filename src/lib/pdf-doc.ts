@@ -1,77 +1,83 @@
 /**
  * Shared high-quality PDF renderer for print-styled HTML documents (Audit Pack,
- * Reports export, Tenant Statement). Captures an off-screen, print-styled
- * element at high resolution then paginates onto A4 with margins, breaking pages
- * at safe boundaries — block edges AND after each table row — so long tables are
- * never sliced mid-row (which would let the page margins crop the data).
+ * Reports export, Tenant Statement).
+ *
+ * Instead of rasterising the whole (potentially very tall) document in one shot
+ * — which forces the scale down on long docs and blurs everything, or blanks
+ * when it exceeds the browser's ~16384px max canvas — we capture ONE A4 page at
+ * a time at a fixed high scale. Each slice is only a page tall, so it stays well
+ * within canvas limits and the text/lines/chart stay crisp regardless of how
+ * long the document is. Page breaks land at safe boundaries (block edges and
+ * after each table row) so nothing is cropped at the margins.
  */
 export async function renderDocToPdf(el: HTMLElement, filename: string) {
   const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
     import('html2canvas'),
     import('jspdf'),
   ])
-  // Cap the resolution so the rasterised canvas stays within the browser's
-  // limits — a tall document (e.g. a full report with every table) at scale 4
-  // can exceed the ~16384px max canvas dimension and come back blank.
-  const rawW = el.scrollWidth || el.clientWidth || 760
-  const rawH = el.scrollHeight || el.clientHeight || 1
-  const MAX_DIM = 16000
-  const MAX_AREA = 60_000_000
-  let SCALE = Math.min(4, MAX_DIM / rawW, MAX_DIM / rawH, Math.sqrt(MAX_AREA / (rawW * rawH)))
-  if (!Number.isFinite(SCALE) || SCALE <= 0) SCALE = 1
-  const canvas = await html2canvas(el, { scale: SCALE, backgroundColor: '#ffffff', useCORS: true, windowWidth: rawW })
+
   const pdf = new jsPDF({ orientation: 'p', unit: 'pt', format: 'a4', compress: true })
   const pageW = pdf.internal.pageSize.getWidth()
   const pageH = pdf.internal.pageSize.getHeight()
   const MT = 34, MB = 34
-  const cpx = canvas.width / pageW
-  const pageContentPx = (pageH - MT - MB) * cpx
-  const H = canvas.height
-  const docTop = el.getBoundingClientRect().top
-  const ratio = canvas.height / el.scrollHeight
-  const toY = (clientTop: number) => (clientTop - docTop) * ratio
 
-  // Safe page-break positions: between top-level blocks AND after each table row.
+  const docW = el.scrollWidth || el.clientWidth || 760
+  const docH = el.scrollHeight || el.clientHeight || 1
+
+  // pt per CSS px when the doc width is scaled to the printable page width, and
+  // how many CSS px of the document fit in one page's content height.
+  const ptPerPx = pageW / docW
+  const pageSlicePx = (pageH - MT - MB) / ptPerPx
+
+  // Safe page-break positions (CSS px from the doc top): block edges + each row.
+  const docTop = el.getBoundingClientRect().top
   const cutSet = new Set<number>()
   for (const child of Array.from(el.children)) {
-    const r = (child as HTMLElement).getBoundingClientRect()
-    cutSet.add(toY(r.top))
-    cutSet.add(toY(r.bottom))
+    cutSet.add((child as HTMLElement).getBoundingClientRect().bottom - docTop)
   }
   el.querySelectorAll('tr').forEach((tr) => {
-    cutSet.add(toY((tr as HTMLElement).getBoundingClientRect().bottom))
+    cutSet.add((tr as HTMLElement).getBoundingClientRect().bottom - docTop)
   })
-  const cuts = Array.from(cutSet).filter((y) => y > 0 && y < H).sort((a, b) => a - b)
+  const cuts = Array.from(cutSet).filter((y) => y > 0 && y <= docH).sort((a, b) => a - b)
 
-  const slices: { start: number; h: number }[] = []
-  let start = 0
+  // Fixed high scale → each one-page slice is small enough to stay crisp.
+  const SCALE = 4
+
+  let startPx = 0
+  let page = 0
   let guard = 0
-  while (start < H - 1 && guard++ < 4000) {
-    let end = Math.min(start + pageContentPx, H)
-    if (end < H) {
+  while (startPx < docH - 1 && guard++ < 4000) {
+    let endPx = Math.min(startPx + pageSlicePx, docH)
+    if (endPx < docH) {
       let chosen = -1
       for (const c of cuts) {
-        if (c > start + 1 && c <= end + 0.5) chosen = c
-        else if (c > end) break
+        if (c > startPx + 1 && c <= endPx + 0.5) chosen = c
+        else if (c > endPx) break
       }
-      if (chosen > start + 1) end = chosen
+      if (chosen > startPx + 1) endPx = chosen
     }
-    slices.push({ start, h: end - start })
-    start = end
+    const sliceH = endPx - startPx
+    if (sliceH < 1) break
+
+    const canvas = await html2canvas(el, {
+      scale: SCALE,
+      backgroundColor: '#ffffff',
+      useCORS: true,
+      x: 0,
+      y: startPx,
+      width: docW,
+      height: sliceH,
+      windowWidth: docW,
+      windowHeight: docH,
+      scrollX: 0,
+      scrollY: 0,
+    })
+
+    if (page > 0) pdf.addPage()
+    pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, MT, pageW, sliceH * ptPerPx, undefined, 'FAST')
+    page++
+    startPx = endPx
   }
 
-  slices.forEach((s, i) => {
-    const band = document.createElement('canvas')
-    band.width = canvas.width
-    band.height = Math.ceil(s.h)
-    const ctx = band.getContext('2d')
-    if (!ctx) return
-    ctx.fillStyle = '#ffffff'
-    ctx.fillRect(0, 0, band.width, band.height)
-    ctx.drawImage(canvas, 0, s.start, canvas.width, s.h, 0, 0, canvas.width, s.h)
-    if (i > 0) pdf.addPage()
-    // PNG (lossless) keeps text/lines crisp — JPEG would soften them.
-    pdf.addImage(band.toDataURL('image/png'), 'PNG', 0, MT, pageW, s.h / cpx, undefined, 'FAST')
-  })
   pdf.save(filename.replace(/[^a-z0-9._-]/gi, '_'))
 }

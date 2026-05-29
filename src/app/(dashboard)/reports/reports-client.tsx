@@ -584,26 +584,6 @@ export function ReportsClient({ billings, expenses, rooms }: Props) {
         sortedAging,
       )}
 
-      {/* Payments journal */}
-      {docSec(t('reports_payments_journal'))}
-      {docTable<(typeof paymentsJournal)[number]>(
-        [
-          { label: t('expenses_col_date'), width: '11%', cell: (p) => p.date.toISOString().slice(0, 10) },
-          { label: t('tenant'), cell: (p) => p.tenant },
-          { label: t('room'), width: '8%', cell: (p) => p.room },
-          { label: t('branch'), width: '11%', cell: (p) => p.branch },
-          { label: t('billing_col_month'), width: '11%', cell: (p) => p.billingMonth },
-          { label: t('payment_method'), width: '12%', cell: (p) => p.method },
-          { label: t('received_by'), cell: (p) => p.receivedBy || '—' },
-          { label: t('reports_total_usd'), align: 'right', cell: (p) => formatCurrency(p.amountUsd) },
-        ],
-        paymentsJournal,
-        <tr style={{ fontWeight: 700 }}>
-          <td style={{ ...dTd, borderTop: '1px solid #d1d5db' }} colSpan={7}>{t('accounting_total')}</td>
-          <td style={{ ...dTdR, borderTop: '1px solid #d1d5db' }}>{formatCurrency(paymentsJournalTotal)}</td>
-        </tr>,
-      )}
-
       {/* Expense register */}
       {docSec(t('reports_expense_register'))}
       {docTable<(typeof expenseRegister)[number]>(
@@ -657,6 +637,26 @@ export function ReportsClient({ billings, expenses, rooms }: Props) {
           ))}
         </tbody>
       </table>
+
+      {/* Payments journal — kept last */}
+      {docSec(t('reports_payments_journal'))}
+      {docTable<(typeof paymentsJournal)[number]>(
+        [
+          { label: t('expenses_col_date'), width: '11%', cell: (p) => p.date.toISOString().slice(0, 10) },
+          { label: t('tenant'), cell: (p) => p.tenant },
+          { label: t('room'), width: '8%', cell: (p) => p.room },
+          { label: t('branch'), width: '11%', cell: (p) => p.branch },
+          { label: t('billing_col_month'), width: '11%', cell: (p) => p.billingMonth },
+          { label: t('payment_method'), width: '12%', cell: (p) => p.method },
+          { label: t('received_by'), cell: (p) => p.receivedBy || '—' },
+          { label: t('reports_total_usd'), align: 'right', cell: (p) => formatCurrency(p.amountUsd) },
+        ],
+        paymentsJournal,
+        <tr style={{ fontWeight: 700 }}>
+          <td style={{ ...dTd, borderTop: '1px solid #d1d5db' }} colSpan={7}>{t('accounting_total')}</td>
+          <td style={{ ...dTdR, borderTop: '1px solid #d1d5db' }}>{formatCurrency(paymentsJournalTotal)}</td>
+        </tr>,
+      )}
     </>
   )
 
