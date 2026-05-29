@@ -12,6 +12,35 @@ import { cn } from '@/lib/utils'
 import { useRoomMapStore } from '@/store/use-room-map-store'
 import { useLanguage } from '@/contexts/language-context'
 
+function MiniField({
+  label, value, min, max, onChange, disabled,
+}: {
+  label: string
+  value: number
+  min: number
+  max: number
+  onChange: (v: number) => void
+  disabled: boolean
+}) {
+  return (
+    <label className="flex items-center gap-1 text-[11px] text-muted-foreground">
+      <span className="uppercase tracking-wider font-semibold">{label}</span>
+      <Input
+        type="number"
+        value={Math.round(value)}
+        min={min}
+        max={max}
+        onChange={(e) => {
+          const next = Number(e.target.value)
+          if (Number.isFinite(next)) onChange(next)
+        }}
+        disabled={disabled}
+        className="h-7 w-16 px-1.5 text-xs tabular-nums"
+      />
+    </label>
+  )
+}
+
 const SHAPE_COLORS = [
   '#1f2937', '#dc2626', '#ea580c', '#d97706', '#65a30d',
   '#0ea5e9', '#2563eb', '#7c3aed', '#db2777', '#ffffff',
@@ -76,6 +105,25 @@ export function ShapeEditor({ editable }: { editable: boolean }) {
           />
         </div>
       )}
+
+      {/* Geometry — same X/Y/W/H/R° controls the room sidebar shows so a
+          shape's position + size + rotation are tweakable to the pixel. */}
+      <div className="flex flex-wrap items-center gap-2">
+        <MiniField label="X" value={shape.x} min={-9999} max={9999} disabled={!editable}
+          onChange={(v) => updateShape(shape.id, { x: v })} />
+        <MiniField label="Y" value={shape.y} min={-9999} max={9999} disabled={!editable}
+          onChange={(v) => updateShape(shape.id, { y: v })} />
+        {!isLine && (
+          <>
+            <MiniField label="W" value={Math.abs(shape.width)} min={4} max={9999} disabled={!editable}
+              onChange={(v) => updateShape(shape.id, { width: v })} />
+            <MiniField label="H" value={Math.abs(shape.height)} min={4} max={9999} disabled={!editable}
+              onChange={(v) => updateShape(shape.id, { height: v })} />
+          </>
+        )}
+        <MiniField label="R°" value={shape.rotation} min={-360} max={360} disabled={!editable}
+          onChange={(v) => updateShape(shape.id, { rotation: ((v % 360) + 360) % 360 })} />
+      </div>
 
       {/* Font + alignment row */}
       {showText && (

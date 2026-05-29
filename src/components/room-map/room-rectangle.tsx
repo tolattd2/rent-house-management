@@ -64,7 +64,7 @@ function RoomRectangleInner({ block, room, selected, editable, zoom, onSelect }:
   // ── Custom drag (bypasses Rnd's react-draggable so shift can live-lock the
   // axis without the visual fighting back) ──────────────────────────────────
 
-  const handlePointerDown = (e: ReactPointerEvent<HTMLButtonElement>) => {
+  const handlePointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
     if (!editable) {
       // Read-only viewers should still be able to click-through to whatever
       // detail page the room links to; nothing else to do here.
@@ -101,7 +101,7 @@ function RoomRectangleInner({ block, room, selected, editable, zoom, onSelect }:
     try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId) } catch { /* ignore */ }
   }
 
-  const handlePointerMove = (e: ReactPointerEvent<HTMLButtonElement>) => {
+  const handlePointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
     const s = dragRef.current
     if (!s || e.pointerId !== s.pointerId) return
     let dx = (e.clientX - s.startMx) / zoom
@@ -127,7 +127,7 @@ function RoomRectangleInner({ block, room, selected, editable, zoom, onSelect }:
     ])
   }
 
-  const handlePointerUp = (e: ReactPointerEvent<HTMLButtonElement>) => {
+  const handlePointerUp = (e: ReactPointerEvent<HTMLDivElement>) => {
     const s = dragRef.current
     if (!s || e.pointerId !== s.pointerId) return
     try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId) } catch { /* ignore */ }
@@ -244,22 +244,23 @@ function RoomRectangleInner({ block, room, selected, editable, zoom, onSelect }:
         onResize={handleResize}
         onResizeStop={handleResizeStop}
         style={{ zIndex: block.zIndex + (selected ? 1000 : 0), touchAction: 'none' }}
-        className={cn(
-          'rounded-md border-2 shadow-sm transition-shadow',
-          statusClasses(room),
-          selected && 'ring-2 ring-primary ring-offset-2 ring-offset-background shadow-lg',
-          editable ? 'cursor-move' : 'cursor-pointer',
-        )}
       >
-        <button
-          type="button"
+        {/* Inner wrapper carries the visual — border, fill, AND rotation —
+            so a rotated room shows the rotated rectangle, not just spinning
+            text. The Rnd root stays axis-aligned so the resize handles
+            still hit the bounding box. Pointer handlers also live here so
+            the WHOLE rectangle area grabs the drag, not just the text. */}
+        <div
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
           onPointerCancel={handlePointerUp}
-          // Click is no-op — selection already happened in pointerDown.
-          onClick={(e) => e.stopPropagation()}
-          className="w-full h-full flex flex-col items-center justify-center text-center px-1 leading-tight select-none overflow-hidden"
+          className={cn(
+            'w-full h-full rounded-md border-2 shadow-sm transition-shadow flex flex-col items-center justify-center text-center px-1 leading-tight select-none overflow-hidden',
+            statusClasses(room),
+            selected && 'ring-2 ring-primary ring-offset-2 ring-offset-background shadow-lg',
+            editable ? 'cursor-move' : 'cursor-pointer',
+          )}
           style={{
             transform: block.rotation ? `rotate(${block.rotation}deg)` : undefined,
             touchAction: 'none',
@@ -271,7 +272,7 @@ function RoomRectangleInner({ block, room, selected, editable, zoom, onSelect }:
               {tenantName}
             </span>
           )}
-        </button>
+        </div>
       </Rnd>
       {selected && editable && (
         <RotationHandle
