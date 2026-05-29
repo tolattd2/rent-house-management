@@ -45,12 +45,16 @@ export interface NoticeRoomOption {
 interface Props {
   /** Fixed tenant (tenant detail page) — no picker is shown. */
   tenantId?: string
+  /** Fixed room (room card "Notice" button) — no picker is shown. The
+   *  occupant tenant, if any, is auto-attached server-side. */
+  roomId?: string
   /** Tenant list for the picker (global Notices page) — shown on create. */
   tenants?: NoticeTenantOption[]
   /** Every room across every branch — required when `tenants` is provided. */
   rooms?: NoticeRoomOption[]
   notice?: TenantNotice | null
-  /** Read-only tenant/room label shown while editing from the global page. */
+  /** Read-only tenant/room label shown while editing from the global page,
+   *  or while creating from a room card. */
   tenantLabel?: string
   onClose: () => void
   onSave: (record: TenantNotice) => void
@@ -61,12 +65,12 @@ function compareRoomNumbers(a: string, b: string) {
   return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })
 }
 
-export function NoticeDialog({ tenantId, tenants, rooms, notice, tenantLabel, onClose, onSave }: Props) {
+export function NoticeDialog({ tenantId, roomId, tenants, rooms, notice, tenantLabel, onClose, onSave }: Props) {
   const { t } = useLanguage()
   const branches = useBranches()
   const roomLabel = useRoomLabel()
   const isEdit = !!notice
-  const showPicker = !isEdit && !tenantId && !!tenants
+  const showPicker = !isEdit && !tenantId && !roomId && !!tenants
 
   const [branchFilter, setBranchFilter] = useState('')
   // Selected room id — the source of truth for the picker. Tenant is derived
@@ -106,6 +110,11 @@ export function NoticeDialog({ tenantId, tenants, rooms, notice, tenantLabel, on
       // Tenant detail page — keep existing tenant-scoped endpoint.
       url = `/api/tenants/${tenantId}/notices`
       body = { type, message, expectedDate }
+    } else if (roomId) {
+      // Room card — file directly against the room; the server attaches
+      // the active occupant when one exists.
+      url = '/api/notices'
+      body = { type, message, expectedDate, roomId }
     } else {
       // Global notices page — room-scoped, with auto-attached tenant.
       if (!selectedRoomId) {
@@ -178,10 +187,11 @@ export function NoticeDialog({ tenantId, tenants, rooms, notice, tenantLabel, on
             </div>
           )}
 
-          {/* Tenant shown read-only while editing from the global page */}
-          {isEdit && tenantLabel && (
+          {/* Read-only target shown when editing, or when creating from a
+              room card (no picker). */}
+          {!showPicker && tenantLabel && (
             <div className="space-y-1.5">
-              <Label>{t('tenant')}</Label>
+              <Label>{roomId && !isEdit ? t('room') : t('tenant')}</Label>
               <div className="h-10 px-3 flex items-center rounded-lg bg-muted/50 text-sm border border-input">
                 {tenantLabel}
               </div>

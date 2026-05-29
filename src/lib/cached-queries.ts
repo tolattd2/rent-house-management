@@ -26,6 +26,11 @@ export const getRoomsList = unstable_cache(
           select: { id: true, fullName: true, phone: true, phonesExtra: true, moveInDate: true },
           take: 1,
         },
+        // Count of open notices filed against this room so the room card
+        // can surface a badge without a second round-trip.
+        _count: {
+          select: { notices: { where: { status: 'open' } } },
+        },
       },
       orderBy: [{ roomNumber: 'asc' }],
     }),

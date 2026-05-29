@@ -5,6 +5,10 @@ import { toast } from '@/hooks/use-toast'
 
 interface DeleteOptions {
   itemName?: string
+  /** When set, the dialog forces the user to retype this exact phrase
+   *  before the Delete button activates — used for destructive deletes
+   *  like removing a room. */
+  confirmPhrase?: string
   onRemove?: () => void
   onRestore?: () => void
   onExecute: () => Promise<{ ok: boolean; error?: string }>
@@ -19,6 +23,7 @@ interface RunDeleteOptions extends DeleteOptions {
 interface DialogState {
   open: boolean
   itemName?: string
+  confirmPhrase?: string
   onConfirm: () => void
 }
 
@@ -64,11 +69,17 @@ export function useDeleteWithUndo() {
   })
 
   const triggerDelete = useCallback((options: DeleteOptions) => {
-    const { itemName } = options
+    const { itemName, confirmPhrase } = options
     setDialogState({
       open: true,
       itemName,
-      onConfirm: () => runDeleteWithUndo(options),
+      confirmPhrase,
+      onConfirm: () => {
+        runDeleteWithUndo(options)
+        // Phrase-confirm dialogs don't auto-close themselves; the caller
+        // owns the open state, so close it here once the user has confirmed.
+        setDialogState((d) => ({ ...d, open: false }))
+      },
     })
   }, [])
 

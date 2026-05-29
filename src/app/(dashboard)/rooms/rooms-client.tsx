@@ -1,12 +1,13 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Plus, Search, Home, Users, DollarSign, Wrench, Edit, Trash2, Building2, BookmarkCheck } from 'lucide-react'
+import { Plus, Search, Home, Users, DollarSign, Wrench, Edit, Trash2, Building2, BookmarkCheck, Bell } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { RoomFormDialog } from '@/components/rooms/room-form-dialog'
+import { NoticeDialog } from '@/components/tenants/notice-dialog'
 import { formatCurrency, formatPhones, groupByBranch, cn } from '@/lib/utils'
 import { CARD_STYLES, type CardColor } from '@/lib/card-colors'
 import { toast } from '@/hooks/use-toast'
@@ -33,6 +34,7 @@ type Room = {
   notes: string
   createdAt: Date
   tenants: Array<{ id: string; fullName: string; phone: string; phonesExtra: string[]; moveInDate: string }>
+  _count?: { notices: number }
 }
 
 const statusVariant: Record<string, 'success' | 'warning' | 'error' | 'secondary'> = {
@@ -55,6 +57,7 @@ export function RoomsClient({ rooms: initialRooms, settings }: Props) {
   const router = useRouter()
   const { data: session } = useSession()
   const isAdmin = session?.user?.role === 'admin'
+  const canManage = session?.user?.role ? session.user.role !== 'guest' : false
   const { t } = useLanguage()
   const branches = useBranches()
   const roomLabel = useRoomLabel()
@@ -65,6 +68,7 @@ export function RoomsClient({ rooms: initialRooms, settings }: Props) {
   const [branchFilter, setBranchFilter] = usePersistentState<string>('rooms/branch', 'all')
   const [showForm, setShowForm] = useState(false)
   const [editRoom, setEditRoom] = useState<Room | null>(null)
+  const [noticeRoom, setNoticeRoom] = useState<Room | null>(null)
   const { triggerDelete, dialogState, closeDialog } = useDeleteWithUndo()
 
   const filtered = rooms.filter((r) => {
@@ -80,6 +84,10 @@ export function RoomsClient({ rooms: initialRooms, settings }: Props) {
   const handleDelete = (room: Room) => {
     triggerDelete({
       itemName: roomLabel(room),
+      // Force the operator to retype the room number — deleting a room
+      // cascades to its billings, expenses, maintenance, and notices, so
+      // an accidental click here is expensive.
+      confirmPhrase: room.roomNumber,
       onRemove: () => setRooms((prev) => prev.filter((r) => r.id !== room.id)),
       onRestore: () => setRooms((prev) => [room, ...prev]),
       onExecute: () => fetch(`/api/rooms/${room.id}`, { method: 'DELETE' }).then((r) => r.json()),
@@ -189,6 +197,7 @@ export function RoomsClient({ rooms: initialRooms, settings }: Props) {
         {group.items.map((room) => {
           const tenant = room.tenants[0]
           const StatusIcon = statusIcon[room.status] ?? Home
+          const openNoticeCount = room._count?.notices ?? 0
           // Always show the rates configured for this room's branch — the
           // per-room columns are dead data after the branch-rate rollout.
           const rates = resolveBranchRates(settings, branches, room.branch)
@@ -201,9 +210,21 @@ export function RoomsClient({ rooms: initialRooms, settings }: Props) {
                       <h3 className="font-bold text-lg">{t('room')} {roomLabel(room)}</h3>
                       <p className="text-xs text-muted-foreground">{room.roomType}</p>
                     </div>
-                    <Badge variant={statusVariant[room.status] ?? 'secondary'}>
-                      {statusLabels[room.status] ?? room.status}
-                    </Badge>
+                    <div className="flex flex-col items-end gap-1">
+                      <Badge variant={statusVariant[room.status] ?? 'secondary'}>
+                        {statusLabels[room.status] ?? room.status}
+                      </Badge>
+                      {openNoticeCount > 0 && (
+                        <Link
+                          href={`/rooms/${room.id}/notices`}
+                          className="inline-flex items-center gap-1 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400 px-2 py-0.5 text-[11px] font-semibold hover:bg-amber-200/80 dark:hover:bg-amber-900/50 transition-colors"
+                          title={t('notice_history_title')}
+                        >
+                          <Bell className="w-3 h-3" />
+                          {openNoticeCount} {t('notice_open_count')}
+                        </Link>
+                      )}
+                    </div>
                   </div>
 
                   {/* Rent */}
@@ -233,12 +254,26 @@ export function RoomsClient({ rooms: initialRooms, settings }: Props) {
                   </div>
 
                   {/* Actions */}
-                  {isAdmin && (
+                  {(isAdmin || canManage) && (
                     <div className="flex flex-wrap gap-2">
-                      <Button variant="outline" size="sm" className="flex-1 min-w-[6rem]" onClick={() => { setEditRoom(room); setShowForm(true) }}>
-                        <Edit className="w-3.5 h-3.5 mr-1" /> {t('edit')}
-                      </Button>
-                      {!tenant && (
+                      {isAdmin && (
+                        <Button variant="outline" size="sm" className="flex-1 min-w-[6rem]" onClick={() => { setEditRoom(room); setShowForm(true) }}>
+                          <Edit className="w-3.5 h-3.5 mr-1" /> {t('edit')}
+                        </Button>
+                      )}
+                      {canManage && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className={cn('shrink-0 text-amber-700 border-amber-200 hover:bg-amber-500/10', !isAdmin && 'flex-1 min-w-[6rem]')}
+                          onClick={() => setNoticeRoom(room)}
+                          title={t('notice_add')}
+                        >
+                          <Bell className="w-3.5 h-3.5 sm:mr-1" />
+                          <span className={isAdmin ? 'hidden sm:inline' : ''}>{t('notice_add')}</span>
+                        </Button>
+                      )}
+                      {isAdmin && !tenant && (
                         <Button variant="outline" size="sm" onClick={() => handleDelete(room)} className="shrink-0 text-destructive hover:bg-destructive/10">
                           <Trash2 className="w-3.5 h-3.5" />
                         </Button>
@@ -257,6 +292,7 @@ export function RoomsClient({ rooms: initialRooms, settings }: Props) {
       <DeleteConfirmDialog
         open={dialogState.open}
         itemName={dialogState.itemName}
+        confirmPhrase={dialogState.confirmPhrase}
         onClose={closeDialog}
         onConfirm={dialogState.onConfirm}
       />
@@ -269,6 +305,16 @@ export function RoomsClient({ rooms: initialRooms, settings }: Props) {
           rooms={rooms}
           onClose={() => { setShowForm(false); setEditRoom(null) }}
           onSave={handleSave}
+        />
+      )}
+
+      {/* Notice dialog — fixed to the room the button was pressed on */}
+      {noticeRoom && (
+        <NoticeDialog
+          roomId={noticeRoom.id}
+          tenantLabel={`${t('room')} ${roomLabel(noticeRoom)} · ${noticeRoom.branch}`}
+          onClose={() => setNoticeRoom(null)}
+          onSave={() => { setNoticeRoom(null); router.refresh() }}
         />
       )}
     </div>
