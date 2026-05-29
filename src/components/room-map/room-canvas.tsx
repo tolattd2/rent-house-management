@@ -33,7 +33,6 @@ export function RoomCanvas({ editable }: Props) {
   const selectedIds = useRoomMapStore((s) => s.selectedIds)
   const setSelected = useRoomMapStore((s) => s.setSelected)
   const toggleSelected = useRoomMapStore((s) => s.toggleSelected)
-  const selectMany = useRoomMapStore((s) => s.selectMany)
   const clearSelection = useRoomMapStore((s) => s.clearSelection)
   const zoom = useRoomMapStore((s) => s.zoom)
   const setZoom = useRoomMapStore((s) => s.setZoom)
@@ -183,14 +182,27 @@ export function RoomCanvas({ editable }: Props) {
     const x2 = Math.max(marquee.x1, marquee.x2)
     const y2 = Math.max(marquee.y1, marquee.y2)
     const drag = x2 - x1 >= 4 || y2 - y1 >= 4
-    const currentBlocks = useRoomMapStore.getState().blocks
     if (!drag) {
       clearSelection()
     } else {
-      const ids = currentBlocks
+      const state = useRoomMapStore.getState()
+      const blockIds = state.blocks
         .filter((b) => b.x < x2 && b.x + b.width > x1 && b.y < y2 && b.y + b.height > y1)
         .map((b) => b.id)
-      selectMany(ids)
+      // Lines store width/height as signed deltas — fold to a proper bbox.
+      const shapeIds = state.shapes
+        .filter((s) => {
+          const sx1 = Math.min(s.x, s.x + s.width)
+          const sy1 = Math.min(s.y, s.y + s.height)
+          const sx2 = Math.max(s.x, s.x + s.width)
+          const sy2 = Math.max(s.y, s.y + s.height)
+          return sx1 < x2 && sx2 > x1 && sy1 < y2 && sy2 > y1
+        })
+        .map((s) => s.id)
+      // selectManyShapes clears block selection; use a single setState so
+      // the marquee can grab both layers at once without one wiping the
+      // other.
+      useRoomMapStore.setState({ selectedIds: blockIds, selectedShapeIds: shapeIds })
     }
     setMarquee(null)
   }

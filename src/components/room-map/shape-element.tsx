@@ -1,10 +1,11 @@
 'use client'
 
-import { memo, useEffect, useRef, useState, type MouseEvent } from 'react'
+import { memo, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import { Rnd } from 'react-rnd'
 import { cn } from '@/lib/utils'
 import { useRoomMapStore, type DraftShape } from '@/store/use-room-map-store'
 import { useShiftKeyRef } from '@/hooks/use-shift-key'
+import { RotationHandle } from './rotation-handle'
 
 interface Props {
   shape: DraftShape
@@ -15,15 +16,13 @@ interface Props {
 
 function ShapeElementInner({ shape, selected, editable, zoom }: Props) {
   const updateShape = useRoomMapStore((s) => s.updateShape)
+  const setShapeGeoms = useRoomMapStore((s) => s.setShapeGeoms)
+  const pushHistorySnapshot = useRoomMapStore((s) => s.pushHistorySnapshot)
   const setShapeSelected = useRoomMapStore((s) => s.setShapeSelected)
-  const shiftRef = useShiftKeyRef()
-  // Captured at drag start so we can lock movement to the dominant axis
-  // (whichever has the larger pointer delta) while Shift is held.
-  const dragOriginRef = useRef<{ x: number; y: number } | null>(null)
+  const toggleShapeSelected = useRoomMapStore((s) => s.toggleShapeSelected)
 
   const editingRef = useRef<HTMLDivElement | null>(null)
   const [editingText, setEditingText] = useState(false)
-  const movedRef = useRef(false)
 
   // Sync the contentEditable DOM with the store text on first edit only —
   // after that React owns the source of truth via onBlur.
@@ -31,7 +30,6 @@ function ShapeElementInner({ shape, selected, editable, zoom }: Props) {
     if (editingText && editingRef.current) {
       editingRef.current.textContent = shape.text
       editingRef.current.focus()
-      // Place caret at end so the user can keep typing.
       const range = document.createRange()
       range.selectNodeContents(editingRef.current)
       range.collapse(false)
@@ -41,13 +39,81 @@ function ShapeElementInner({ shape, selected, editable, zoom }: Props) {
     }
   }, [editingText, shape.text])
 
-  const handleClick = (e: MouseEvent) => {
+  // Drag state — same custom-pointer model rooms use, so shift-axis-lock
+  // stays live during the gesture.
+  const dragRef = useRef<{
+    pointerId: number
+    startMx: number
+    startMy: number
+    basis: { x: number; y: number }
+    others: Array<{ id: string; x: number; y: number }>
+    pushed: boolean
+    moved: boolean
+  } | null>(null)
+
+  const handlePointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (!editable || editingText) return
+    if (e.pointerType === 'mouse' && e.button !== 0) return
     e.stopPropagation()
-    setShapeSelected(shape.id)
+    // Mirror the room-rectangle selection contract: shift/ctrl toggles, a
+    // plain click selects this shape unless it's already part of a multi.
+    const multi = e.shiftKey || e.metaKey || e.ctrlKey
+    const stateBefore = useRoomMapStore.getState()
+    if (multi) {
+      toggleShapeSelected(shape.id)
+    } else if (!stateBefore.selectedShapeIds.includes(shape.id)) {
+      setShapeSelected(shape.id)
+    }
+    const state = useRoomMapStore.getState()
+    const others = state.selectedShapeIds
+      .filter((id) => id !== shape.id)
+      .map((id) => state.shapes.find((s) => s.id === id))
+      .filter((s): s is DraftShape => !!s)
+      .map((s) => ({ id: s.id, x: s.x, y: s.y }))
+    dragRef.current = {
+      pointerId: e.pointerId,
+      startMx: e.clientX,
+      startMy: e.clientY,
+      basis: { x: shape.x, y: shape.y },
+      others,
+      pushed: false,
+      moved: false,
+    }
+    try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId) } catch { /* ignore */ }
   }
 
-  const handleDoubleClick = (e: MouseEvent) => {
-    if (!editable || shape.kind === 'line' || shape.kind === 'circle' && shape.text === undefined) return
+  const handlePointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const s = dragRef.current
+    if (!s || e.pointerId !== s.pointerId) return
+    let dx = (e.clientX - s.startMx) / zoom
+    let dy = (e.clientY - s.startMy) / zoom
+    if (!s.moved) {
+      if (Math.abs(dx) < 2 && Math.abs(dy) < 2) return
+      s.moved = true
+    }
+    if (e.shiftKey) {
+      if (Math.abs(dx) >= Math.abs(dy)) dy = 0
+      else dx = 0
+    }
+    if (!s.pushed) {
+      pushHistorySnapshot()
+      s.pushed = true
+    }
+    setShapeGeoms([
+      { id: shape.id, x: s.basis.x + dx, y: s.basis.y + dy },
+      ...s.others.map((o) => ({ id: o.id, x: o.x + dx, y: o.y + dy })),
+    ])
+  }
+
+  const handlePointerUp = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const s = dragRef.current
+    if (!s || e.pointerId !== s.pointerId) return
+    try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId) } catch { /* ignore */ }
+    dragRef.current = null
+  }
+
+  const handleDoubleClick = (e: React.MouseEvent) => {
+    if (!editable || shape.kind === 'line') return
     e.stopPropagation()
     setShapeSelected(shape.id)
     setEditingText(true)
@@ -76,7 +142,7 @@ function ShapeElementInner({ shape, selected, editable, zoom }: Props) {
     )
   }
 
-  // ── Rectangle / circle / text: Rnd-driven rectangle with style overrides
+  // ── Rectangle / circle / text ──────────────────────────────────────────
   const baseStyle: React.CSSProperties = {
     color: shape.color || '#1f2937',
     backgroundColor: shape.fill || 'transparent',
@@ -91,82 +157,72 @@ function ShapeElementInner({ shape, selected, editable, zoom }: Props) {
   const isText = shape.kind === 'text'
 
   return (
-    <Rnd
-      bounds="parent"
-      size={{ width: Math.abs(shape.width), height: Math.abs(shape.height) }}
-      position={{ x: shape.x, y: shape.y }}
-      scale={zoom}
-      enableResizing={editable && !editingText}
-      disableDragging={!editable || editingText}
-      onDragStart={() => {
-        movedRef.current = false
-        dragOriginRef.current = { x: shape.x, y: shape.y }
-      }}
-      onDrag={(_, d) => {
-        if (Math.abs(d.x - shape.x) > 1 || Math.abs(d.y - shape.y) > 1) movedRef.current = true
-      }}
-      onDragStop={(_, d) => {
-        if (!movedRef.current) {
-          dragOriginRef.current = null
-          return
-        }
-        // Shift-drag locks motion to the dominant axis (whichever total delta
-        // is larger) — matches the design-tool muscle memory.
-        const o = dragOriginRef.current
-        let nx = d.x
-        let ny = d.y
-        if (shiftRef.current && o) {
-          if (Math.abs(d.x - o.x) >= Math.abs(d.y - o.y)) ny = o.y
-          else nx = o.x
-        }
-        dragOriginRef.current = null
-        updateShape(shape.id, { x: nx, y: ny })
-      }}
-      onResizeStop={(_, __, ref, ___, position) => {
-        updateShape(shape.id, {
-          width: parseFloat(ref.style.width),
-          height: parseFloat(ref.style.height),
-          x: position.x,
-          y: position.y,
-        })
-      }}
-      style={{ zIndex: shape.zIndex + (selected ? 1000 : 0), touchAction: 'none' }}
-      className={cn(
-        'transition-shadow',
-        selected && 'ring-2 ring-primary ring-offset-2 ring-offset-background',
-        editable && !editingText ? 'cursor-move' : editingText ? 'cursor-text' : 'cursor-pointer',
-      )}
-    >
-      <div
-        onClick={handleClick}
-        onDoubleClick={handleDoubleClick}
+    <>
+      <Rnd
+        bounds="parent"
+        size={{ width: Math.abs(shape.width), height: Math.abs(shape.height) }}
+        position={{ x: shape.x, y: shape.y }}
+        scale={zoom}
+        disableDragging
+        enableResizing={editable && !editingText}
+        onResizeStop={(_, __, ref, ___, position) => {
+          updateShape(shape.id, {
+            width: parseFloat(ref.style.width),
+            height: parseFloat(ref.style.height),
+            x: position.x,
+            y: position.y,
+          })
+        }}
+        style={{ zIndex: shape.zIndex + (selected ? 1000 : 0), touchAction: 'none' }}
         className={cn(
-          'w-full h-full flex items-center justify-center px-2 leading-tight break-words select-none overflow-hidden',
-          isRect && 'border-2 border-current rounded-md',
-          isCircle && 'border-2 border-current rounded-full',
-          isText && 'border border-dashed border-transparent hover:border-muted-foreground/30',
+          'transition-shadow',
+          selected && 'ring-2 ring-primary ring-offset-2 ring-offset-background',
+          editable && !editingText ? 'cursor-move' : editingText ? 'cursor-text' : 'cursor-pointer',
         )}
-        style={baseStyle}
       >
-        {editingText ? (
-          <div
-            ref={editingRef}
-            contentEditable
-            suppressContentEditableWarning
-            onBlur={finishEdit}
-            onKeyDown={(e) => {
-              if (e.key === 'Escape') { e.preventDefault(); finishEdit() }
-            }}
-            className="w-full h-full outline-none flex items-center justify-center text-center break-words whitespace-pre-wrap"
-            style={{ textAlign: shape.textAlign as React.CSSProperties['textAlign'] }}
-          />
-        ) : (
-          <span className="block w-full text-center whitespace-pre-wrap break-words">
-            {shape.text || (isText ? '' : '')}
-          </span>
-        )}
-      </div>
-    </Rnd>
+        <div
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={handlePointerUp}
+          onDoubleClick={handleDoubleClick}
+          className={cn(
+            'w-full h-full flex items-center justify-center px-2 leading-tight break-words select-none overflow-hidden',
+            isRect && 'border-2 border-current rounded-md',
+            isCircle && 'border-2 border-current rounded-full',
+            isText && 'border border-dashed border-transparent hover:border-muted-foreground/30',
+          )}
+          style={{ ...baseStyle, touchAction: 'none' }}
+        >
+          {editingText ? (
+            <div
+              ref={editingRef}
+              contentEditable
+              suppressContentEditableWarning
+              onBlur={finishEdit}
+              onPointerDown={(e) => e.stopPropagation()}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') { e.preventDefault(); finishEdit() }
+              }}
+              className="w-full h-full outline-none flex items-center justify-center text-center break-words whitespace-pre-wrap"
+              style={{ textAlign: shape.textAlign as React.CSSProperties['textAlign'] }}
+            />
+          ) : (
+            <span className="block w-full text-center whitespace-pre-wrap break-words pointer-events-none">
+              {shape.text || (isText ? '' : '')}
+            </span>
+          )}
+        </div>
+      </Rnd>
+      {selected && editable && (
+        <RotationHandle
+          x={shape.x} y={shape.y} width={Math.abs(shape.width)} height={Math.abs(shape.height)}
+          rotation={shape.rotation} zoom={zoom}
+          onStart={() => pushHistorySnapshot()}
+          onChange={(deg) => setShapeGeoms([{ id: shape.id, rotation: deg }])}
+        />
+      )}
+    </>
   )
 }
 
@@ -193,8 +249,6 @@ function LineShape({ shape, selected, editable, zoom, onSelect }: LineProps) {
   const x2 = shape.x + shape.width
   const y2 = shape.y + shape.height
 
-  // SVG covers the full bounding box of the line + a little padding for the
-  // endpoint handles. We position it at the top-left of that bounding box.
   const pad = 8
   const left = Math.min(x1, x2) - pad
   const top = Math.min(y1, y2) - pad
@@ -226,9 +280,6 @@ function LineShape({ shape, selected, editable, zoom, onSelect }: LineProps) {
     if (!d) return
     let dx = (e.clientX - d.startX) / zoom
     let dy = (e.clientY - d.startY) / zoom
-    // Shift locks endpoint motion to the dominant axis (or to 45° increments
-    // when both axes carry roughly equal travel). For 'whole' it locks the
-    // translation; for endpoint drags it locks the new edge angle.
     if (shiftRef.current || e.shiftKey) {
       if (Math.abs(dx) >= Math.abs(dy)) dy = 0
       else dx = 0
@@ -270,7 +321,6 @@ function LineShape({ shape, selected, editable, zoom, onSelect }: LineProps) {
         onPointerCancel={onPointerUp}
         style={{ overflow: 'visible' }}
       >
-        {/* Hit-target — invisible but wide so the line is easy to grab. */}
         <line
           x1={sx1} y1={sy1} x2={sx2} y2={sy2}
           stroke="transparent"
@@ -278,7 +328,6 @@ function LineShape({ shape, selected, editable, zoom, onSelect }: LineProps) {
           style={{ cursor: editable ? 'move' : 'pointer' }}
           onPointerDown={onPointerDown('whole')}
         />
-        {/* Visible stroke */}
         <line
           x1={sx1} y1={sy1} x2={sx2} y2={sy2}
           stroke={shape.color || '#1f2937'}

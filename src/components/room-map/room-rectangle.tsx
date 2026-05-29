@@ -1,11 +1,11 @@
 'use client'
 
-import { memo, useRef, type MouseEvent } from 'react'
+import { memo, useRef, type PointerEvent as ReactPointerEvent } from 'react'
 import { Rnd } from 'react-rnd'
 import { cn } from '@/lib/utils'
 import { useRoomMapStore, type DraftBlock } from '@/store/use-room-map-store'
 import type { RoomMapRoom } from '@/lib/room-map-service'
-import { useShiftKeyRef } from '@/hooks/use-shift-key'
+import { RotationHandle } from './rotation-handle'
 
 interface Props {
   block: DraftBlock
@@ -24,19 +24,25 @@ function statusClasses(room: RoomMapRoom | undefined): string {
   return 'bg-green-500/15 border-green-500 text-green-900 dark:text-green-100'
 }
 
-// Initial geometry of every selected block plus the basis, captured on
-// drag/resize start. `snapshotted` flips to true on the first real move so
-// the undo stack only gets an entry when something actually changed.
-type GroupSnapshot = {
+// Snapshot taken at the start of a group drag. `pushed` flips to true the
+// first time the user crosses the move threshold so undo collapses the
+// whole gesture into one entry.
+type DragSnapshot = {
+  pointerId: number
+  startMx: number
+  startMy: number
+  basis: { x: number; y: number }
+  others: Array<{ id: string; x: number; y: number }>
+  pushed: boolean
+  moved: boolean
+}
+
+type GroupResizeSnapshot = {
   basis: { x: number; y: number; w: number; h: number }
   others: Array<{ id: string; x: number; y: number; w: number; h: number }>
   snapshotted: boolean
 }
 
-// Roughly 5 screen pixels in canvas units. react-rnd reports a pure tap as
-// onDragStart + onDragStop with no onDrag in between, but on touch a finger
-// can still drift several pixels during a tap. We refuse to commit anything
-// until the user's pointer crosses this threshold.
 function dragThreshold(zoom: number): number {
   return 5 / Math.max(zoom, 0.1)
 }
@@ -45,23 +51,92 @@ function RoomRectangleInner({ block, room, selected, editable, zoom, onSelect }:
   const updateBlock = useRoomMapStore((s) => s.updateBlock)
   const setBlockGeoms = useRoomMapStore((s) => s.setBlockGeoms)
   const pushHistorySnapshot = useRoomMapStore((s) => s.pushHistorySnapshot)
-  const shiftRef = useShiftKeyRef()
+  const setSelected = useRoomMapStore((s) => s.setSelected)
+  const toggleSelected = useRoomMapStore((s) => s.toggleSelected)
 
-  const dragGroupRef = useRef<GroupSnapshot | null>(null)
-  const resizeGroupRef = useRef<GroupSnapshot | null>(null)
-  const dragOriginRef = useRef<{ x: number; y: number } | null>(null)
-  // Flips to true the first time the user's drag/resize moves the pointer
-  // past the threshold. handleDragStop / handleResizeStop bail when false,
-  // so a tap never writes back to the store.
-  const dragMovedRef = useRef(false)
+  const dragRef = useRef<DragSnapshot | null>(null)
+  const resizeGroupRef = useRef<GroupResizeSnapshot | null>(null)
   const resizeMovedRef = useRef(false)
 
   const label = room?.roomNumber ?? '?'
   const tenantName = room?.tenant?.fullName ?? ''
 
-  // Snapshot every selected block (basis + others) for a group gesture.
-  // Returns null when this block isn't part of a multi-selection.
-  const snapshotGroup = (): GroupSnapshot | null => {
+  // ── Custom drag (bypasses Rnd's react-draggable so shift can live-lock the
+  // axis without the visual fighting back) ──────────────────────────────────
+
+  const handlePointerDown = (e: ReactPointerEvent<HTMLButtonElement>) => {
+    if (!editable) {
+      // Read-only viewers should still be able to click-through to whatever
+      // detail page the room links to; nothing else to do here.
+      return
+    }
+    if (e.pointerType === 'mouse' && e.button !== 0) return
+
+    const multi = e.shiftKey || e.metaKey || e.ctrlKey
+    // Selection rules: shift/ctrl click toggles, plain click selects unless
+    // already in a multi-selection (then it preserves it for group drag).
+    const stateBefore = useRoomMapStore.getState()
+    if (multi) {
+      toggleSelected(block.id)
+    } else if (!stateBefore.selectedIds.includes(block.id)) {
+      setSelected(block.id)
+    }
+
+    const state = useRoomMapStore.getState()
+    const others = state.selectedIds
+      .filter((id) => id !== block.id)
+      .map((id) => state.blocks.find((b) => b.id === id))
+      .filter((b): b is DraftBlock => !!b)
+      .map((b) => ({ id: b.id, x: b.x, y: b.y }))
+
+    dragRef.current = {
+      pointerId: e.pointerId,
+      startMx: e.clientX,
+      startMy: e.clientY,
+      basis: { x: block.x, y: block.y },
+      others,
+      pushed: false,
+      moved: false,
+    }
+    try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId) } catch { /* ignore */ }
+  }
+
+  const handlePointerMove = (e: ReactPointerEvent<HTMLButtonElement>) => {
+    const s = dragRef.current
+    if (!s || e.pointerId !== s.pointerId) return
+    let dx = (e.clientX - s.startMx) / zoom
+    let dy = (e.clientY - s.startMy) / zoom
+    if (!s.moved) {
+      const eps = dragThreshold(zoom)
+      if (Math.abs(dx) < eps && Math.abs(dy) < eps) return
+      s.moved = true
+    }
+    // Live shift-axis lock: dominant-direction wins so the user gets the
+    // same axis throughout the gesture.
+    if (e.shiftKey) {
+      if (Math.abs(dx) >= Math.abs(dy)) dy = 0
+      else dx = 0
+    }
+    if (!s.pushed) {
+      pushHistorySnapshot()
+      s.pushed = true
+    }
+    setBlockGeoms([
+      { id: block.id, x: s.basis.x + dx, y: s.basis.y + dy },
+      ...s.others.map((o) => ({ id: o.id, x: o.x + dx, y: o.y + dy })),
+    ])
+  }
+
+  const handlePointerUp = (e: ReactPointerEvent<HTMLButtonElement>) => {
+    const s = dragRef.current
+    if (!s || e.pointerId !== s.pointerId) return
+    try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId) } catch { /* ignore */ }
+    dragRef.current = null
+  }
+
+  // ── Resize (still uses Rnd's handles) ─────────────────────────────────────
+
+  const snapshotResizeGroup = (): GroupResizeSnapshot | null => {
     const state = useRoomMapStore.getState()
     if (!state.selectedIds.includes(block.id) || state.selectedIds.length < 2) return null
     const others = state.selectedIds
@@ -76,95 +151,8 @@ function RoomRectangleInner({ block, room, selected, editable, zoom, onSelect }:
     }
   }
 
-  const handleClick = (e: MouseEvent) => {
-    const multi = e.shiftKey || e.metaKey || e.ctrlKey
-    if (multi) {
-      onSelect(true)
-      return
-    }
-    // Plain click on a block already in a multi-selection keeps the selection
-    // intact — only Escape or clicking outside clears it.
-    const state = useRoomMapStore.getState()
-    if (state.selectedIds.length > 1 && state.selectedIds.includes(block.id)) return
-    onSelect(false)
-  }
-
-  const handleDragStart = () => {
-    dragMovedRef.current = false
-    dragOriginRef.current = { x: block.x, y: block.y }
-    const g = snapshotGroup()
-    if (g) {
-      dragGroupRef.current = g
-    } else {
-      dragGroupRef.current = null
-      onSelect(false)
-    }
-  }
-
-  // Lock movement to the dominant axis when Shift is held.
-  const lockAxis = (nextX: number, nextY: number): { x: number; y: number } => {
-    const o = dragOriginRef.current
-    if (!shiftRef.current || !o) return { x: nextX, y: nextY }
-    return Math.abs(nextX - o.x) >= Math.abs(nextY - o.y)
-      ? { x: nextX, y: o.y }
-      : { x: o.x, y: nextY }
-  }
-
-  const handleDrag = (_: unknown, d: { x: number; y: number }) => {
-    // Until the pointer crosses the threshold, treat the gesture as a tap
-    // and don't write anything to the store. Without this, a multi-selection
-    // would nudge every OTHER block on a stationary tap.
-    if (!dragMovedRef.current) {
-      const eps = dragThreshold(zoom)
-      if (Math.abs(d.x - block.x) <= eps && Math.abs(d.y - block.y) <= eps) return
-      dragMovedRef.current = true
-    }
-    const g = dragGroupRef.current
-    if (!g) return
-    if (!g.snapshotted) {
-      pushHistorySnapshot()
-      g.snapshotted = true
-    }
-    const locked = lockAxis(d.x, d.y)
-    const dx = locked.x - g.basis.x
-    const dy = locked.y - g.basis.y
-    setBlockGeoms(g.others.map((o) => ({ id: o.id, x: o.x + dx, y: o.y + dy })))
-  }
-
-  const handleDragStop = (_: unknown, d: { x: number; y: number }) => {
-    const g = dragGroupRef.current
-    if (!dragMovedRef.current) {
-      // Pure tap — nothing to commit. Clear refs and bail.
-      dragGroupRef.current = null
-      dragOriginRef.current = null
-      return
-    }
-    const locked = lockAxis(d.x, d.y)
-    if (g) {
-      if (!g.snapshotted) pushHistorySnapshot()
-      const dx = locked.x - g.basis.x
-      const dy = locked.y - g.basis.y
-      setBlockGeoms([
-        { id: block.id, x: locked.x, y: locked.y },
-        ...g.others.map((o) => ({ id: o.id, x: o.x + dx, y: o.y + dy })),
-      ])
-      dragGroupRef.current = null
-    } else {
-      updateBlock(block.id, { x: locked.x, y: locked.y })
-    }
-    dragOriginRef.current = null
-  }
-
-  const handleResizeStart = () => {
-    resizeMovedRef.current = false
-    resizeGroupRef.current = snapshotGroup()
-  }
-
-  // Compute the resize anchor by comparing the new top-left to the initial
-  // top-left of the basis. If x stayed put, the left edge is the anchor;
-  // if x moved, the right edge stayed put and is the anchor (same for y).
   const computeGroupResize = (
-    g: GroupSnapshot,
+    g: GroupResizeSnapshot,
     newW: number,
     newH: number,
     position: { x: number; y: number },
@@ -180,6 +168,11 @@ function RoomRectangleInner({ block, room, selected, editable, zoom, onSelect }:
       width: o.w * sx,
       height: o.h * sy,
     }))
+  }
+
+  const handleResizeStart = () => {
+    resizeMovedRef.current = false
+    resizeGroupRef.current = snapshotResizeGroup()
   }
 
   const handleResize = (
@@ -237,41 +230,58 @@ function RoomRectangleInner({ block, room, selected, editable, zoom, onSelect }:
   }
 
   return (
-    <Rnd
-      bounds="parent"
-      size={{ width: block.width, height: block.height }}
-      position={{ x: block.x, y: block.y }}
-      scale={zoom}
-      enableResizing={editable}
-      disableDragging={!editable}
-      onDragStart={handleDragStart}
-      onDrag={handleDrag}
-      onDragStop={handleDragStop}
-      onResizeStart={handleResizeStart}
-      onResize={handleResize}
-      onResizeStop={handleResizeStop}
-      style={{ zIndex: block.zIndex + (selected ? 1000 : 0), touchAction: 'none' }}
-      className={cn(
-        'rounded-md border-2 shadow-sm transition-shadow',
-        statusClasses(room),
-        selected && 'ring-2 ring-primary ring-offset-2 ring-offset-background shadow-lg',
-        editable ? 'cursor-move' : 'cursor-pointer',
-      )}
-    >
-      <button
-        type="button"
-        onClick={handleClick}
-        className="w-full h-full flex flex-col items-center justify-center text-center px-1 leading-tight select-none overflow-hidden"
-        style={{ transform: block.rotation ? `rotate(${block.rotation}deg)` : undefined }}
-      >
-        <span className="font-bold text-sm sm:text-base tabular-nums">{label}</span>
-        {tenantName && (
-          <span className="text-[10px] sm:text-xs opacity-80 px-1 leading-tight break-words whitespace-normal max-w-full">
-            {tenantName}
-          </span>
+    <>
+      <Rnd
+        bounds="parent"
+        size={{ width: block.width, height: block.height }}
+        position={{ x: block.x, y: block.y }}
+        scale={zoom}
+        // Rnd's drag is fully delegated to pointer handlers below — keeps the
+        // shift-axis lock live during the gesture instead of snap-on-release.
+        disableDragging
+        enableResizing={editable}
+        onResizeStart={handleResizeStart}
+        onResize={handleResize}
+        onResizeStop={handleResizeStop}
+        style={{ zIndex: block.zIndex + (selected ? 1000 : 0), touchAction: 'none' }}
+        className={cn(
+          'rounded-md border-2 shadow-sm transition-shadow',
+          statusClasses(room),
+          selected && 'ring-2 ring-primary ring-offset-2 ring-offset-background shadow-lg',
+          editable ? 'cursor-move' : 'cursor-pointer',
         )}
-      </button>
-    </Rnd>
+      >
+        <button
+          type="button"
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={handlePointerUp}
+          // Click is no-op — selection already happened in pointerDown.
+          onClick={(e) => e.stopPropagation()}
+          className="w-full h-full flex flex-col items-center justify-center text-center px-1 leading-tight select-none overflow-hidden"
+          style={{
+            transform: block.rotation ? `rotate(${block.rotation}deg)` : undefined,
+            touchAction: 'none',
+          }}
+        >
+          <span className="font-bold text-sm sm:text-base tabular-nums pointer-events-none">{label}</span>
+          {tenantName && (
+            <span className="text-[10px] sm:text-xs opacity-80 px-1 leading-tight break-words whitespace-normal max-w-full pointer-events-none">
+              {tenantName}
+            </span>
+          )}
+        </button>
+      </Rnd>
+      {selected && editable && (
+        <RotationHandle
+          x={block.x} y={block.y} width={block.width} height={block.height}
+          rotation={block.rotation} zoom={zoom}
+          onStart={() => pushHistorySnapshot()}
+          onChange={(deg) => setBlockGeoms([{ id: block.id, rotation: deg }])}
+        />
+      )}
+    </>
   )
 }
 

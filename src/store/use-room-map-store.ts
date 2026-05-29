@@ -59,7 +59,7 @@ type Actions = {
   // pushHistorySnapshot once at the start of the gesture so undo collapses
   // the whole gesture into one entry.
   setBlockGeoms: (
-    updates: Array<{ id: string; x?: number; y?: number; width?: number; height?: number }>,
+    updates: Array<{ id: string; x?: number; y?: number; width?: number; height?: number; rotation?: number }>,
   ) => void
   pushHistorySnapshot: () => void
   replaceAll: (blocks: DraftBlock[]) => void
@@ -68,7 +68,12 @@ type Actions = {
   removeShape: (id: string) => void
   duplicateShape: (id: string) => void
   updateShape: (id: string, patch: Partial<DraftShape>) => void
+  setShapeGeoms: (
+    updates: Array<{ id: string; x?: number; y?: number; width?: number; height?: number; rotation?: number }>,
+  ) => void
   setShapeSelected: (id: string | null) => void
+  toggleShapeSelected: (id: string) => void
+  selectManyShapes: (ids: string[]) => void
   undo: () => void
   redo: () => void
   setZoom: (z: number) => void
@@ -362,6 +367,7 @@ export const useRoomMapStore = create<State & Actions>((set, get) => ({
         ...(u.y !== undefined ? { y: snap(u.y) } : {}),
         ...(u.width !== undefined ? { width: Math.max(20, snap(u.width)) } : {}),
         ...(u.height !== undefined ? { height: Math.max(20, snap(u.height)) } : {}),
+        ...(u.rotation !== undefined ? { rotation: u.rotation } : {}),
       }
     })
     set({ blocks: nextBlocks, dirty: true })
@@ -463,8 +469,41 @@ export const useRoomMapStore = create<State & Actions>((set, get) => ({
     })
   },
 
+  // Batch geometry update — no history push. Mirrors setBlockGeoms so a
+  // drag / rotate gesture collapses into a single undo entry via the
+  // pushHistorySnapshot the caller takes at gesture start.
+  setShapeGeoms: (updates) => {
+    const { shapes } = get()
+    const map = new Map(updates.map((u) => [u.id, u]))
+    const nextShapes = shapes.map((s) => {
+      const u = map.get(s.id)
+      if (!u) return s
+      return {
+        ...s,
+        ...(u.x !== undefined ? { x: u.x } : {}),
+        ...(u.y !== undefined ? { y: u.y } : {}),
+        ...(u.width !== undefined ? { width: u.width } : {}),
+        ...(u.height !== undefined ? { height: u.height } : {}),
+        ...(u.rotation !== undefined ? { rotation: u.rotation } : {}),
+      }
+    })
+    set({ shapes: nextShapes, dirty: true })
+  },
+
   setShapeSelected: (id) =>
     set({ selectedShapeIds: id ? [id] : [], selectedIds: [] }),
+
+  toggleShapeSelected: (id) => {
+    const { selectedShapeIds } = get()
+    set({
+      selectedShapeIds: selectedShapeIds.includes(id)
+        ? selectedShapeIds.filter((x) => x !== id)
+        : [...selectedShapeIds, id],
+      selectedIds: [],
+    })
+  },
+
+  selectManyShapes: (ids) => set({ selectedShapeIds: [...ids], selectedIds: [] }),
 
   undo: () => {
     const { past, future, blocks, shapes } = get()
