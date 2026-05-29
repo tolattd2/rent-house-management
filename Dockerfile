@@ -20,6 +20,9 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
+# `public/` holds only untracked assets, so it may be absent on a clean checkout —
+# ensure it exists so the runner stage's COPY of it always succeeds.
+RUN mkdir -p public
 # `npm run build` runs `prisma generate && next build`
 RUN npm run build
 
