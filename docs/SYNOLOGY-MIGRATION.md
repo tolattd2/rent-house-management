@@ -145,21 +145,42 @@ The cron API routes already require `CRON_SECRET`. Create two scheduled tasks:
 
 ## Phase 6 — Build, deploy, cut over
 
-### 6.1 Build the image (on your PC)
+### 6.1 Build the image (GitHub Actions → GHCR)
+
+The image is built in CI by `.github/workflows/build-image.yml` and pushed to
+**GitHub Container Registry**. Just push the branch (or run the workflow manually
+from the Actions tab):
 
 ```powershell
-.\scripts\build-image.ps1      # builds linux/amd64 and writes happyhome-app.tar
+git push -u origin migrate/synology
 ```
 
-### 6.2 Load + run on the NAS
+Watch **GitHub → Actions → "Build NAS image"**. It produces:
+`ghcr.io/tolattd2/rent-house-management:migrate-synology` (and `:latest` from `main`).
+
+> **Make the package pullable by the NAS.** By default a new GHCR package is private.
+> Either: (a) GitHub → your profile → Packages → this package → Package settings →
+> change visibility to **Public** (simplest), or (b) keep it private and create a
+> **classic Personal Access Token** with `read:packages` for the NAS to log in with.
+
+> _Fallback (no CI):_ if you ever fix local Docker, `.\scripts\build-image.ps1`
+> builds the same image to a tarball for `docker load`.
+
+### 6.2 Pull + run on the NAS
 
 ```bash
-docker load -i happyhome-app.tar
+# Only if the GHCR package is private:
+echo "YOUR_PAT_WITH_read:packages" | docker login ghcr.io -u tolattd2 --password-stdin
+
 cp .env.production.example .env.production   # then edit with real secrets
+docker compose --env-file .env.production pull
 docker compose --env-file .env.production up -d
 docker compose ps                            # all services healthy?
 docker compose logs -f app                   # watch first boot
 ```
+
+To deploy a new version later: push to the branch → wait for the Action → on the NAS
+`docker compose pull && docker compose up -d`.
 
 ### 6.3 Re-register the Telegram webhook
 

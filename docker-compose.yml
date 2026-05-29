@@ -65,7 +65,10 @@ services:
     restart: "no"
 
   app:
-    image: happyhome-app:latest
+    # Pulled from GitHub Container Registry (built by .github/workflows/build-image.yml).
+    # Override via APP_IMAGE in .env.production, e.g.
+    #   APP_IMAGE=ghcr.io/tolattd2/rent-house-management:migrate-synology
+    image: ${APP_IMAGE:-ghcr.io/tolattd2/rent-house-management:latest}
     restart: unless-stopped
     depends_on:
       postgres:
