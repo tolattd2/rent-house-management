@@ -736,8 +736,8 @@ export function ReportsClient({ billings, expenses, rooms }: Props) {
         </tbody>
       </table>
 
-      {/* Payments journal — grouped by tenant, kept last */}
-      {paymentsJournalSection}
+      {/* Payments Received Journal is intentionally omitted from the overall
+          export — it has its own dedicated Export PDF button. */}
     </>
   )
 
@@ -1001,57 +1001,6 @@ export function ReportsClient({ billings, expenses, rooms }: Props) {
         </CardContent>
       </Card>
 
-      {/* Payments Received Journal */}
-      <Card>
-        <CardHeader>
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <CardTitle className="text-base">{t('reports_payments_journal')} <span className="text-sm font-normal text-muted-foreground">— {formatCurrency(paymentsJournalTotal)}</span></CardTitle>
-            {canExport && paymentsJournal.length > 0 && (
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={exportPaymentsCSV}>
-                  <Download className="w-3.5 h-3.5 sm:mr-1.5" /><span className="hidden sm:inline">{t('billing_export')}</span>
-                </Button>
-                <Button variant="outline" size="sm" onClick={handleExportPaymentsPDF} disabled={exportingPdf}>
-                  <FileText className="w-3.5 h-3.5 sm:mr-1.5" /><span className="hidden sm:inline">{t('reports_export_pdf')}</span>
-                </Button>
-              </div>
-            )}
-          </div>
-        </CardHeader>
-        <TableScroll>
-          <table className="w-full min-w-[860px] text-sm">
-            <thead>
-              <tr className="border-b border-border bg-muted/30">
-                <SortableTh align="left" k="date" label={t('expenses_col_date')} active={paySort.key} dir={paySort.dir} onSort={togglePaySort} />
-                <SortableTh align="left" k="tenant" label={t('tenant')} active={paySort.key} dir={paySort.dir} onSort={togglePaySort} />
-                <SortableTh align="left" k="room" label={t('room')} active={paySort.key} dir={paySort.dir} onSort={togglePaySort} />
-                <SortableTh align="left" k="month" label={t('billing_col_month')} active={paySort.key} dir={paySort.dir} onSort={togglePaySort} />
-                <SortableTh align="left" k="method" label={t('payment_method')} active={paySort.key} dir={paySort.dir} onSort={togglePaySort} />
-                <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">{t('payment_ref')}</th>
-                <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">{t('received_by')}</th>
-                <SortableTh align="right" k="amount" label={t('reports_total_usd')} active={paySort.key} dir={paySort.dir} onSort={togglePaySort} />
-              </tr>
-            </thead>
-            <tbody>
-              {sortedPaymentsJournal.length === 0 ? (
-                <tr><td colSpan={8} className="text-center text-sm text-muted-foreground py-6">—</td></tr>
-              ) : sortedPaymentsJournal.map((p, i) => (
-                <tr key={p.id} className={`border-b border-border last:border-0 hover:bg-muted/30 ${i % 2 ? 'bg-muted/10' : ''}`}>
-                  <td className="px-4 py-2 font-mono text-xs text-muted-foreground">{p.date.toISOString().slice(0, 10)}</td>
-                  <td className="px-4 py-2">{p.tenant}</td>
-                  <td className="px-4 py-2">{p.room} <span className="text-xs text-muted-foreground">· {p.branch}</span></td>
-                  <td className="px-4 py-2 font-mono text-xs">{p.billingMonth}</td>
-                  <td className="px-4 py-2 text-xs"><Badge variant="secondary">{p.method}</Badge></td>
-                  <td className="px-4 py-2 font-mono text-xs text-muted-foreground">{p.ref || '—'}</td>
-                  <td className="px-4 py-2 text-muted-foreground">{p.receivedBy || '—'}</td>
-                  <td className="px-4 py-2 text-right tabular-nums font-semibold text-emerald-600">{formatCurrency(p.amountUsd)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </TableScroll>
-      </Card>
-
       {/* Expense Register */}
       <Card>
         <CardHeader>
@@ -1191,6 +1140,57 @@ export function ReportsClient({ billings, expenses, rooms }: Props) {
                     </tr>
                   ))}
                 </Fragment>
+              ))}
+            </tbody>
+          </table>
+        </TableScroll>
+      </Card>
+
+      {/* Payments Received Journal — last on the page */}
+      <Card>
+        <CardHeader>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <CardTitle className="text-base">{t('reports_payments_journal')} <span className="text-sm font-normal text-muted-foreground">— {formatCurrency(paymentsJournalTotal)}</span></CardTitle>
+            {canExport && paymentsJournal.length > 0 && (
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={exportPaymentsCSV}>
+                  <Download className="w-3.5 h-3.5 sm:mr-1.5" /><span className="hidden sm:inline">{t('billing_export')}</span>
+                </Button>
+                <Button variant="outline" size="sm" onClick={handleExportPaymentsPDF} disabled={exportingPdf}>
+                  <FileText className="w-3.5 h-3.5 sm:mr-1.5" /><span className="hidden sm:inline">{t('reports_export_pdf')}</span>
+                </Button>
+              </div>
+            )}
+          </div>
+        </CardHeader>
+        <TableScroll>
+          <table className="w-full min-w-[860px] text-sm">
+            <thead>
+              <tr className="border-b border-border bg-muted/30">
+                <SortableTh align="left" k="date" label={t('expenses_col_date')} active={paySort.key} dir={paySort.dir} onSort={togglePaySort} />
+                <SortableTh align="left" k="tenant" label={t('tenant')} active={paySort.key} dir={paySort.dir} onSort={togglePaySort} />
+                <SortableTh align="left" k="room" label={t('room')} active={paySort.key} dir={paySort.dir} onSort={togglePaySort} />
+                <SortableTh align="left" k="month" label={t('billing_col_month')} active={paySort.key} dir={paySort.dir} onSort={togglePaySort} />
+                <SortableTh align="left" k="method" label={t('payment_method')} active={paySort.key} dir={paySort.dir} onSort={togglePaySort} />
+                <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">{t('payment_ref')}</th>
+                <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">{t('received_by')}</th>
+                <SortableTh align="right" k="amount" label={t('reports_total_usd')} active={paySort.key} dir={paySort.dir} onSort={togglePaySort} />
+              </tr>
+            </thead>
+            <tbody>
+              {sortedPaymentsJournal.length === 0 ? (
+                <tr><td colSpan={8} className="text-center text-sm text-muted-foreground py-6">—</td></tr>
+              ) : sortedPaymentsJournal.map((p, i) => (
+                <tr key={p.id} className={`border-b border-border last:border-0 hover:bg-muted/30 ${i % 2 ? 'bg-muted/10' : ''}`}>
+                  <td className="px-4 py-2 font-mono text-xs text-muted-foreground">{p.date.toISOString().slice(0, 10)}</td>
+                  <td className="px-4 py-2">{p.tenant}</td>
+                  <td className="px-4 py-2">{p.room} <span className="text-xs text-muted-foreground">· {p.branch}</span></td>
+                  <td className="px-4 py-2 font-mono text-xs">{p.billingMonth}</td>
+                  <td className="px-4 py-2 text-xs"><Badge variant="secondary">{p.method}</Badge></td>
+                  <td className="px-4 py-2 font-mono text-xs text-muted-foreground">{p.ref || '—'}</td>
+                  <td className="px-4 py-2 text-muted-foreground">{p.receivedBy || '—'}</td>
+                  <td className="px-4 py-2 text-right tabular-nums font-semibold text-emerald-600">{formatCurrency(p.amountUsd)}</td>
+                </tr>
               ))}
             </tbody>
           </table>
