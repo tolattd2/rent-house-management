@@ -67,7 +67,12 @@ export function RoomCanvas({ editable }: Props) {
       const roomIds = state.selectedIds
       const shapeIds = state.selectedShapeIds
       if (roomIds.length === 0 && shapeIds.length === 0) return
-      const step = e.shiftKey ? 10 : 1
+      // When snap is on, room moves are quantised to the grid cell — a 1 px
+      // arrow nudge gets rounded right back to the same cell and looks like
+      // nothing happened. Step up to a whole cell (or several with Shift) so
+      // the move is always visible.
+      const baseStep = e.shiftKey ? 10 : 1
+      const step = state.snapToGrid ? state.gridSize * (e.shiftKey ? 5 : 1) : baseStep
       if (e.key === 'Delete' || e.key === 'Backspace') {
         e.preventDefault()
         removeSelected()

@@ -174,12 +174,10 @@ function ShapeElementInner({ shape, selected, editable, zoom }: Props) {
           })
         }}
         style={{ zIndex: shape.zIndex + (selected ? 1000 : 0), touchAction: 'none' }}
-        className={cn(
-          'transition-shadow',
-          selected && 'ring-2 ring-primary ring-offset-2 ring-offset-background',
-          editable && !editingText ? 'cursor-move' : editingText ? 'cursor-text' : 'cursor-pointer',
-        )}
       >
+        {/* Inner wrapper carries the visual, selection ring, AND rotation —
+            same DOM pattern as the room block so resize + selection treatment
+            look identical between rooms and shapes. */}
         <div
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
@@ -187,10 +185,12 @@ function ShapeElementInner({ shape, selected, editable, zoom }: Props) {
           onPointerCancel={handlePointerUp}
           onDoubleClick={handleDoubleClick}
           className={cn(
-            'w-full h-full flex items-center justify-center px-2 leading-tight break-words select-none overflow-hidden',
-            isRect && 'border-2 border-current rounded-md',
-            isCircle && 'border-2 border-current rounded-full',
+            'w-full h-full flex items-center justify-center px-2 leading-tight break-words select-none overflow-hidden transition-shadow',
+            isRect && 'border-2 border-current rounded-md shadow-sm',
+            isCircle && 'border-2 border-current rounded-full shadow-sm',
             isText && 'border border-dashed border-transparent hover:border-muted-foreground/30',
+            selected && 'ring-2 ring-primary ring-offset-2 ring-offset-background shadow-lg',
+            editable && !editingText ? 'cursor-move' : editingText ? 'cursor-text' : 'cursor-pointer',
           )}
           style={{ ...baseStyle, touchAction: 'none' }}
         >
