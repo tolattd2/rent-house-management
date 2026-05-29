@@ -10,8 +10,16 @@ export async function renderDocToPdf(el: HTMLElement, filename: string) {
     import('html2canvas'),
     import('jspdf'),
   ])
-  const SCALE = 4
-  const canvas = await html2canvas(el, { scale: SCALE, backgroundColor: '#ffffff', useCORS: true, windowWidth: el.scrollWidth })
+  // Cap the resolution so the rasterised canvas stays within the browser's
+  // limits — a tall document (e.g. a full report with every table) at scale 4
+  // can exceed the ~16384px max canvas dimension and come back blank.
+  const rawW = el.scrollWidth || el.clientWidth || 760
+  const rawH = el.scrollHeight || el.clientHeight || 1
+  const MAX_DIM = 16000
+  const MAX_AREA = 40_000_000
+  let SCALE = Math.min(4, MAX_DIM / rawW, MAX_DIM / rawH, Math.sqrt(MAX_AREA / (rawW * rawH)))
+  if (!Number.isFinite(SCALE) || SCALE <= 0) SCALE = 1
+  const canvas = await html2canvas(el, { scale: SCALE, backgroundColor: '#ffffff', useCORS: true, windowWidth: rawW })
   const pdf = new jsPDF({ orientation: 'p', unit: 'pt', format: 'a4', compress: true })
   const pageW = pdf.internal.pageSize.getWidth()
   const pageH = pdf.internal.pageSize.getHeight()

@@ -415,8 +415,13 @@ export function AccountingClient({ billings, expenses, tenants, locks: initialLo
       import('html2canvas'),
       import('jspdf'),
     ])
-    const SCALE = 4
-    const canvas = await html2canvas(el, { scale: SCALE, backgroundColor: '#ffffff', useCORS: true, windowWidth: el.scrollWidth })
+    // Cap resolution so a tall document doesn't exceed the browser's max canvas
+    // dimension (~16384px) and come back blank.
+    const rawW = el.scrollWidth || el.clientWidth || 760
+    const rawH = el.scrollHeight || el.clientHeight || 1
+    let SCALE = Math.min(4, 16000 / rawW, 16000 / rawH, Math.sqrt(40_000_000 / (rawW * rawH)))
+    if (!Number.isFinite(SCALE) || SCALE <= 0) SCALE = 1
+    const canvas = await html2canvas(el, { scale: SCALE, backgroundColor: '#ffffff', useCORS: true, windowWidth: rawW })
     const pdf = new jsPDF({ orientation: 'p', unit: 'pt', format: 'a4', compress: true })
     const pageW = pdf.internal.pageSize.getWidth()
     const pageH = pdf.internal.pageSize.getHeight()
