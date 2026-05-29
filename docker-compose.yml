@@ -1,0 +1,89 @@
+# Happy Home Management System — self-hosted stack for Synology NAS (Container Manager).
+#
+# Services: Postgres (DB) · MinIO (S3 storage) · app (Next.js) · cloudflared (public HTTPS).
+# No host ports are published for the app/db by default — Cloudflare Tunnel reaches the
+# app and MinIO over this private compose network, so nothing is exposed on your LAN/WAN.
+#
+# Usage on the NAS:
+#   1. docker load < happyhome-app.tar.gz        # image built on your PC
+#   2. cp .env.production.example .env.production && edit it
+#   3. docker compose --env-file .env.production up -d
+#   4. (first run, from your PC) prisma migrate deploy against the NAS Postgres — see runbook.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    # Expose to LAN only while migrating data in; comment out afterwards.
+    # ports:
+    #   - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      - minio-data:/data
+    # Console on the LAN for admin (optional). Object API stays internal + via tunnel.
+    ports:
+      - "9001:9001"
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  # One-shot: create the public reminder-media bucket on first boot.
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      until mc alias set local http://minio:9000 $${MINIO_ROOT_USER} $${MINIO_ROOT_PASSWORD}; do sleep 2; done;
+      mc mb -p local/${S3_BUCKET:-reminder-media} || true;
+      mc anonymous set download local/${S3_BUCKET:-reminder-media};
+      echo 'bucket ready';
+      "
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    restart: "no"
+
+  app:
+    image: happyhome-app:latest
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - .env.production
+    # Optional: expose to LAN for local testing. Not needed when using the tunnel.
+    # ports:
+    #   - "3000:3000"
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+    depends_on:
+      - app
+      - minio
+
+volumes:
+  postgres-data:
+  minio-data:

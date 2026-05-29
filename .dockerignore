@@ -1,0 +1,14 @@
+node_modules
+.next
+.git
+.gitignore
+npm-debug.log
+README.md
+.env
+.env.local
+.env.*.local
+.env.production
+.vercel
+*.tar.gz
+.claude
+tsconfig.tsbuildinfo

@@ -9,6 +9,10 @@ out/
 .env
 .env.local
 .env.*.local
+.env.production
+
+# self-hosted image artifacts
+*.tar.gz
 
 # build output
 dist/

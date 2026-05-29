@@ -8,7 +8,6 @@ import { Textarea } from '@/components/ui/textarea'
 import { ImagePlus, X, Send } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
 import { useLanguage } from '@/contexts/language-context'
-import { supabaseBrowser, REMINDER_BUCKET } from '@/lib/supabase'
 
 const MAX_IMAGE = 5 * 1024 * 1024
 const MAX_VIDEO = 20 * 1024 * 1024
@@ -77,11 +76,6 @@ export function CustomReminderDialog({
       let mediaKind: 'photo' | 'video' | undefined
 
       if (file) {
-        const supabase = supabaseBrowser()
-        if (!supabase) {
-          toast({ title: t('notifications_storage_missing'), variant: 'destructive' })
-          return
-        }
         const urlRes = await fetch('/api/notifications/upload-url', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -92,11 +86,13 @@ export function CustomReminderDialog({
           toast({ title: t('notifications_send_error'), description: urlData.error, variant: 'destructive' })
           return
         }
-        const { error } = await supabase.storage
-          .from(REMINDER_BUCKET)
-          .uploadToSignedUrl(urlData.path, urlData.token, file)
-        if (error) {
-          toast({ title: t('notifications_send_error'), description: error.message, variant: 'destructive' })
+        const put = await fetch(urlData.uploadUrl, {
+          method: 'PUT',
+          headers: { 'Content-Type': file.type },
+          body: file,
+        })
+        if (!put.ok) {
+          toast({ title: t('notifications_send_error'), description: `Upload failed (${put.status})`, variant: 'destructive' })
           return
         }
         mediaUrl = urlData.publicUrl

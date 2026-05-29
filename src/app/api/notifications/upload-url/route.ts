@@ -1,19 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
-import { supabaseAdmin, REMINDER_BUCKET } from '@/lib/supabase'
+import { createUploadUrl, isStorageConfigured } from '@/lib/storage'
 
 const MAX_IMAGE = 5 * 1024 * 1024   // Telegram sendPhoto-by-URL limit
 const MAX_VIDEO = 20 * 1024 * 1024  // Telegram sendVideo-by-URL limit
 
-/** Issues a short-lived signed URL so the browser can upload media straight to Supabase. */
+/** Issues a short-lived presigned URL so the browser can upload media straight to object storage. */
 export async function POST(req: NextRequest) {
   const session = await auth()
   if (!session) return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 })
 
-  const supabase = supabaseAdmin()
-  if (!supabase) {
+  if (!isStorageConfigured()) {
     return NextResponse.json(
-      { ok: false, error: 'Supabase Storage is not configured.' },
+      { ok: false, error: 'Object storage is not configured.' },
       { status: 400 },
     )
   }
@@ -41,22 +40,15 @@ export async function POST(req: NextRequest) {
     const ext = filename.includes('.') ? filename.split('.').pop() : isVideo ? 'mp4' : 'jpg'
     const path = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}.${ext}`
 
-    const { data, error } = await supabase.storage
-      .from(REMINDER_BUCKET)
-      .createSignedUploadUrl(path)
-    if (error || !data) {
-      return NextResponse.json(
-        { ok: false, error: error?.message ?? 'Could not create upload URL.' },
-        { status: 400 },
-      )
+    const result = await createUploadUrl(path, contentType)
+    if (!result) {
+      return NextResponse.json({ ok: false, error: 'Could not create upload URL.' }, { status: 400 })
     }
 
-    const { data: pub } = supabase.storage.from(REMINDER_BUCKET).getPublicUrl(path)
     return NextResponse.json({
       ok: true,
-      path: data.path,
-      token: data.token,
-      publicUrl: pub.publicUrl,
+      uploadUrl: result.uploadUrl,
+      publicUrl: result.publicUrl,
       kind: isVideo ? 'video' : 'photo',
     })
   } catch (e) {
