@@ -527,7 +527,6 @@ export function AccountingClient({ billings, expenses, tenants, locks: initialLo
   // ---- Audit Pack print-template helpers (plain functions returning JSX so
   // they stay independent of the app theme / dark mode). ----
   const generatedAt = new Date().toISOString().slice(0, 16).replace('T', ' ')
-  const lockedMonthsList = lockMonths.filter((m) => locks.some((l) => l.month === m))
   type DocRowOpts = { indent?: boolean; bold?: boolean; muted?: boolean; rule?: boolean; doubleRule?: boolean; red?: boolean }
   function docRow(key: string, label: string, value: number | string, o: DocRowOpts = {}) {
     return (
@@ -1133,7 +1132,7 @@ export function AccountingClient({ billings, expenses, tenants, locks: initialLo
           {docRow('cf-drf', t('accounting_cf_deposits_refunded'), `(${formatCurrency(cashFlow.depositsRefunded)})`, { indent: true, muted: true })}
           {docRow('cf-nc', t('accounting_cf_net_change'), cashFlow.netChange, { bold: true, doubleRule: true, red: cashFlow.netChange < 0 })}
 
-          {/* Security Deposits Schedule */}
+          {/* Security Deposits Schedule — grouped by branch */}
           {docStmtTitle(t('accounting_deposits_schedule'), branchLabelText)}
           {balanceSheet.activeDeposits.length === 0 ? (
             <div style={{ color: '#6b7280' }}>—</div>
@@ -1143,34 +1142,43 @@ export function AccountingClient({ billings, expenses, tenants, locks: initialLo
                 <tr>
                   <th style={thStyle}>{t('tenant')}</th>
                   <th style={thStyle}>{t('room')}</th>
-                  <th style={thStyle}>{t('branch')}</th>
                   <th style={thStyle}>{t('accounting_move_in')}</th>
                   <th style={{ ...thStyle, textAlign: 'right' }}>{t('accounting_security_deposits')}</th>
                 </tr>
               </thead>
               <tbody>
-                {balanceSheet.activeDeposits.map((tn) => (
-                  <tr key={tn.id}>
-                    <td style={tdStyle}>{tn.fullName}</td>
-                    <td style={tdStyle}>{tn.room?.roomNumber ?? '—'}</td>
-                    <td style={tdStyle}>{tn.room?.branch ?? '—'}</td>
-                    <td style={tdStyle}>{tn.moveInDate || '—'}</td>
-                    <td style={{ ...tdStyle, textAlign: 'right' }}>{formatCurrency(tn.depositAmount)}</td>
-                  </tr>
-                ))}
+                {groupByBranch(balanceSheet.activeDeposits.map((tn) => ({ ...tn, roomNumber: tn.room?.roomNumber ?? '', branch: tn.room?.branch ?? '' }))).map((g) => {
+                  const branchName = g.branch === '—' ? t('branch_shared') : g.branch
+                  const subtotal = g.items.reduce((s, tn) => s + tn.depositAmount, 0)
+                  return (
+                    <Fragment key={g.branch}>
+                      <tr>
+                        <td colSpan={4} style={{ padding: '8px 6px 3px', fontSize: 11, fontWeight: 700, color: '#2563eb', textTransform: 'uppercase', letterSpacing: 0.4, background: '#f3f4f6' }}>
+                          {branchName} ({g.items.length})
+                        </td>
+                      </tr>
+                      {g.items.map((tn) => (
+                        <tr key={tn.id}>
+                          <td style={tdStyle}>{tn.fullName}</td>
+                          <td style={tdStyle}>{tn.roomNumber || '—'}</td>
+                          <td style={tdStyle}>{tn.moveInDate || '—'}</td>
+                          <td style={{ ...tdStyle, textAlign: 'right' }}>{formatCurrency(tn.depositAmount)}</td>
+                        </tr>
+                      ))}
+                      <tr style={{ fontWeight: 700 }}>
+                        <td style={{ ...tdStyle, color: '#6b7280' }} colSpan={3}>{t('accounting_total')} · {branchName}</td>
+                        <td style={{ ...tdStyle, textAlign: 'right' }}>{formatCurrency(subtotal)}</td>
+                      </tr>
+                    </Fragment>
+                  )
+                })}
                 <tr style={{ fontWeight: 700 }}>
-                  <td style={{ ...tdStyle, borderTop: '1px solid #d1d5db' }} colSpan={4}>{t('accounting_total')}</td>
-                  <td style={{ ...tdStyle, borderTop: '1px solid #d1d5db', textAlign: 'right' }}>{formatCurrency(balanceSheet.securityDeposits)}</td>
+                  <td style={{ ...tdStyle, borderTop: '2px solid #9ca3af' }} colSpan={3}>{t('accounting_total')}</td>
+                  <td style={{ ...tdStyle, borderTop: '2px solid #9ca3af', textAlign: 'right' }}>{formatCurrency(balanceSheet.securityDeposits)}</td>
                 </tr>
               </tbody>
             </table>
           )}
-
-          {/* Period Lock status */}
-          {docSection('pl', t('accounting_period_lock'))}
-          <div style={{ fontSize: 12 }}>
-            {lockedMonthsList.length ? `${t('accounting_locked')}: ${lockedMonthsList.join(', ')}` : '—'}
-          </div>
         </div>
       </div>
 
