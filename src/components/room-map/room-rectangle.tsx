@@ -5,6 +5,7 @@ import { Rnd } from 'react-rnd'
 import { cn } from '@/lib/utils'
 import { useRoomMapStore, type DraftBlock } from '@/store/use-room-map-store'
 import type { RoomMapRoom } from '@/lib/room-map-service'
+import { useShiftKeyRef } from '@/hooks/use-shift-key'
 
 interface Props {
   block: DraftBlock
@@ -44,9 +45,11 @@ function RoomRectangleInner({ block, room, selected, editable, zoom, onSelect }:
   const updateBlock = useRoomMapStore((s) => s.updateBlock)
   const setBlockGeoms = useRoomMapStore((s) => s.setBlockGeoms)
   const pushHistorySnapshot = useRoomMapStore((s) => s.pushHistorySnapshot)
+  const shiftRef = useShiftKeyRef()
 
   const dragGroupRef = useRef<GroupSnapshot | null>(null)
   const resizeGroupRef = useRef<GroupSnapshot | null>(null)
+  const dragOriginRef = useRef<{ x: number; y: number } | null>(null)
   // Flips to true the first time the user's drag/resize moves the pointer
   // past the threshold. handleDragStop / handleResizeStop bail when false,
   // so a tap never writes back to the store.
@@ -88,6 +91,7 @@ function RoomRectangleInner({ block, room, selected, editable, zoom, onSelect }:
 
   const handleDragStart = () => {
     dragMovedRef.current = false
+    dragOriginRef.current = { x: block.x, y: block.y }
     const g = snapshotGroup()
     if (g) {
       dragGroupRef.current = g
@@ -95,6 +99,15 @@ function RoomRectangleInner({ block, room, selected, editable, zoom, onSelect }:
       dragGroupRef.current = null
       onSelect(false)
     }
+  }
+
+  // Lock movement to the dominant axis when Shift is held.
+  const lockAxis = (nextX: number, nextY: number): { x: number; y: number } => {
+    const o = dragOriginRef.current
+    if (!shiftRef.current || !o) return { x: nextX, y: nextY }
+    return Math.abs(nextX - o.x) >= Math.abs(nextY - o.y)
+      ? { x: nextX, y: o.y }
+      : { x: o.x, y: nextY }
   }
 
   const handleDrag = (_: unknown, d: { x: number; y: number }) => {
@@ -112,8 +125,9 @@ function RoomRectangleInner({ block, room, selected, editable, zoom, onSelect }:
       pushHistorySnapshot()
       g.snapshotted = true
     }
-    const dx = d.x - g.basis.x
-    const dy = d.y - g.basis.y
+    const locked = lockAxis(d.x, d.y)
+    const dx = locked.x - g.basis.x
+    const dy = locked.y - g.basis.y
     setBlockGeoms(g.others.map((o) => ({ id: o.id, x: o.x + dx, y: o.y + dy })))
   }
 
@@ -122,20 +136,23 @@ function RoomRectangleInner({ block, room, selected, editable, zoom, onSelect }:
     if (!dragMovedRef.current) {
       // Pure tap — nothing to commit. Clear refs and bail.
       dragGroupRef.current = null
+      dragOriginRef.current = null
       return
     }
+    const locked = lockAxis(d.x, d.y)
     if (g) {
       if (!g.snapshotted) pushHistorySnapshot()
-      const dx = d.x - g.basis.x
-      const dy = d.y - g.basis.y
+      const dx = locked.x - g.basis.x
+      const dy = locked.y - g.basis.y
       setBlockGeoms([
-        { id: block.id, x: d.x, y: d.y },
+        { id: block.id, x: locked.x, y: locked.y },
         ...g.others.map((o) => ({ id: o.id, x: o.x + dx, y: o.y + dy })),
       ])
       dragGroupRef.current = null
     } else {
-      updateBlock(block.id, { x: d.x, y: d.y })
+      updateBlock(block.id, { x: locked.x, y: locked.y })
     }
+    dragOriginRef.current = null
   }
 
   const handleResizeStart = () => {

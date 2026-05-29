@@ -40,6 +40,7 @@ export function RoomMapClient({ isAdmin, initialBranch, initialFloor, initialFlo
   const branch = useRoomMapStore((s) => s.branch)
   const floor = useRoomMapStore((s) => s.floor)
   const blocks = useRoomMapStore((s) => s.blocks)
+  const shapes = useRoomMapStore((s) => s.shapes)
   const dirty = useRoomMapStore((s) => s.dirty)
   const autoSave = useRoomMapStore((s) => s.autoSave)
   const undo = useRoomMapStore((s) => s.undo)
@@ -49,7 +50,7 @@ export function RoomMapClient({ isAdmin, initialBranch, initialFloor, initialFlo
   // The selector kept a ref so we don't loop on every render.
   const hydratedKey = useRef<string>('')
   useEffect(() => {
-    const key = `${initialView.branch}|${initialView.floor}|${initialView.rooms.length}|${initialView.layouts.length}`
+    const key = `${initialView.branch}|${initialView.floor}|${initialView.rooms.length}|${initialView.layouts.length}|${initialView.shapes.length}`
     if (hydratedKey.current === key) return
     hydratedKey.current = key
     hydrate({
@@ -57,6 +58,7 @@ export function RoomMapClient({ isAdmin, initialBranch, initialFloor, initialFlo
       floor: initialView.floor,
       rooms: initialView.rooms,
       blocks: initialView.layouts,
+      shapes: initialView.shapes,
     })
   }, [initialView, hydrate])
 
@@ -76,6 +78,7 @@ export function RoomMapClient({ isAdmin, initialBranch, initialFloor, initialFlo
           floor: data.view.floor,
           rooms: data.view.rooms,
           blocks: data.view.layouts,
+          shapes: data.view.shapes,
         })
       } else if (manual) {
         toast({ title: t('room_map_reload_failed'), description: data.error, variant: 'destructive' })
@@ -139,6 +142,7 @@ export function RoomMapClient({ isAdmin, initialBranch, initialFloor, initialFlo
           floor: data.view.floor,
           rooms: data.view.rooms,
           blocks: data.view.layouts,
+          shapes: data.view.shapes,
         })
       }
     } else {
@@ -167,6 +171,26 @@ export function RoomMapClient({ isAdmin, initialBranch, initialFloor, initialFlo
           height: b.height,
           rotation: b.rotation,
           zIndex: b.zIndex,
+        })),
+        shapes: state.shapes.map((s) => ({
+          // Keep the id so the server can update existing rows in place;
+          // tmp-… ids tell the server to create a new shape.
+          id: s.id,
+          branch: s.branch,
+          floor: s.floor,
+          kind: s.kind,
+          x: s.x,
+          y: s.y,
+          width: s.width,
+          height: s.height,
+          rotation: s.rotation,
+          zIndex: s.zIndex,
+          text: s.text,
+          fontSize: s.fontSize,
+          fontWeight: s.fontWeight,
+          textAlign: s.textAlign,
+          color: s.color,
+          fill: s.fill,
         })),
       }
       const res = await fetch('/api/room-map', {
@@ -198,7 +222,7 @@ export function RoomMapClient({ isAdmin, initialBranch, initialFloor, initialFlo
       handleSave(true)
     }, 1500)
     return () => clearTimeout(timer)
-  }, [autoSave, isAdmin, dirty, blocks, handleSave])
+  }, [autoSave, isAdmin, dirty, blocks, shapes, handleSave])
 
   // Fullscreen toggle for the map container. We listen for the native
   // fullscreenchange event so the toolbar icon flips correctly when the

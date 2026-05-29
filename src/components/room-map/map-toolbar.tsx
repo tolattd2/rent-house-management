@@ -1,7 +1,10 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { Plus, Save, Trash2, Copy, Grid3x3, Undo2, Redo2, Download, Maximize, Minimize, Wand2, X } from 'lucide-react'
+import {
+  Plus, Save, Trash2, Copy, Grid3x3, Undo2, Redo2, Download, Maximize, Minimize, Wand2, X,
+  Type, Square, Circle, Minus,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
@@ -40,6 +43,7 @@ export function MapToolbar({ editable, fullscreen, onToggleFullscreen, onSave, m
   const setSnap = useRoomMapStore((s) => s.setSnap)
   const setAutoSave = useRoomMapStore((s) => s.setAutoSave)
   const addBlockForRoom = useRoomMapStore((s) => s.addBlockForRoom)
+  const addShape = useRoomMapStore((s) => s.addShape)
   const removeSelected = useRoomMapStore((s) => s.removeSelected)
   const duplicateBlock = useRoomMapStore((s) => s.duplicateBlock)
   const undo = useRoomMapStore((s) => s.undo)
@@ -166,6 +170,50 @@ export function MapToolbar({ editable, fullscreen, onToggleFullscreen, onSave, m
           </span>
           <Switch checked={autoSave} onCheckedChange={setAutoSave} disabled={!editable} />
         </label>
+      </div>
+
+      <div className="p-3 border-b border-border space-y-2">
+        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+          {t('room_map_shapes')}
+        </p>
+        <div className="grid grid-cols-2 gap-2">
+          <Button
+            size="sm" variant="outline"
+            disabled={!editable}
+            onClick={withClose(() => addShape('text'))}
+            title={t('room_map_shape_text')}
+          >
+            <Type className="w-3.5 h-3.5 mr-1" />
+            <span className="truncate">{t('room_map_shape_text')}</span>
+          </Button>
+          <Button
+            size="sm" variant="outline"
+            disabled={!editable}
+            onClick={withClose(() => addShape('rectangle'))}
+            title={t('room_map_shape_rect')}
+          >
+            <Square className="w-3.5 h-3.5 mr-1" />
+            <span className="truncate">{t('room_map_shape_rect')}</span>
+          </Button>
+          <Button
+            size="sm" variant="outline"
+            disabled={!editable}
+            onClick={withClose(() => addShape('circle'))}
+            title={t('room_map_shape_circle')}
+          >
+            <Circle className="w-3.5 h-3.5 mr-1" />
+            <span className="truncate">{t('room_map_shape_circle')}</span>
+          </Button>
+          <Button
+            size="sm" variant="outline"
+            disabled={!editable}
+            onClick={withClose(() => addShape('line'))}
+            title={t('room_map_shape_line')}
+          >
+            <Minus className="w-3.5 h-3.5 mr-1" />
+            <span className="truncate">{t('room_map_shape_line')}</span>
+          </Button>
+        </div>
       </div>
 
       <div className="p-3 space-y-2">

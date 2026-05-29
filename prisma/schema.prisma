@@ -147,6 +147,35 @@ model RoomMapLayout {
   @@map("room_map_layouts")
 }
 
+// Free-form annotations placed on the room-map canvas alongside rooms.
+// `kind` is a string so we can add new shapes without a schema migration —
+// the API validates against the allowed set. Geometry is shared across all
+// shapes; lines treat x/y as the start point and width/height as the
+// directed offset to the end point.
+model RoomMapShape {
+  id         String   @id @default(cuid())
+  branch     String
+  floor      String   @default("1")
+  kind       String   @default("text")
+  x          Float    @default(0)
+  y          Float    @default(0)
+  width      Float    @default(160)
+  height     Float    @default(40)
+  rotation   Float    @default(0)
+  zIndex     Int      @default(0)
+  text       String   @default("")
+  fontSize   Int      @default(14)
+  fontWeight String   @default("normal")
+  textAlign  String   @default("center")
+  color      String   @default("#1f2937")
+  fill       String   @default("")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([branch, floor])
+  @@map("room_map_shapes")
+}
+
 model Tenant {
   id                String       @id @default(cuid())
   fullName          String

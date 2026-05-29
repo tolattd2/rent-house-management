@@ -3,7 +3,7 @@ import { auth } from '@/lib/auth'
 import { invalidate } from '@/lib/revalidate'
 import { getSettingsMap } from '@/lib/cached-queries'
 import { branchHasFloors, findBranch, parseBranches } from '@/lib/branches'
-import { loadRoomMapView, saveRoomMapLayout, type RoomMapBlock } from '@/lib/room-map-service'
+import { loadRoomMapView, saveRoomMapLayout, type RoomMapBlock, type RoomMapShape } from '@/lib/room-map-service'
 
 async function resolveBranchConfig(branchName: string): Promise<{ hasFloors: boolean; floorCount: number }> {
   const settings = await getSettingsMap()
@@ -35,7 +35,12 @@ export async function POST(req: NextRequest) {
   if (session.user.role !== 'admin') {
     return NextResponse.json({ ok: false, error: 'Forbidden' }, { status: 403 })
   }
-  let body: { branch?: string; floor?: string; blocks?: Array<Partial<RoomMapBlock>> }
+  let body: {
+    branch?: string
+    floor?: string
+    blocks?: Array<Partial<RoomMapBlock>>
+    shapes?: Array<Partial<RoomMapShape> & { id?: string }>
+  }
   try {
     body = await req.json()
   } catch {
@@ -47,8 +52,9 @@ export async function POST(req: NextRequest) {
   if (!Array.isArray(body.blocks)) {
     return NextResponse.json({ ok: false, error: 'blocks must be an array' }, { status: 400 })
   }
+  const shapes = Array.isArray(body.shapes) ? body.shapes : []
   const { hasFloors } = await resolveBranchConfig(branch)
-  await saveRoomMapLayout(branch, hasFloors ? floor : '1', hasFloors, body.blocks)
+  await saveRoomMapLayout(branch, hasFloors ? floor : '1', hasFloors, body.blocks, shapes)
   invalidate('rooms')
   return NextResponse.json({ ok: true })
 }

@@ -4,6 +4,8 @@ import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointer
 import { cn } from '@/lib/utils'
 import { useRoomMapStore } from '@/store/use-room-map-store'
 import { RoomRectangle } from './room-rectangle'
+import { ShapeElement } from './shape-element'
+import { ShapeEditor } from './shape-editor'
 import { SelectionTransform } from './selection-transform'
 
 interface Props {
@@ -25,6 +27,8 @@ type GestureState =
 
 export function RoomCanvas({ editable }: Props) {
   const blocks = useRoomMapStore((s) => s.blocks)
+  const shapes = useRoomMapStore((s) => s.shapes)
+  const selectedShapeIds = useRoomMapStore((s) => s.selectedShapeIds)
   const rooms = useRoomMapStore((s) => s.rooms)
   const selectedIds = useRoomMapStore((s) => s.selectedIds)
   const setSelected = useRoomMapStore((s) => s.setSelected)
@@ -38,6 +42,7 @@ export function RoomCanvas({ editable }: Props) {
   const canvasWidth = useRoomMapStore((s) => s.canvasWidth)
   const canvasHeight = useRoomMapStore((s) => s.canvasHeight)
   const moveSelected = useRoomMapStore((s) => s.moveSelected)
+  const updateShape = useRoomMapStore((s) => s.updateShape)
   const removeSelected = useRoomMapStore((s) => s.removeSelected)
 
   const containerRef = useRef<HTMLDivElement | null>(null)
@@ -58,21 +63,32 @@ export function RoomCanvas({ editable }: Props) {
     const handler = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null
       if (target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return
-      const ids = useRoomMapStore.getState().selectedIds
-      if (ids.length === 0) return
+      if (target?.isContentEditable) return
+      const state = useRoomMapStore.getState()
+      const roomIds = state.selectedIds
+      const shapeIds = state.selectedShapeIds
+      if (roomIds.length === 0 && shapeIds.length === 0) return
       const step = e.shiftKey ? 10 : 1
       if (e.key === 'Delete' || e.key === 'Backspace') {
         e.preventDefault()
         removeSelected()
-      } else if (e.key === 'ArrowLeft') { e.preventDefault(); moveSelected(-step, 0) }
-      else if (e.key === 'ArrowRight')  { e.preventDefault(); moveSelected(step, 0) }
-      else if (e.key === 'ArrowUp')     { e.preventDefault(); moveSelected(0, -step) }
-      else if (e.key === 'ArrowDown')   { e.preventDefault(); moveSelected(0, step) }
-      else if (e.key === 'Escape')      { clearSelection() }
+      } else if (e.key === 'Escape') {
+        clearSelection()
+      } else if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) {
+        e.preventDefault()
+        const dx = e.key === 'ArrowLeft' ? -step : e.key === 'ArrowRight' ? step : 0
+        const dy = e.key === 'ArrowUp' ? -step : e.key === 'ArrowDown' ? step : 0
+        if (roomIds.length) moveSelected(dx, dy)
+        // Only one shape selected at a time, but nudge each in case that changes.
+        for (const sid of shapeIds) {
+          const s = state.shapes.find((x) => x.id === sid)
+          if (s) updateShape(sid, { x: s.x + dx, y: s.y + dy })
+        }
+      }
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [editable, moveSelected, removeSelected, clearSelection])
+  }, [editable, moveSelected, updateShape, removeSelected, clearSelection])
 
   // Ctrl/Meta + wheel = zoom on desktop. We attach via useEffect with
   // passive:false so we can preventDefault and stop the browser from
@@ -202,6 +218,7 @@ export function RoomCanvas({ editable }: Props) {
       ref={containerRef}
       className="relative w-full h-full overflow-auto bg-muted/30 rounded-lg border border-border"
     >
+      <ShapeEditor editable={editable} />
       <div
         ref={innerRef}
         data-room-map-canvas-inner
@@ -236,6 +253,15 @@ export function RoomCanvas({ editable }: Props) {
             editable={editable}
             zoom={zoom}
             onSelect={(multi) => (multi ? toggleSelected(b.id) : setSelected(b.id))}
+          />
+        ))}
+        {shapes.map((s) => (
+          <ShapeElement
+            key={s.id}
+            shape={s}
+            selected={selectedShapeIds.includes(s.id)}
+            editable={editable}
+            zoom={zoom}
           />
         ))}
         {marquee && (

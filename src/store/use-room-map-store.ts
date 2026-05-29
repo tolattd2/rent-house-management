@@ -1,19 +1,27 @@
 'use client'
 
 import { create } from 'zustand'
-import type { RoomMapBlock, RoomMapRoom } from '@/lib/room-map-service'
+import type { RoomMapBlock, RoomMapRoom, RoomMapShape, RoomMapShapeKind } from '@/lib/room-map-service'
 import { sortRoomsByNumber } from '@/lib/utils'
 
 export type DraftBlock = Omit<RoomMapBlock, 'id'> & { id: string; pendingDelete?: boolean }
+export type DraftShape = Omit<RoomMapShape, 'id'> & { id: string }
+
+type HistoryFrame = { blocks: DraftBlock[]; shapes: DraftShape[] }
 
 type State = {
   branch: string
   floor: string
   rooms: RoomMapRoom[]
   blocks: DraftBlock[]
+  shapes: DraftShape[]
   // Multi-select. selectedIds[0] is treated as the "primary" selection for
   // single-room editors; the full array drives bulk operations + visuals.
   selectedIds: string[]
+  // Shape selection lives in its own array — shapes and rooms move under
+  // different gesture machinery (Rnd resizes for rectangles, custom logic for
+  // lines), so mixing them would tangle the canvas code.
+  selectedShapeIds: string[]
   dirty: boolean
   saving: boolean
   zoom: number
@@ -24,14 +32,18 @@ type State = {
   // layout is composed at the target output resolution. Defaults to Full HD.
   canvasWidth: number
   canvasHeight: number
-  // History snapshots taken BEFORE each block-mutating action so undo
-  // restores the previous state. Capped at HISTORY_LIMIT to bound memory.
-  past: DraftBlock[][]
-  future: DraftBlock[][]
+  // History snapshots taken BEFORE each mutating action so undo restores the
+  // previous state. Frames carry both blocks AND shapes so a shape edit can
+  // be undone independently of a room edit. Capped at HISTORY_LIMIT.
+  past: HistoryFrame[]
+  future: HistoryFrame[]
 }
 
 type Actions = {
-  hydrate: (params: { branch: string; floor: string; rooms: RoomMapRoom[]; blocks: RoomMapBlock[] }) => void
+  hydrate: (params: {
+    branch: string; floor: string; rooms: RoomMapRoom[];
+    blocks: RoomMapBlock[]; shapes?: RoomMapShape[];
+  }) => void
   setSelected: (id: string | null) => void
   toggleSelected: (id: string) => void
   selectMany: (ids: string[]) => void
@@ -51,6 +63,12 @@ type Actions = {
   ) => void
   pushHistorySnapshot: () => void
   replaceAll: (blocks: DraftBlock[]) => void
+  // Shape actions
+  addShape: (kind: RoomMapShapeKind) => void
+  removeShape: (id: string) => void
+  duplicateShape: (id: string) => void
+  updateShape: (id: string, patch: Partial<DraftShape>) => void
+  setShapeSelected: (id: string | null) => void
   undo: () => void
   redo: () => void
   setZoom: (z: number) => void
@@ -68,9 +86,46 @@ function nextZIndex(blocks: DraftBlock[]): number {
   return blocks.length === 0 ? 1 : Math.max(...blocks.map((b) => b.zIndex)) + 1
 }
 
-function pushHistory(past: DraftBlock[][], snapshot: DraftBlock[]): DraftBlock[][] {
-  const next = [...past, snapshot.map((b) => ({ ...b }))]
+function nextShapeZ(shapes: DraftShape[], blocks: DraftBlock[]): number {
+  const max = Math.max(0, ...shapes.map((s) => s.zIndex), ...blocks.map((b) => b.zIndex))
+  return max + 1
+}
+
+function frame(blocks: DraftBlock[], shapes: DraftShape[]): HistoryFrame {
+  return { blocks: blocks.map((b) => ({ ...b })), shapes: shapes.map((s) => ({ ...s })) }
+}
+
+function pushHistory(past: HistoryFrame[], snapshot: HistoryFrame): HistoryFrame[] {
+  const next = [...past, snapshot]
   return next.length > HISTORY_LIMIT ? next.slice(next.length - HISTORY_LIMIT) : next
+}
+
+function defaultShape(kind: RoomMapShapeKind, branch: string, floor: string, z: number): Omit<DraftShape, 'id'> {
+  const base = {
+    branch,
+    floor,
+    kind,
+    rotation: 0,
+    zIndex: z,
+    fontWeight: 'normal',
+    textAlign: 'center',
+    color: '#1f2937',
+    fill: '',
+    text: '',
+    fontSize: 14,
+  }
+  switch (kind) {
+    case 'text':
+      return { ...base, x: 80, y: 80, width: 160, height: 40, text: 'Text', fill: '' }
+    case 'rectangle':
+      return { ...base, x: 80, y: 80, width: 180, height: 120, fill: '#fef3c7' }
+    case 'circle':
+      return { ...base, x: 80, y: 80, width: 120, height: 120, fill: '#dbeafe' }
+    case 'line':
+      // For lines we treat (x,y) as the start and (x+width, y+height) as the
+      // end. Default to a 200px horizontal line.
+      return { ...base, x: 80, y: 120, width: 200, height: 0, color: '#1f2937' }
+  }
 }
 
 export const useRoomMapStore = create<State & Actions>((set, get) => ({
@@ -78,7 +133,9 @@ export const useRoomMapStore = create<State & Actions>((set, get) => ({
   floor: '1',
   rooms: [],
   blocks: [],
+  shapes: [],
   selectedIds: [],
+  selectedShapeIds: [],
   dirty: false,
   saving: false,
   zoom: 1,
@@ -90,19 +147,21 @@ export const useRoomMapStore = create<State & Actions>((set, get) => ({
   past: [],
   future: [],
 
-  hydrate: ({ branch, floor, rooms, blocks }) =>
+  hydrate: ({ branch, floor, rooms, blocks, shapes }) =>
     set({
       branch,
       floor,
       rooms,
       blocks: blocks.map((b) => ({ ...b })),
+      shapes: (shapes ?? []).map((s) => ({ ...s })),
       selectedIds: [],
+      selectedShapeIds: [],
       dirty: false,
       past: [],
       future: [],
     }),
 
-  setSelected: (id) => set({ selectedIds: id ? [id] : [] }),
+  setSelected: (id) => set({ selectedIds: id ? [id] : [], selectedShapeIds: [] }),
 
   toggleSelected: (id) => {
     const { selectedIds } = get()
@@ -110,15 +169,16 @@ export const useRoomMapStore = create<State & Actions>((set, get) => ({
       selectedIds: selectedIds.includes(id)
         ? selectedIds.filter((x) => x !== id)
         : [...selectedIds, id],
+      selectedShapeIds: [],
     })
   },
 
   selectMany: (ids) => set({ selectedIds: [...ids] }),
 
-  clearSelection: () => set({ selectedIds: [] }),
+  clearSelection: () => set({ selectedIds: [], selectedShapeIds: [] }),
 
   addBlockForRoom: (roomId) => {
-    const { blocks, branch, floor, rooms, past } = get()
+    const { blocks, shapes, branch, floor, rooms, past } = get()
     if (blocks.some((b) => b.roomId === roomId && !b.pendingDelete)) return
     const room = rooms.find((r) => r.id === roomId)
     if (!room) return
@@ -136,19 +196,20 @@ export const useRoomMapStore = create<State & Actions>((set, get) => ({
       zIndex: nextZIndex(blocks),
     }
     set({
-      past: pushHistory(past, blocks),
+      past: pushHistory(past, frame(blocks, shapes)),
       future: [],
       blocks: [...blocks.filter((b) => b.roomId !== roomId), draft],
       selectedIds: [draft.id],
+      selectedShapeIds: [],
       dirty: true,
     })
   },
 
   removeBlock: (id) => {
-    const { blocks, selectedIds, past } = get()
+    const { blocks, shapes, selectedIds, past } = get()
     const next = blocks.filter((b) => b.id !== id)
     set({
-      past: pushHistory(past, blocks),
+      past: pushHistory(past, frame(blocks, shapes)),
       future: [],
       blocks: next,
       selectedIds: selectedIds.filter((x) => x !== id),
@@ -157,20 +218,23 @@ export const useRoomMapStore = create<State & Actions>((set, get) => ({
   },
 
   removeSelected: () => {
-    const { blocks, selectedIds, past } = get()
-    if (selectedIds.length === 0) return
-    const ids = new Set(selectedIds)
+    const { blocks, shapes, selectedIds, selectedShapeIds, past } = get()
+    if (selectedIds.length === 0 && selectedShapeIds.length === 0) return
+    const blockIds = new Set(selectedIds)
+    const shapeIds = new Set(selectedShapeIds)
     set({
-      past: pushHistory(past, blocks),
+      past: pushHistory(past, frame(blocks, shapes)),
       future: [],
-      blocks: blocks.filter((b) => !ids.has(b.id)),
+      blocks: blocks.filter((b) => !blockIds.has(b.id)),
+      shapes: shapes.filter((s) => !shapeIds.has(s.id)),
       selectedIds: [],
+      selectedShapeIds: [],
       dirty: true,
     })
   },
 
   duplicateBlock: (id) => {
-    const { blocks, rooms, past } = get()
+    const { blocks, shapes, rooms, past } = get()
     const source = blocks.find((b) => b.id === id)
     if (!source) return
 
@@ -250,16 +314,17 @@ export const useRoomMapStore = create<State & Actions>((set, get) => ({
       zIndex: nextZIndex(blocks),
     }
     set({
-      past: pushHistory(past, blocks),
+      past: pushHistory(past, frame(blocks, shapes)),
       future: [],
       blocks: [...blocks, draft],
       selectedIds: [draft.id],
+      selectedShapeIds: [],
       dirty: true,
     })
   },
 
   updateBlock: (id, patch) => {
-    const { blocks, snapToGrid, gridSize, past } = get()
+    const { blocks, shapes, snapToGrid, gridSize, past } = get()
     const snap = (v: number) => (snapToGrid ? Math.round(v / gridSize) * gridSize : v)
     const nextBlocks = blocks.map((b) =>
       b.id === id
@@ -274,7 +339,7 @@ export const useRoomMapStore = create<State & Actions>((set, get) => ({
         : b,
     )
     set({
-      past: pushHistory(past, blocks),
+      past: pushHistory(past, frame(blocks, shapes)),
       future: [],
       blocks: nextBlocks,
       dirty: true,
@@ -305,14 +370,14 @@ export const useRoomMapStore = create<State & Actions>((set, get) => ({
   // Save the current blocks to the undo stack without changing them. The
   // start of a group drag uses this so undo restores the pre-drag layout.
   pushHistorySnapshot: () => {
-    const { blocks, past } = get()
-    set({ past: pushHistory(past, blocks), future: [] })
+    const { blocks, shapes, past } = get()
+    set({ past: pushHistory(past, frame(blocks, shapes)), future: [] })
   },
 
   // Nudge every selected block by the same delta. Used by arrow-key navigation
   // and for moving a marquee selection as a group.
   moveSelected: (dx, dy) => {
-    const { blocks, selectedIds, snapToGrid, gridSize, past } = get()
+    const { blocks, shapes, selectedIds, snapToGrid, gridSize, past } = get()
     if (selectedIds.length === 0) return
     const ids = new Set(selectedIds)
     const snap = (v: number) => (snapToGrid ? Math.round(v / gridSize) * gridSize : v)
@@ -320,7 +385,7 @@ export const useRoomMapStore = create<State & Actions>((set, get) => ({
       ids.has(b.id) ? { ...b, x: snap(b.x + dx), y: snap(b.y + dy) } : b,
     )
     set({
-      past: pushHistory(past, blocks),
+      past: pushHistory(past, frame(blocks, shapes)),
       future: [],
       blocks: nextBlocks,
       dirty: true,
@@ -330,9 +395,9 @@ export const useRoomMapStore = create<State & Actions>((set, get) => ({
   // Bulk replace — used by Import JSON. Coordinates and dimensions are
   // already trusted (parsed from the JSON), so we don't re-snap here.
   replaceAll: (next) => {
-    const { blocks, past } = get()
+    const { blocks, shapes, past } = get()
     set({
-      past: pushHistory(past, blocks),
+      past: pushHistory(past, frame(blocks, shapes)),
       future: [],
       blocks: next.map((b) => ({ ...b })),
       selectedIds: [],
@@ -340,30 +405,95 @@ export const useRoomMapStore = create<State & Actions>((set, get) => ({
     })
   },
 
-  undo: () => {
-    const { past, future, blocks } = get()
-    if (past.length === 0) return
-    const prev = past[past.length - 1]
-    const nextPast = past.slice(0, -1)
+  addShape: (kind) => {
+    const { blocks, shapes, branch, floor, past } = get()
+    const z = nextShapeZ(shapes, blocks)
+    const id = `tmp-shape-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`
+    const draft: DraftShape = { id, ...defaultShape(kind, branch, floor || '1', z) }
     set({
-      past: nextPast,
-      future: [...future, blocks.map((b) => ({ ...b }))],
-      blocks: prev.map((b) => ({ ...b })),
+      past: pushHistory(past, frame(blocks, shapes)),
+      future: [],
+      shapes: [...shapes, draft],
+      selectedShapeIds: [id],
       selectedIds: [],
       dirty: true,
     })
   },
 
+  removeShape: (id) => {
+    const { blocks, shapes, selectedShapeIds, past } = get()
+    set({
+      past: pushHistory(past, frame(blocks, shapes)),
+      future: [],
+      shapes: shapes.filter((s) => s.id !== id),
+      selectedShapeIds: selectedShapeIds.filter((x) => x !== id),
+      dirty: true,
+    })
+  },
+
+  duplicateShape: (id) => {
+    const { blocks, shapes, past } = get()
+    const src = shapes.find((s) => s.id === id)
+    if (!src) return
+    const dup: DraftShape = {
+      ...src,
+      id: `tmp-shape-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
+      x: src.x + 20,
+      y: src.y + 20,
+      zIndex: nextShapeZ(shapes, blocks),
+    }
+    set({
+      past: pushHistory(past, frame(blocks, shapes)),
+      future: [],
+      shapes: [...shapes, dup],
+      selectedShapeIds: [dup.id],
+      selectedIds: [],
+      dirty: true,
+    })
+  },
+
+  updateShape: (id, patch) => {
+    const { blocks, shapes, past } = get()
+    const nextShapes = shapes.map((s) => (s.id === id ? { ...s, ...patch } : s))
+    set({
+      past: pushHistory(past, frame(blocks, shapes)),
+      future: [],
+      shapes: nextShapes,
+      dirty: true,
+    })
+  },
+
+  setShapeSelected: (id) =>
+    set({ selectedShapeIds: id ? [id] : [], selectedIds: [] }),
+
+  undo: () => {
+    const { past, future, blocks, shapes } = get()
+    if (past.length === 0) return
+    const prev = past[past.length - 1]
+    const nextPast = past.slice(0, -1)
+    set({
+      past: nextPast,
+      future: [...future, frame(blocks, shapes)],
+      blocks: prev.blocks.map((b) => ({ ...b })),
+      shapes: prev.shapes.map((s) => ({ ...s })),
+      selectedIds: [],
+      selectedShapeIds: [],
+      dirty: true,
+    })
+  },
+
   redo: () => {
-    const { past, future, blocks } = get()
+    const { past, future, blocks, shapes } = get()
     if (future.length === 0) return
     const next = future[future.length - 1]
     const nextFuture = future.slice(0, -1)
     set({
-      past: [...past, blocks.map((b) => ({ ...b }))],
+      past: [...past, frame(blocks, shapes)],
       future: nextFuture,
-      blocks: next.map((b) => ({ ...b })),
+      blocks: next.blocks.map((b) => ({ ...b })),
+      shapes: next.shapes.map((s) => ({ ...s })),
       selectedIds: [],
+      selectedShapeIds: [],
       dirty: true,
     })
   },
