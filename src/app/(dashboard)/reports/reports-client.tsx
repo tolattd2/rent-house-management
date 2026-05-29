@@ -1,6 +1,6 @@
 'use client'
 
-import { Fragment, useRef, useState, useMemo, useEffect } from 'react'
+import { Fragment, useRef, useState, useMemo, useEffect, type ReactNode, type CSSProperties } from 'react'
 import { useSession } from 'next-auth/react'
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis,
@@ -18,7 +18,9 @@ import { CARD_STYLES } from '@/lib/card-colors'
 import { Download, FileText, TrendingDown, ExternalLink } from 'lucide-react'
 import { useLanguage } from '@/contexts/language-context'
 import { useBranches, useRoomLabel } from '@/contexts/branches-context'
+import { useBranding } from '@/contexts/branding-context'
 import { usePersistentState } from '@/hooks/use-persistent-state'
+import { renderDocToPdf } from '@/lib/pdf-doc'
 
 type Payment = {
   id: string
@@ -341,62 +343,26 @@ export function ReportsClient({ billings, expenses, rooms }: Props) {
     exportToCSV(headers, rows, `expense-register-${selectedMonth || 'all'}.csv`)
   }
 
-  // PDF export — snapshots the root container into a multi-page A4 PDF using
-  // html2canvas + jspdf (both already in package.json). Done dynamically so
-  // the heavy libs aren't bundled into the initial page chunk.
-  const exportRootRef = useRef<HTMLDivElement | null>(null)
+  // PDF export — renders a dedicated, print-styled document (white, ruled,
+  // professional, matching the Accounting Audit Pack) into a paginated A4 PDF.
+  // The shared renderer breaks pages between table rows so nothing is cropped at
+  // the page margins, and includes every report table. Heavy libs (html2canvas /
+  // jspdf) load dynamically inside renderDocToPdf.
+  const { title: brandTitle, subtitle: brandSubtitle } = useBranding()
+  const reportDocRef = useRef<HTMLDivElement | null>(null)
   const [exportingPdf, setExportingPdf] = useState(false)
+  const pdfBranchLabel = branchFilter === 'all' ? t('all_branches') : branchFilter
+  const pdfPeriodLabel = range
+    ? `${range[0]} → ${range[1]}`
+    : selectedMonth === 'all' ? t('billing_all_months') : formatMonth(selectedMonth, language)
   const handleExportPDF = async () => {
-    if (!exportRootRef.current || exportingPdf) return
+    if (!reportDocRef.current || exportingPdf) return
     setExportingPdf(true)
     try {
-      const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
-        import('html2canvas'),
-        import('jspdf'),
-      ])
-      const canvas = await html2canvas(exportRootRef.current, {
-        scale: 2,
-        backgroundColor: '#ffffff',
-        useCORS: true,
-      })
-      const img = canvas.toDataURL('image/png')
-      const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' })
-      const pageW = pdf.internal.pageSize.getWidth()
-      const pageH = pdf.internal.pageSize.getHeight()
-      const imgW = pageW
-      const imgH = (canvas.height * imgW) / canvas.width
-      // Header band
-      const periodLabel = range ? `${range[0]} → ${range[1]}` : (selectedMonth === 'all' ? t('billing_all_months') : formatMonth(selectedMonth, language))
-      const branchLabel = branchFilter === 'all' ? t('all_branches') : branchFilter
-      pdf.setFontSize(12)
-      pdf.text(t('reports_title'), 10, 10)
-      pdf.setFontSize(9)
-      pdf.text(`${branchLabel} · ${periodLabel} · ${new Date().toISOString().slice(0, 16).replace('T', ' ')}`, 10, 16)
-      const topMargin = 22
-      let positionMm = topMargin
-      // Slice the canvas into A4-height bands so long reports paginate.
-      const usableH = pageH - topMargin - 6
-      let remaining = imgH
-      let yCanvas = 0
-      while (remaining > 0) {
-        const bandHmm = Math.min(usableH, remaining)
-        const bandHpx = Math.floor((bandHmm * canvas.width) / imgW)
-        const band = document.createElement('canvas')
-        band.width = canvas.width
-        band.height = bandHpx
-        const ctx = band.getContext('2d')
-        if (!ctx) break
-        ctx.drawImage(canvas, 0, yCanvas, canvas.width, bandHpx, 0, 0, canvas.width, bandHpx)
-        pdf.addImage(band.toDataURL('image/png'), 'PNG', 0, positionMm, imgW, bandHmm)
-        yCanvas += bandHpx
-        remaining -= bandHmm
-        if (remaining > 0) {
-          pdf.addPage()
-          positionMm = topMargin
-        }
-      }
-      const fname = `reports-${branchLabel}-${range ? `${range[0]}_${range[1]}` : selectedMonth}.pdf`
-      pdf.save(fname.replace(/[^a-z0-9._-]/gi, '_'))
+      const fname = `reports-${pdfBranchLabel}-${range ? `${range[0]}_${range[1]}` : selectedMonth}.pdf`
+      await renderDocToPdf(reportDocRef.current, fname)
+    } catch (e) {
+      console.error('Reports PDF export failed', e)
     } finally {
       setExportingPdf(false)
     }
@@ -475,6 +441,214 @@ export function ReportsClient({ billings, expenses, rooms }: Props) {
     exportToCSV(headers, rows, `report-${selectedMonth || 'all'}.csv`)
   }
 
+  // ---- Reports PDF print-template (inline styles → theme-independent) ----
+  const dSectionStyle: CSSProperties = { fontSize: 12, fontWeight: 700, color: '#2563eb', textTransform: 'uppercase', letterSpacing: 0.6, margin: '20px 0 6px' }
+  const dTh: CSSProperties = { textAlign: 'left', padding: '5px 6px', fontSize: 9, color: '#6b7280', borderBottom: '1px solid #d1d5db', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.3, verticalAlign: 'bottom' }
+  const dThR: CSSProperties = { ...dTh, textAlign: 'right' }
+  const dTd: CSSProperties = { padding: '4px 6px', borderBottom: '1px solid #f0f1f3', fontSize: 9, verticalAlign: 'top', wordBreak: 'break-word' }
+  const dTdR: CSSProperties = { ...dTd, textAlign: 'right', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }
+  const docSec = (label: string) => <div style={dSectionStyle}>{label}</div>
+  const docLine = (label: string, value: string, o: { bold?: boolean; muted?: boolean; rule?: boolean; double?: boolean; indent?: boolean; red?: boolean } = {}) => (
+    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, padding: '3px 0', paddingLeft: o.indent ? 16 : 0, fontWeight: o.bold ? 700 : 400, color: o.red ? '#dc2626' : o.muted ? '#6b7280' : '#111827', borderTop: o.double ? '3px double #9ca3af' : o.rule ? '1px solid #d1d5db' : undefined, marginTop: o.rule || o.double ? 4 : 0, fontSize: 11 }}>
+      <span>{label}</span>
+      <span style={{ fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{value}</span>
+    </div>
+  )
+  function docTable<T>(cols: Array<{ label: string; align?: 'right'; width?: string; cell: (r: T) => ReactNode }>, rows: T[], footer?: ReactNode) {
+    return (
+      <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', marginTop: 4 }}>
+        <colgroup>{cols.map((c, i) => <col key={i} style={c.width ? { width: c.width } : undefined} />)}</colgroup>
+        <thead><tr>{cols.map((c, i) => <th key={i} style={c.align === 'right' ? dThR : dTh}>{c.label}</th>)}</tr></thead>
+        <tbody>
+          {rows.map((r, ri) => <tr key={ri}>{cols.map((c, ci) => <td key={ci} style={c.align === 'right' ? dTdR : dTd}>{c.cell(r)}</td>)}</tr>)}
+          {footer}
+        </tbody>
+      </table>
+    )
+  }
+  const reportDoc = (
+    <>
+      {/* Header */}
+      <div style={{ textAlign: 'center', borderBottom: '2px solid #2563eb', paddingBottom: 16, marginBottom: 8 }}>
+        <div style={{ fontSize: 22, fontWeight: 700 }}>{brandTitle}</div>
+        {brandSubtitle && <div style={{ color: '#6b7280', marginTop: 2, fontSize: 12 }}>{brandSubtitle}</div>}
+        <div style={{ fontSize: 17, fontWeight: 700, color: '#2563eb', marginTop: 12 }}>{t('reports_title')}</div>
+        <div style={{ color: '#374151', marginTop: 6, fontSize: 12 }}>{pdfBranchLabel} · {pdfPeriodLabel}</div>
+        <div style={{ color: '#6b7280', fontSize: 11, marginTop: 2 }}>{t('accounting_generated')}: {new Date().toISOString().slice(0, 16).replace('T', ' ')}</div>
+      </div>
+
+      {/* Overview / KPIs */}
+      {docSec(t('overview'))}
+      {docLine(t('reports_revenue_collected'), formatCurrency(totalRevenue))}
+      {docLine(t('dashboard_outstanding'), formatCurrency(totalOutstanding))}
+      {docLine(t('reports_total_expenses'), formatCurrency(totalExpenses))}
+      {docLine(t('reports_net_income'), formatCurrency(netIncome), { bold: true, rule: true, red: netIncome < 0 })}
+      {docLine(t('reports_paid_billings'), String(monthBillings.filter((b) => b.paymentStatus === 'paid').length))}
+      {docLine(t('reports_unpaid_billings'), String(monthBillings.filter((b) => b.paymentStatus !== 'paid').length))}
+      {docLine(t('reports_collection_rate'), `${collectionRate}%`)}
+      {docLine(t('reports_occupancy_rate'), `${occupancy.rate}% (${occupancy.occupied}/${occupancy.total})`)}
+
+      {/* Income Statement */}
+      {docSec(t('reports_income_statement'))}
+      {docLine(t('reports_revenue_room_rent'), formatCurrency(incomeStatement.rent), { indent: true })}
+      {docLine(t('reports_revenue_water'), formatCurrency(incomeStatement.water), { indent: true })}
+      {docLine(t('reports_revenue_electric'), formatCurrency(incomeStatement.electric), { indent: true })}
+      {docLine(t('reports_revenue_penalty'), formatCurrency(incomeStatement.penalty), { indent: true })}
+      {docLine(t('reports_revenue_discount'), `(${formatCurrency(incomeStatement.discount)})`, { indent: true, muted: true })}
+      {docLine(t('reports_net_revenue'), formatCurrency(incomeStatement.netRevenue), { bold: true, rule: true })}
+      {docLine(t('reports_of_which_collected'), formatCurrency(incomeStatement.collected), { indent: true, muted: true })}
+      {docLine(t('reports_of_which_outstanding'), formatCurrency(incomeStatement.outstanding), { indent: true, muted: true })}
+      {incomeStatement.expenseLines.map(([cat, amt]) => <Fragment key={cat}>{docLine(catLabel(cat), formatCurrency(amt), { indent: true })}</Fragment>)}
+      {docLine(t('reports_total_expenses'), formatCurrency(incomeStatement.expenseTotal), { bold: true, rule: true })}
+      {docLine(t('reports_net_income'), formatCurrency(incomeStatement.netIncome), { bold: true, double: true, red: incomeStatement.netIncome < 0 })}
+
+      {/* Monthly trend */}
+      {docSec(t('reports_chart_title'))}
+      {docTable<(typeof revenueChart)[number]>(
+        [
+          { label: t('billing_col_month'), width: '22%', cell: (r) => r.label },
+          { label: t('reports_revenue_collected'), align: 'right', cell: (r) => formatCurrency(r.revenue) },
+          { label: t('dashboard_outstanding'), align: 'right', cell: (r) => formatCurrency(r.outstanding) },
+          { label: t('reports_total_expenses'), align: 'right', cell: (r) => formatCurrency(r.expenses) },
+        ],
+        revenueChart,
+      )}
+
+      {/* Expense by category */}
+      {expenseByCategory.length > 0 && (
+        <>
+          {docSec(t('reports_expenses_title'))}
+          {docTable<[string, number]>(
+            [
+              { label: t('expenses_col_category'), cell: ([cat]) => catLabel(cat) },
+              { label: t('expenses_col_amount'), align: 'right', width: '24%', cell: ([, amt]) => formatCurrency(amt) },
+              { label: '%', align: 'right', width: '14%', cell: ([, amt]) => `${totalExpenses > 0 ? Math.round((amt / totalExpenses) * 100) : 0}%` },
+            ],
+            expenseByCategory,
+            <tr style={{ fontWeight: 700 }}>
+              <td style={{ ...dTd, borderTop: '1px solid #d1d5db' }}>{t('accounting_total')}</td>
+              <td style={{ ...dTdR, borderTop: '1px solid #d1d5db' }}>{formatCurrency(totalExpenses)}</td>
+              <td style={{ ...dTdR, borderTop: '1px solid #d1d5db' }} />
+            </tr>,
+          )}
+        </>
+      )}
+
+      {/* Per-branch P&L */}
+      {branchPnL.length > 0 && (
+        <>
+          {docSec(t('reports_branch_pnl'))}
+          {docTable<(typeof branchPnL)[number]>(
+            [
+              { label: t('branch'), cell: (r) => r.branch === '—' ? t('branch_shared') : r.branch },
+              { label: t('reports_revenue_billed'), align: 'right', cell: (r) => formatCurrency(r.billed) },
+              { label: t('reports_revenue_collected'), align: 'right', cell: (r) => formatCurrency(r.collected) },
+              { label: t('reports_outstanding'), align: 'right', cell: (r) => formatCurrency(r.outstanding) },
+              { label: t('reports_total_expenses'), align: 'right', cell: (r) => formatCurrency(r.expenses) },
+              { label: t('reports_net_income'), align: 'right', cell: (r) => formatCurrency(r.net) },
+            ],
+            branchPnL,
+          )}
+        </>
+      )}
+
+      {/* Receivables aging */}
+      {docSec(t('reports_aging'))}
+      {docLine(
+        `${t('aging_current')} / ${t('aging_30_60')} / ${t('aging_60_90')} / ${t('aging_90_plus')}`,
+        `${formatCurrency(agingBuckets.current ?? 0)} / ${formatCurrency(agingBuckets['30_60'] ?? 0)} / ${formatCurrency(agingBuckets['60_90'] ?? 0)} / ${formatCurrency(agingBuckets['90_plus'] ?? 0)}`,
+        { muted: true },
+      )}
+      {sortedAging.length > 0 && docTable<(typeof sortedAging)[number]>(
+        [
+          { label: t('tenant'), cell: (r) => r.tenant },
+          { label: t('room'), width: '9%', cell: (r) => r.room },
+          { label: t('branch'), width: '12%', cell: (r) => r.branch },
+          { label: t('billing_col_month'), width: '12%', cell: (r) => r.billingMonth },
+          { label: t('aging_total'), align: 'right', cell: (r) => formatCurrency(r.total) },
+          { label: t('aging_paid'), align: 'right', cell: (r) => formatCurrency(r.paid) },
+          { label: t('reports_outstanding'), align: 'right', cell: (r) => formatCurrency(r.outstanding) },
+          { label: t('aging_days_overdue'), align: 'right', width: '8%', cell: (r) => String(r.days) },
+        ],
+        sortedAging,
+      )}
+
+      {/* Payments journal */}
+      {docSec(t('reports_payments_journal'))}
+      {docTable<(typeof paymentsJournal)[number]>(
+        [
+          { label: t('expenses_col_date'), width: '11%', cell: (p) => p.date.toISOString().slice(0, 10) },
+          { label: t('tenant'), cell: (p) => p.tenant },
+          { label: t('room'), width: '8%', cell: (p) => p.room },
+          { label: t('branch'), width: '11%', cell: (p) => p.branch },
+          { label: t('billing_col_month'), width: '11%', cell: (p) => p.billingMonth },
+          { label: t('payment_method'), width: '12%', cell: (p) => p.method },
+          { label: t('received_by'), cell: (p) => p.receivedBy || '—' },
+          { label: t('reports_total_usd'), align: 'right', cell: (p) => formatCurrency(p.amountUsd) },
+        ],
+        paymentsJournal,
+        <tr style={{ fontWeight: 700 }}>
+          <td style={{ ...dTd, borderTop: '1px solid #d1d5db' }} colSpan={7}>{t('accounting_total')}</td>
+          <td style={{ ...dTdR, borderTop: '1px solid #d1d5db' }}>{formatCurrency(paymentsJournalTotal)}</td>
+        </tr>,
+      )}
+
+      {/* Expense register */}
+      {docSec(t('reports_expense_register'))}
+      {docTable<(typeof expenseRegister)[number]>(
+        [
+          { label: t('expenses_col_date'), width: '11%', cell: (e) => e.expenseDate },
+          { label: t('expenses_col_title'), cell: (e) => e.title },
+          { label: t('expenses_col_category'), width: '14%', cell: (e) => catLabel(e.category) },
+          { label: t('expenses_col_paid_to'), cell: (e) => e.paidTo || '—' },
+          { label: t('expenses_col_room'), width: '16%', cell: (e) => e.room ? `${e.room.roomNumber} · ${e.room.branch}` : t('branch_shared') },
+          { label: t('expenses_col_amount'), align: 'right', cell: (e) => formatCurrency(e.amountUsd) },
+        ],
+        expenseRegister,
+        <tr style={{ fontWeight: 700 }}>
+          <td style={{ ...dTd, borderTop: '1px solid #d1d5db' }} colSpan={5}>{t('accounting_total')}</td>
+          <td style={{ ...dTdR, borderTop: '1px solid #d1d5db' }}>{formatCurrency(totalExpenses)}</td>
+        </tr>,
+      )}
+
+      {/* Billing detail grouped by branch (all rows) */}
+      {docSec(`${t('reports_billing_detail')} (${monthBillings.length})`)}
+      <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', marginTop: 4 }}>
+        <colgroup>
+          <col style={{ width: '16%' }} /><col /><col style={{ width: '12%' }} />
+          <col style={{ width: '15%' }} /><col style={{ width: '15%' }} /><col style={{ width: '13%' }} />
+        </colgroup>
+        <thead>
+          <tr>
+            <th style={dTh}>{t('room')}</th>
+            <th style={dTh}>{t('tenant')}</th>
+            <th style={dTh}>{t('billing_col_month')}</th>
+            <th style={dThR}>{t('reports_total_usd')}</th>
+            <th style={dThR}>{t('reports_total_khr')}</th>
+            <th style={dTh}>{t('status')}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {groupByBranch(monthBillings.map((b) => ({ ...b, roomNumber: b.room?.roomNumber ?? '', branch: b.room?.branch ?? '' }))).map((g) => (
+            <Fragment key={g.branch}>
+              <tr><td colSpan={6} style={{ ...dTd, background: '#f3f4f6', fontWeight: 700, color: '#2563eb', textTransform: 'uppercase', letterSpacing: 0.3, fontSize: 9 }}>{g.branch === '—' ? t('branch_shared') : g.branch} ({g.items.length})</td></tr>
+              {g.items.map((b) => (
+                <tr key={b.id}>
+                  <td style={dTd}>{b.room ? roomLabel(b.room) : '—'}</td>
+                  <td style={dTd}>{b.tenant?.fullName ?? '—'}</td>
+                  <td style={dTd}>{b.billingMonth}</td>
+                  <td style={dTdR}>{formatCurrency(b.totalUsd)}</td>
+                  <td style={dTdR}>{Math.round(b.totalRiel).toLocaleString()} ៛</td>
+                  <td style={dTd}>{t(b.paymentStatus === 'paid' ? 'status_paid' : b.paymentStatus === 'partial' ? 'status_partial' : 'status_unpaid')}</td>
+                </tr>
+              ))}
+            </Fragment>
+          ))}
+        </tbody>
+      </table>
+    </>
+  )
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -519,7 +693,7 @@ export function ReportsClient({ billings, expenses, rooms }: Props) {
         </div>
       </div>
 
-      <div ref={exportRootRef} className="space-y-6 bg-background">
+      <div className="space-y-6 bg-background">
       {/* Summary cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
         <Card className={cn('hover:shadow-md transition-all duration-200 hover:-translate-y-0.5', CARD_STYLES.green.card)}><div className="p-4">
@@ -925,6 +1099,13 @@ export function ReportsClient({ billings, expenses, rooms }: Props) {
           </table>
         </TableScroll>
       </Card>
+      </div>
+
+      {/* Off-screen print template captured to PDF (Reports export) */}
+      <div aria-hidden style={{ position: 'fixed', left: -99999, top: 0, pointerEvents: 'none' }}>
+        <div ref={reportDocRef} style={{ width: 760, background: '#ffffff', color: '#111827', padding: '40px 44px', fontSize: 12, lineHeight: 1.5, fontFamily: 'inherit' }}>
+          {reportDoc}
+        </div>
       </div>
     </div>
   )
