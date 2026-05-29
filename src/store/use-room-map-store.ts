@@ -243,12 +243,12 @@ export const useRoomMapStore = create<State & Actions>((set, get) => ({
     const source = blocks.find((b) => b.id === id)
     if (!source) return
 
-    // Order rooms in the same branch + floor by room number so the duplicate
-    // picks 102 when you duplicate 101, etc. Search forward first, then
-    // wrap backward so the action still does something if 101 is the last
-    // available room.
+    // Order every room in the branch by room number so the duplicate
+    // continues across floor naming conventions — e.g. duplicating 109
+    // (last 1xx) picks 201 (first 2xx). Search forward first, then wrap
+    // backward so the action still does something at the end of the list.
     const siblings = sortRoomsByNumber(
-      rooms.filter((r) => r.branch === source.branch && r.floor === source.floor),
+      rooms.filter((r) => r.branch === source.branch),
     )
     const sourceIdx = siblings.findIndex((r) => r.id === source.roomId)
     if (sourceIdx === -1) return
