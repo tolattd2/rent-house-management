@@ -560,6 +560,66 @@ export function AccountingClient({ billings, expenses, tenants, locks: initialLo
   const thStyle: React.CSSProperties = { textAlign: 'left', padding: '6px 6px', fontSize: 10, color: '#6b7280', borderBottom: '1px solid #d1d5db', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4 }
   const tdStyle: React.CSSProperties = { padding: '5px 6px', borderBottom: '1px solid #f0f1f3' }
 
+  // Full month-by-month income statement matrix for the audit-pack PDF. Mirrors
+  // the on-screen table but with a compact font so all 12 months + Total fit the
+  // fixed 760px export page.
+  type MatrixDocRow = { label: string; values: number[]; total: number; bold?: boolean; muted?: boolean; rule?: boolean; double?: boolean; indent?: boolean; highlight?: boolean }
+  function docMatrix() {
+    const headTh: React.CSSProperties = { fontSize: 7, color: '#6b7280', borderBottom: '1px solid #d1d5db', fontWeight: 700, padding: '4px 2px', textAlign: 'right', whiteSpace: 'nowrap' }
+    const cell: React.CSSProperties = { fontSize: 7, padding: '2px 2px', textAlign: 'right', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }
+    const revenueRows: MatrixDocRow[] = [
+      { label: t('reports_revenue_room_rent'), values: columnTotals.map((m) => m.rent), total: rangeTotals.rent },
+      { label: t('reports_revenue_water'), values: columnTotals.map((m) => m.water), total: rangeTotals.water },
+      { label: t('reports_revenue_electric'), values: columnTotals.map((m) => m.electric), total: rangeTotals.electric },
+      { label: t('reports_revenue_penalty'), values: columnTotals.map((m) => m.penalty), total: rangeTotals.penalty },
+      { label: t('reports_revenue_discount'), values: columnTotals.map((m) => -m.discount), total: -rangeTotals.discount, muted: true },
+      { label: t('reports_net_revenue'), values: columnTotals.map((m) => m.netRevenue), total: rangeTotals.netRevenue, bold: true, rule: true },
+      { label: t('reports_of_which_collected'), values: columnTotals.map((m) => m.collected), total: rangeTotals.collected, muted: true },
+      { label: t('reports_of_which_outstanding'), values: columnTotals.map((m) => m.outstanding), total: rangeTotals.outstanding, muted: true },
+    ]
+    const expenseRows: MatrixDocRow[] = expenseCategories.map((cat) => ({ label: catLabel(cat), values: columnTotals.map((m) => m.expensesByCat.get(cat) ?? 0), total: rangeTotals.expensesByCat.get(cat) ?? 0, indent: true }))
+    const totalRows: MatrixDocRow[] = [
+      { label: t('reports_total_expenses'), values: columnTotals.map((m) => m.expenseTotal), total: rangeTotals.expenseTotal, bold: true, rule: true },
+      { label: t('reports_net_income'), values: columnTotals.map((m) => m.netIncome), total: rangeTotals.netIncome, bold: true, double: true, highlight: true },
+    ]
+    const renderRow = (r: MatrixDocRow, key: string) => {
+      const bg = r.highlight ? (r.total >= 0 ? '#ecfdf5' : '#fef2f2') : undefined
+      const rule = r.double ? '3px double #9ca3af' : r.rule ? '1px solid #d1d5db' : undefined
+      const base: React.CSSProperties = { ...cell, color: r.muted ? '#6b7280' : '#111827', fontWeight: r.bold ? 700 : 400, background: bg, borderTop: rule }
+      return (
+        <tr key={key}>
+          <td style={{ ...base, textAlign: 'left', whiteSpace: 'normal', paddingLeft: r.indent ? 12 : 2 }}>{r.label}</td>
+          {r.values.map((v, i) => <td key={i} style={base}>{v === 0 ? '·' : fmtMatrixNum(v)}</td>)}
+          <td style={{ ...base, fontWeight: 700 }}>{fmtMatrixNum(r.total)}</td>
+        </tr>
+      )
+    }
+    return (
+      <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', marginTop: 6 }}>
+        <colgroup>
+          <col style={{ width: '13%' }} />
+          {columns.map((c) => <col key={c.prefix} />)}
+          <col />
+        </colgroup>
+        <thead>
+          <tr>
+            <th style={{ ...headTh, textAlign: 'left' }}>&nbsp;</th>
+            {columns.map((c) => <th key={c.prefix} style={headTh}>{c.label}</th>)}
+            <th style={{ ...headTh, color: '#111827' }}>{t('accounting_total')}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {revenueRows.map((r, i) => renderRow(r, `rev-${i}`))}
+          <tr>
+            <td colSpan={columns.length + 2} style={{ fontSize: 7, fontWeight: 700, color: '#2563eb', textTransform: 'uppercase', letterSpacing: 0.4, padding: '6px 2px 2px' }}>{t('reports_total_expenses')}</td>
+          </tr>
+          {expenseRows.map((r, i) => renderRow(r, `exp-${i}`))}
+          {totalRows.map((r, i) => renderRow(r, `tot-${i}`))}
+        </tbody>
+      </table>
+    )
+  }
+
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
@@ -1013,19 +1073,7 @@ export function AccountingClient({ billings, expenses, tenants, locks: initialLo
 
           {/* Income Statement */}
           {docStmtTitle(t('accounting_income_statement_annual'), `${rangeLabel} · ${branchLabelText} · ${periodStart} → ${periodEnd}`)}
-          {docSection('is-rev', t('reports_revenue_billed'))}
-          {docRow('is-rent', t('reports_revenue_room_rent'), rangeTotals.rent, { indent: true })}
-          {docRow('is-water', t('reports_revenue_water'), rangeTotals.water, { indent: true })}
-          {docRow('is-elec', t('reports_revenue_electric'), rangeTotals.electric, { indent: true })}
-          {docRow('is-pen', t('reports_revenue_penalty'), rangeTotals.penalty, { indent: true })}
-          {docRow('is-disc', t('reports_revenue_discount'), `(${formatCurrency(rangeTotals.discount)})`, { indent: true, muted: true })}
-          {docRow('is-net', t('reports_net_revenue'), rangeTotals.netRevenue, { bold: true, rule: true })}
-          {docRow('is-coll', t('reports_of_which_collected'), rangeTotals.collected, { indent: true, muted: true })}
-          {docRow('is-out', t('reports_of_which_outstanding'), rangeTotals.outstanding, { indent: true, muted: true })}
-          {docSection('is-exp', t('reports_total_expenses'))}
-          {expenseCategories.map((cat) => docRow(`is-e-${cat}`, catLabel(cat), rangeTotals.expensesByCat.get(cat) ?? 0, { indent: true }))}
-          {docRow('is-exptot', t('reports_total_expenses'), rangeTotals.expenseTotal, { bold: true, rule: true })}
-          {docRow('is-ni', t('reports_net_income'), rangeTotals.netIncome, { bold: true, doubleRule: true, red: rangeTotals.netIncome < 0 })}
+          {docMatrix()}
 
           {/* Quarterly Summary (single year only) */}
           {isSingleYear && (
