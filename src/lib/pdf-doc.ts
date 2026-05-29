@@ -2,12 +2,12 @@
  * Shared high-quality PDF renderer for print-styled HTML documents (Audit Pack,
  * Reports export, Tenant Statement).
  *
- * Strategy: capture the document in a few large CHUNKS (each several A4 pages
- * tall, sized to stay under the browser's ~16384px max-canvas limit) at a fixed
- * high scale, then slice each chunk canvas into individual A4 pages. This keeps
- * text/lines/charts crisp (scale 4) AND fast (only a handful of html2canvas
- * passes instead of one-per-page), and never blanks. Page breaks land at safe
- * boundaries — block edges and after each table row — so nothing is cropped.
+ * Capture the whole document in ONE html2canvas pass (reliable — no region
+ * cropping quirks), at the highest scale that still fits the browser's max
+ * canvas, then slice that single canvas into A4 pages. Page breaks land at safe
+ * boundaries — block edges and after each table row — so a row is never split
+ * and nothing is cropped at the page margins. Pages use lossless PNG for crisp
+ * text and lines.
  */
 export async function renderDocToPdf(el: HTMLElement, filename: string) {
   const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
@@ -15,96 +15,74 @@ export async function renderDocToPdf(el: HTMLElement, filename: string) {
     import('jspdf'),
   ])
 
+  // Highest scale that keeps the canvas within dimension/area limits, so a long
+  // document renders (instead of blanking) while staying as sharp as possible.
+  const rawW = el.scrollWidth || el.clientWidth || 760
+  const rawH = el.scrollHeight || el.clientHeight || 1
+  const MAX_DIM = 16384
+  const MAX_AREA = 80_000_000
+  let SCALE = Math.min(4, MAX_DIM / rawW, MAX_DIM / rawH, Math.sqrt(MAX_AREA / (rawW * rawH)))
+  if (!Number.isFinite(SCALE) || SCALE <= 0) SCALE = 1
+
+  const canvas = await html2canvas(el, {
+    scale: SCALE,
+    backgroundColor: '#ffffff',
+    useCORS: true,
+    logging: false,
+    windowWidth: rawW,
+  })
+
   const pdf = new jsPDF({ orientation: 'p', unit: 'pt', format: 'a4', compress: true })
   const pageW = pdf.internal.pageSize.getWidth()
   const pageH = pdf.internal.pageSize.getHeight()
   const MT = 34, MB = 34
+  const cpx = canvas.width / pageW                 // canvas px per pt
+  const pageContentPx = (pageH - MT - MB) * cpx
+  const H = canvas.height
 
-  const docW = el.scrollWidth || el.clientWidth || 760
-  const docH = el.scrollHeight || el.clientHeight || 1
-
-  const ptPerPx = pageW / docW
-  const pageSlicePx = (pageH - MT - MB) / ptPerPx
-
-  // Safe page-break positions (CSS px from the doc top): block edges + each row.
+  // Safe page-break positions in canvas px: block edges + after each table row.
   const docTop = el.getBoundingClientRect().top
+  const ratio = canvas.height / rawH               // canvas px per CSS px
+  const toY = (clientTop: number) => (clientTop - docTop) * ratio
   const cutSet = new Set<number>()
   for (const child of Array.from(el.children)) {
-    cutSet.add((child as HTMLElement).getBoundingClientRect().bottom - docTop)
+    cutSet.add(toY((child as HTMLElement).getBoundingClientRect().bottom))
   }
   el.querySelectorAll('tr').forEach((tr) => {
-    cutSet.add((tr as HTMLElement).getBoundingClientRect().bottom - docTop)
+    cutSet.add(toY((tr as HTMLElement).getBoundingClientRect().bottom))
   })
-  const cuts = Array.from(cutSet).filter((y) => y > 0 && y <= docH).sort((a, b) => a - b)
+  const cuts = Array.from(cutSet).filter((y) => y > 0 && y < H).sort((a, b) => a - b)
 
-  // Build the page slices (CSS px), snapping each page end to a safe boundary.
-  const pages: { start: number; end: number }[] = []
-  let s = 0
+  const slices: { start: number; h: number }[] = []
+  let start = 0
   let guard = 0
-  while (s < docH - 1 && guard++ < 5000) {
-    let e = Math.min(s + pageSlicePx, docH)
-    if (e < docH) {
+  while (start < H - 1 && guard++ < 6000) {
+    let end = Math.min(start + pageContentPx, H)
+    if (end < H) {
       let chosen = -1
       for (const c of cuts) {
-        if (c > s + 1 && c <= e + 0.5) chosen = c
-        else if (c > e) break
+        if (c > start + 1 && c <= end + 0.5) chosen = c
+        else if (c > end) break
       }
-      if (chosen > s + 1) e = chosen
+      if (chosen > start + 1) end = chosen
     }
-    if (e <= s) e = Math.min(s + pageSlicePx, docH) // never stall
-    pages.push({ start: s, end: e })
-    s = e
-  }
-  if (pages.length === 0) pages.push({ start: 0, end: docH })
-
-  // Fixed high scale; group pages into chunks that stay under the canvas limit.
-  const SCALE = 4
-  const CHUNK_MAX_PX = Math.floor(15000 / SCALE)
-  const chunks: { start: number; end: number; pages: { start: number; end: number }[] }[] = []
-  for (const pg of pages) {
-    const last = chunks[chunks.length - 1]
-    if (last && pg.end - last.start <= CHUNK_MAX_PX) {
-      last.end = pg.end
-      last.pages.push(pg)
-    } else {
-      chunks.push({ start: pg.start, end: pg.end, pages: [pg] })
-    }
+    if (end <= start) end = Math.min(start + pageContentPx, H) // never stall
+    slices.push({ start, h: end - start })
+    start = end
   }
 
-  let pageIndex = 0
-  for (const chunk of chunks) {
-    const canvas = await html2canvas(el, {
-      scale: SCALE,
-      backgroundColor: '#ffffff',
-      useCORS: true,
-      logging: false,
-      x: 0,
-      y: chunk.start,
-      width: docW,
-      height: chunk.end - chunk.start,
-      windowWidth: docW,
-      windowHeight: docH,
-      scrollX: 0,
-      scrollY: 0,
-    })
-
-    for (const pg of chunk.pages) {
-      const pgH = pg.end - pg.start
-      const srcY = (pg.start - chunk.start) * SCALE
-      const srcH = pgH * SCALE
-      const band = document.createElement('canvas')
-      band.width = canvas.width
-      band.height = Math.max(1, Math.ceil(srcH))
-      const ctx = band.getContext('2d')
-      if (!ctx) continue
-      ctx.fillStyle = '#ffffff'
-      ctx.fillRect(0, 0, band.width, band.height)
-      ctx.drawImage(canvas, 0, srcY, canvas.width, srcH, 0, 0, canvas.width, srcH)
-      if (pageIndex > 0) pdf.addPage()
-      pdf.addImage(band.toDataURL('image/png'), 'PNG', 0, MT, pageW, pgH * ptPerPx, undefined, 'FAST')
-      pageIndex++
-    }
-  }
+  slices.forEach((s, i) => {
+    const band = document.createElement('canvas')
+    band.width = canvas.width
+    band.height = Math.max(1, Math.ceil(s.h))
+    const ctx = band.getContext('2d')
+    if (!ctx) return
+    ctx.fillStyle = '#ffffff'
+    ctx.fillRect(0, 0, band.width, band.height)
+    ctx.drawImage(canvas, 0, s.start, canvas.width, s.h, 0, 0, canvas.width, s.h)
+    if (i > 0) pdf.addPage()
+    pdf.addImage(band.toDataURL('image/png'), 'PNG', 0, MT, pageW, s.h / cpx, undefined, 'FAST')
+  })
 
   pdf.save(filename.replace(/[^a-z0-9._-]/gi, '_'))
 }

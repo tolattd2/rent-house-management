@@ -383,6 +383,7 @@ export function ReportsClient({ billings, expenses, rooms }: Props) {
   // jspdf) load dynamically inside renderDocToPdf.
   const { title: brandTitle, subtitle: brandSubtitle } = useBranding()
   const reportDocRef = useRef<HTMLDivElement | null>(null)
+  const paymentsDocRef = useRef<HTMLDivElement | null>(null)
   const [exportingPdf, setExportingPdf] = useState(false)
   const pdfBranchLabel = branchFilter === 'all' ? t('all_branches') : branchFilter
   const pdfPeriodLabel = range
@@ -396,6 +397,18 @@ export function ReportsClient({ billings, expenses, rooms }: Props) {
       await renderDocToPdf(reportDocRef.current, fname)
     } catch (e) {
       console.error('Reports PDF export failed', e)
+    } finally {
+      setExportingPdf(false)
+    }
+  }
+  const handleExportPaymentsPDF = async () => {
+    if (!paymentsDocRef.current || exportingPdf) return
+    setExportingPdf(true)
+    try {
+      const fname = `payments-journal-${pdfBranchLabel}-${range ? `${range[0]}_${range[1]}` : selectedMonth}.pdf`
+      await renderDocToPdf(paymentsDocRef.current, fname)
+    } catch (e) {
+      console.error('Payments journal PDF export failed', e)
     } finally {
       setExportingPdf(false)
     }
@@ -499,16 +512,68 @@ export function ReportsClient({ billings, expenses, rooms }: Props) {
       </table>
     )
   }
+  const docHeader = (
+    <div style={{ textAlign: 'center', borderBottom: '2px solid #2563eb', paddingBottom: 16, marginBottom: 8 }}>
+      <div style={{ fontSize: 22, fontWeight: 700 }}>{brandTitle}</div>
+      {brandSubtitle && <div style={{ color: '#6b7280', marginTop: 2, fontSize: 12 }}>{brandSubtitle}</div>}
+      <div style={{ fontSize: 17, fontWeight: 700, color: '#2563eb', marginTop: 12 }}>{t('reports_title')}</div>
+      <div style={{ color: '#374151', marginTop: 6, fontSize: 12 }}>{pdfBranchLabel} · {pdfPeriodLabel}</div>
+      <div style={{ color: '#6b7280', fontSize: 11, marginTop: 2 }}>{t('accounting_generated')}: {new Date().toISOString().slice(0, 16).replace('T', ' ')}</div>
+    </div>
+  )
+
+  const paymentsJournalSection = (
+    <>
+      {docSec(t('reports_payments_journal'))}
+      <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', marginTop: 4 }}>
+        <colgroup>
+          <col style={{ width: '12%' }} /><col style={{ width: '9%' }} /><col style={{ width: '12%' }} />
+          <col style={{ width: '12%' }} /><col style={{ width: '13%' }} /><col /><col style={{ width: '14%' }} />
+        </colgroup>
+        <thead>
+          <tr>
+            <th style={dTh}>{t('expenses_col_date')}</th>
+            <th style={dTh}>{t('room')}</th>
+            <th style={dTh}>{t('branch')}</th>
+            <th style={dTh}>{t('billing_col_month')}</th>
+            <th style={dTh}>{t('payment_method')}</th>
+            <th style={dTh}>{t('received_by')}</th>
+            <th style={dThR}>{t('reports_total_usd')}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {paymentsByTenant.map((g) => (
+            <Fragment key={g.name}>
+              <tr><td colSpan={7} style={{ ...dTd, background: '#f3f4f6', fontWeight: 700, color: '#2563eb', textTransform: 'uppercase', letterSpacing: 0.3, fontSize: 9 }}>{g.name} ({g.items.length})</td></tr>
+              {g.items.map((p) => (
+                <tr key={p.id}>
+                  <td style={dTd}>{p.date.toISOString().slice(0, 10)}</td>
+                  <td style={dTd}>{p.room}</td>
+                  <td style={dTd}>{p.branch}</td>
+                  <td style={dTd}>{p.billingMonth}</td>
+                  <td style={dTd}>{p.method}</td>
+                  <td style={dTd}>{p.receivedBy || '—'}</td>
+                  <td style={dTdR}>{formatCurrency(p.amountUsd)}</td>
+                </tr>
+              ))}
+              <tr style={{ fontWeight: 700 }}>
+                <td colSpan={6} style={{ ...dTd, color: '#6b7280' }}>{t('accounting_total')} · {g.name}</td>
+                <td style={dTdR}>{formatCurrency(g.subtotal)}</td>
+              </tr>
+            </Fragment>
+          ))}
+          <tr style={{ fontWeight: 700 }}>
+            <td colSpan={6} style={{ ...dTd, borderTop: '2px solid #9ca3af' }}>{t('accounting_total')}</td>
+            <td style={{ ...dTdR, borderTop: '2px solid #9ca3af' }}>{formatCurrency(paymentsJournalTotal)}</td>
+          </tr>
+        </tbody>
+      </table>
+    </>
+  )
+
   const reportDoc = (
     <>
-      {/* Header */}
-      <div style={{ textAlign: 'center', borderBottom: '2px solid #2563eb', paddingBottom: 16, marginBottom: 8 }}>
-        <div style={{ fontSize: 22, fontWeight: 700 }}>{brandTitle}</div>
-        {brandSubtitle && <div style={{ color: '#6b7280', marginTop: 2, fontSize: 12 }}>{brandSubtitle}</div>}
-        <div style={{ fontSize: 17, fontWeight: 700, color: '#2563eb', marginTop: 12 }}>{t('reports_title')}</div>
-        <div style={{ color: '#374151', marginTop: 6, fontSize: 12 }}>{pdfBranchLabel} · {pdfPeriodLabel}</div>
-        <div style={{ color: '#6b7280', fontSize: 11, marginTop: 2 }}>{t('accounting_generated')}: {new Date().toISOString().slice(0, 16).replace('T', ' ')}</div>
-      </div>
+      {docHeader}
 
       {/* Overview / KPIs */}
       {docSec(t('overview'))}
@@ -672,50 +737,7 @@ export function ReportsClient({ billings, expenses, rooms }: Props) {
       </table>
 
       {/* Payments journal — grouped by tenant, kept last */}
-      {docSec(t('reports_payments_journal'))}
-      <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', marginTop: 4 }}>
-        <colgroup>
-          <col style={{ width: '12%' }} /><col style={{ width: '9%' }} /><col style={{ width: '12%' }} />
-          <col style={{ width: '12%' }} /><col style={{ width: '13%' }} /><col /><col style={{ width: '14%' }} />
-        </colgroup>
-        <thead>
-          <tr>
-            <th style={dTh}>{t('expenses_col_date')}</th>
-            <th style={dTh}>{t('room')}</th>
-            <th style={dTh}>{t('branch')}</th>
-            <th style={dTh}>{t('billing_col_month')}</th>
-            <th style={dTh}>{t('payment_method')}</th>
-            <th style={dTh}>{t('received_by')}</th>
-            <th style={dThR}>{t('reports_total_usd')}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {paymentsByTenant.map((g) => (
-            <Fragment key={g.name}>
-              <tr><td colSpan={7} style={{ ...dTd, background: '#f3f4f6', fontWeight: 700, color: '#2563eb', textTransform: 'uppercase', letterSpacing: 0.3, fontSize: 9 }}>{g.name} ({g.items.length})</td></tr>
-              {g.items.map((p) => (
-                <tr key={p.id}>
-                  <td style={dTd}>{p.date.toISOString().slice(0, 10)}</td>
-                  <td style={dTd}>{p.room}</td>
-                  <td style={dTd}>{p.branch}</td>
-                  <td style={dTd}>{p.billingMonth}</td>
-                  <td style={dTd}>{p.method}</td>
-                  <td style={dTd}>{p.receivedBy || '—'}</td>
-                  <td style={dTdR}>{formatCurrency(p.amountUsd)}</td>
-                </tr>
-              ))}
-              <tr style={{ fontWeight: 700 }}>
-                <td colSpan={6} style={{ ...dTd, color: '#6b7280' }}>{t('accounting_total')} · {g.name}</td>
-                <td style={dTdR}>{formatCurrency(g.subtotal)}</td>
-              </tr>
-            </Fragment>
-          ))}
-          <tr style={{ fontWeight: 700 }}>
-            <td colSpan={6} style={{ ...dTd, borderTop: '2px solid #9ca3af' }}>{t('accounting_total')}</td>
-            <td style={{ ...dTdR, borderTop: '2px solid #9ca3af' }}>{formatCurrency(paymentsJournalTotal)}</td>
-          </tr>
-        </tbody>
-      </table>
+      {paymentsJournalSection}
     </>
   )
 
@@ -985,9 +1007,14 @@ export function ReportsClient({ billings, expenses, rooms }: Props) {
           <div className="flex flex-wrap items-center justify-between gap-2">
             <CardTitle className="text-base">{t('reports_payments_journal')} <span className="text-sm font-normal text-muted-foreground">— {formatCurrency(paymentsJournalTotal)}</span></CardTitle>
             {canExport && paymentsJournal.length > 0 && (
-              <Button variant="outline" size="sm" onClick={exportPaymentsCSV}>
-                <Download className="w-3.5 h-3.5 sm:mr-1.5" /><span className="hidden sm:inline">{t('billing_export')}</span>
-              </Button>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={exportPaymentsCSV}>
+                  <Download className="w-3.5 h-3.5 sm:mr-1.5" /><span className="hidden sm:inline">{t('billing_export')}</span>
+                </Button>
+                <Button variant="outline" size="sm" onClick={handleExportPaymentsPDF} disabled={exportingPdf}>
+                  <FileText className="w-3.5 h-3.5 sm:mr-1.5" /><span className="hidden sm:inline">{t('reports_export_pdf')}</span>
+                </Button>
+              </div>
             )}
           </div>
         </CardHeader>
@@ -1175,6 +1202,14 @@ export function ReportsClient({ billings, expenses, rooms }: Props) {
       <div aria-hidden style={{ position: 'fixed', left: -99999, top: 0, pointerEvents: 'none' }}>
         <div ref={reportDocRef} style={{ width: 760, background: '#ffffff', color: '#111827', padding: '40px 44px', fontSize: 12, lineHeight: 1.5, fontFamily: 'inherit' }}>
           {reportDoc}
+        </div>
+      </div>
+
+      {/* Off-screen print template — Payments Received Journal only */}
+      <div aria-hidden style={{ position: 'fixed', left: -99999, top: 0, pointerEvents: 'none' }}>
+        <div ref={paymentsDocRef} style={{ width: 760, background: '#ffffff', color: '#111827', padding: '40px 44px', fontSize: 12, lineHeight: 1.5, fontFamily: 'inherit' }}>
+          {docHeader}
+          {paymentsJournalSection}
         </div>
       </div>
     </div>
