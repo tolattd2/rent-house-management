@@ -504,6 +504,17 @@ export function ReportsClient({ billings, expenses, rooms }: Props) {
 
       {/* Monthly trend */}
       {docSec(t('reports_chart_title'))}
+      <div style={{ marginTop: 6, marginBottom: 10 }}>
+        <BarChart width={668} height={240} data={revenueChart} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+          <XAxis dataKey="label" tick={{ fontSize: 10, fill: '#374151' }} axisLine={{ stroke: '#d1d5db' }} tickLine={false} />
+          <YAxis tick={{ fontSize: 10, fill: '#374151' }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${v}`} />
+          <Legend wrapperStyle={{ fontSize: 11 }} />
+          <Bar dataKey="revenue" name={t('reports_revenue_collected')} fill="#22c55e" radius={[3, 3, 0, 0]} isAnimationActive={false} />
+          <Bar dataKey="outstanding" name={t('dashboard_outstanding')} fill="#ef4444" radius={[3, 3, 0, 0]} isAnimationActive={false} />
+          <Bar dataKey="expenses" name={t('reports_total_expenses')} fill="#f97316" radius={[3, 3, 0, 0]} isAnimationActive={false} />
+        </BarChart>
+      </div>
       {docTable<(typeof revenueChart)[number]>(
         [
           { label: t('billing_col_month'), width: '22%', cell: (r) => r.label },

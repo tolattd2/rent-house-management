@@ -16,7 +16,7 @@ export async function renderDocToPdf(el: HTMLElement, filename: string) {
   const rawW = el.scrollWidth || el.clientWidth || 760
   const rawH = el.scrollHeight || el.clientHeight || 1
   const MAX_DIM = 16000
-  const MAX_AREA = 40_000_000
+  const MAX_AREA = 60_000_000
   let SCALE = Math.min(4, MAX_DIM / rawW, MAX_DIM / rawH, Math.sqrt(MAX_AREA / (rawW * rawH)))
   if (!Number.isFinite(SCALE) || SCALE <= 0) SCALE = 1
   const canvas = await html2canvas(el, { scale: SCALE, backgroundColor: '#ffffff', useCORS: true, windowWidth: rawW })
@@ -70,7 +70,8 @@ export async function renderDocToPdf(el: HTMLElement, filename: string) {
     ctx.fillRect(0, 0, band.width, band.height)
     ctx.drawImage(canvas, 0, s.start, canvas.width, s.h, 0, 0, canvas.width, s.h)
     if (i > 0) pdf.addPage()
-    pdf.addImage(band.toDataURL('image/jpeg', 0.85), 'JPEG', 0, MT, pageW, s.h / cpx, undefined, 'FAST')
+    // PNG (lossless) keeps text/lines crisp — JPEG would soften them.
+    pdf.addImage(band.toDataURL('image/png'), 'PNG', 0, MT, pageW, s.h / cpx, undefined, 'FAST')
   })
   pdf.save(filename.replace(/[^a-z0-9._-]/gi, '_'))
 }
