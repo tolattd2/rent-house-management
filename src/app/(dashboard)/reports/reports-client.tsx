@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { MonthRangePicker, monthRange } from '@/components/ui/month-range-picker'
 import { Badge } from '@/components/ui/badge'
-import { formatCurrency, formatMonth, formatMonthShort, exportToCSV, groupByBranch, cn } from '@/lib/utils'
+import { formatCurrency, formatCompact, formatMonth, formatMonthShort, exportToCSV, groupByBranch, cn } from '@/lib/utils'
 import { CARD_STYLES } from '@/lib/card-colors'
 import { Download, FileText, TrendingDown, ExternalLink } from 'lucide-react'
 import { useLanguage } from '@/contexts/language-context'
@@ -522,38 +522,38 @@ export function ReportsClient({ billings, expenses, rooms }: Props) {
       <div ref={exportRootRef} className="space-y-6 bg-background">
       {/* Summary cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
-        <Card className={CARD_STYLES.green.card}><CardContent className="p-3 sm:p-4">
-          <p className="text-xs text-muted-foreground leading-tight">{t('reports_revenue_collected')}</p>
-          <p className={cn('text-base sm:text-xl font-bold mt-0.5 truncate', CARD_STYLES.green.value)}>{formatCurrency(totalRevenue)}</p>
-        </CardContent></Card>
-        <Card className={CARD_STYLES.red.card}><CardContent className="p-3 sm:p-4">
-          <p className="text-xs text-muted-foreground leading-tight">{t('dashboard_outstanding')}</p>
-          <p className={cn('text-base sm:text-xl font-bold mt-0.5 truncate', CARD_STYLES.red.value)}>{formatCurrency(totalOutstanding)}</p>
-        </CardContent></Card>
-        <Card className={CARD_STYLES.orange.card}><CardContent className="p-3 sm:p-4">
-          <p className="text-xs text-muted-foreground leading-tight">{t('reports_total_expenses')}</p>
-          <p className={cn('text-base sm:text-xl font-bold mt-0.5 truncate', CARD_STYLES.orange.value)}>{formatCurrency(totalExpenses)}</p>
-        </CardContent></Card>
-        <Card className={(netIncome >= 0 ? CARD_STYLES.emerald : CARD_STYLES.red).card}><CardContent className="p-3 sm:p-4">
-          <p className="text-xs text-muted-foreground leading-tight">{t('reports_net_income')}</p>
-          <p className={cn('text-base sm:text-xl font-bold mt-0.5 truncate', (netIncome >= 0 ? CARD_STYLES.emerald : CARD_STYLES.red).value)}>{formatCurrency(netIncome)}</p>
-        </CardContent></Card>
-        <Card className={CARD_STYLES.blue.card}><CardContent className="p-3 sm:p-4">
-          <p className="text-xs text-muted-foreground leading-tight">{t('reports_paid_billings')}</p>
-          <p className={cn('text-base sm:text-xl font-bold mt-0.5', CARD_STYLES.blue.value)}>{monthBillings.filter((b) => b.paymentStatus === 'paid').length}</p>
-        </CardContent></Card>
-        <Card className={CARD_STYLES.amber.card}><CardContent className="p-3 sm:p-4">
-          <p className="text-xs text-muted-foreground leading-tight">{t('reports_unpaid_billings')}</p>
-          <p className={cn('text-base sm:text-xl font-bold mt-0.5', CARD_STYLES.amber.value)}>{monthBillings.filter((b) => b.paymentStatus !== 'paid').length}</p>
-        </CardContent></Card>
-        <Card className={CARD_STYLES.indigo.card}><CardContent className="p-3 sm:p-4">
-          <p className="text-xs text-muted-foreground leading-tight">{t('reports_collection_rate')}</p>
-          <p className={cn('text-base sm:text-xl font-bold mt-0.5', CARD_STYLES.indigo.value)}>{collectionRate}%</p>
-        </CardContent></Card>
-        <Card className={CARD_STYLES.purple.card}><CardContent className="p-3 sm:p-4">
-          <p className="text-xs text-muted-foreground leading-tight">{t('reports_occupancy_rate')}</p>
-          <p className={cn('text-base sm:text-xl font-bold mt-0.5', CARD_STYLES.purple.value)}>{occupancy.rate}% <span className="text-xs text-muted-foreground font-normal">({occupancy.occupied}/{occupancy.total})</span></p>
-        </CardContent></Card>
+        <Card className={cn('hover:shadow-md transition-all duration-200 hover:-translate-y-0.5', CARD_STYLES.green.card)}><div className="p-4">
+          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{t('reports_revenue_collected')}</p>
+          <p className={cn('text-xl font-bold mt-1.5 tabular-nums', CARD_STYLES.green.value)}>{formatCompact(totalRevenue)}</p>
+        </div></Card>
+        <Card className={cn('hover:shadow-md transition-all duration-200 hover:-translate-y-0.5', CARD_STYLES.red.card)}><div className="p-4">
+          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{t('dashboard_outstanding')}</p>
+          <p className={cn('text-xl font-bold mt-1.5 tabular-nums', CARD_STYLES.red.value)}>{formatCompact(totalOutstanding)}</p>
+        </div></Card>
+        <Card className={cn('hover:shadow-md transition-all duration-200 hover:-translate-y-0.5', CARD_STYLES.orange.card)}><div className="p-4">
+          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{t('reports_total_expenses')}</p>
+          <p className={cn('text-xl font-bold mt-1.5 tabular-nums', CARD_STYLES.orange.value)}>{formatCompact(totalExpenses)}</p>
+        </div></Card>
+        <Card className={cn('hover:shadow-md transition-all duration-200 hover:-translate-y-0.5', (netIncome >= 0 ? CARD_STYLES.emerald : CARD_STYLES.red).card)}><div className="p-4">
+          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{t('reports_net_income')}</p>
+          <p className={cn('text-xl font-bold mt-1.5 tabular-nums', (netIncome >= 0 ? CARD_STYLES.emerald : CARD_STYLES.red).value)}>{formatCompact(netIncome)}</p>
+        </div></Card>
+        <Card className={cn('hover:shadow-md transition-all duration-200 hover:-translate-y-0.5', CARD_STYLES.blue.card)}><div className="p-4">
+          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{t('reports_paid_billings')}</p>
+          <p className={cn('text-xl font-bold mt-1.5 tabular-nums', CARD_STYLES.blue.value)}>{monthBillings.filter((b) => b.paymentStatus === 'paid').length}</p>
+        </div></Card>
+        <Card className={cn('hover:shadow-md transition-all duration-200 hover:-translate-y-0.5', CARD_STYLES.amber.card)}><div className="p-4">
+          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{t('reports_unpaid_billings')}</p>
+          <p className={cn('text-xl font-bold mt-1.5 tabular-nums', CARD_STYLES.amber.value)}>{monthBillings.filter((b) => b.paymentStatus !== 'paid').length}</p>
+        </div></Card>
+        <Card className={cn('hover:shadow-md transition-all duration-200 hover:-translate-y-0.5', CARD_STYLES.indigo.card)}><div className="p-4">
+          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{t('reports_collection_rate')}</p>
+          <p className={cn('text-xl font-bold mt-1.5 tabular-nums', CARD_STYLES.indigo.value)}>{collectionRate}%</p>
+        </div></Card>
+        <Card className={cn('hover:shadow-md transition-all duration-200 hover:-translate-y-0.5', CARD_STYLES.purple.card)}><div className="p-4">
+          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{t('reports_occupancy_rate')}</p>
+          <p className={cn('text-xl font-bold mt-1.5 tabular-nums', CARD_STYLES.purple.value)}>{occupancy.rate}% <span className="text-xs text-muted-foreground font-normal">({occupancy.occupied}/{occupancy.total})</span></p>
+        </div></Card>
       </div>
 
       {/* Revenue trend */}
