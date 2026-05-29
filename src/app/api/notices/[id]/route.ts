@@ -22,6 +22,15 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
           resolvedAt: status === 'resolved' ? new Date() : null,
         }),
       },
+      include: {
+        tenant: {
+          select: {
+            id: true, fullName: true,
+            room: { select: { id: true, roomNumber: true, branch: true } },
+          },
+        },
+        room: { select: { id: true, roomNumber: true, branch: true } },
+      },
     })
 
     invalidate('tenants')

@@ -60,6 +60,7 @@ enum PaymentMethod {
 }
 
 enum NoticeType {
+  move_in
   move_out
   repair
   complaint
@@ -118,6 +119,7 @@ model Room {
   billings     Billing[]
   maintenances Maintenance[]
   expenses     Expense[]
+  notices      TenantNotice[]
   mapLayout    RoomMapLayout?
 
   @@unique([roomNumber, branch])
@@ -297,8 +299,13 @@ model TenantNotice {
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
 
-  tenantId String
-  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  // A notice can be filed against a tenant, a room (e.g. move-in notice
+  // before a tenant exists), or both. At least one must be present —
+  // enforced in the API layer since Prisma can't express OR-required.
+  tenantId String?
+  tenant   Tenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  roomId   String?
+  room     Room?   @relation(fields: [roomId], references: [id], onDelete: Cascade)
 
   @@map("tenant_notices")
 }

@@ -164,6 +164,9 @@ export const getDashboardData = unstable_cache(
               room: { select: { roomNumber: true, branch: true } },
             },
           },
+          // Room is independent so move-in / vacant-room notices still show
+          // a location even when no tenant is attached.
+          room: { select: { roomNumber: true, branch: true } },
         },
         orderBy: { createdAt: 'desc' },
       }),
@@ -303,7 +306,7 @@ export const getAccountingData = unstable_cache(
 
 export const getNoticesData = unstable_cache(
   async () => {
-    const [notices, tenants] = await Promise.all([
+    const [notices, tenants, rooms] = await Promise.all([
       db.tenantNotice.findMany({
         include: {
           tenant: {
@@ -312,22 +315,30 @@ export const getNoticesData = unstable_cache(
               room: { select: { id: true, roomNumber: true, branch: true } },
             },
           },
+          // Room is independently linked so move-in / vacant-room notices
+          // still show a room when no tenant exists.
+          room: { select: { id: true, roomNumber: true, branch: true } },
         },
         orderBy: [{ status: 'asc' }, { createdAt: 'desc' }],
       }),
       db.tenant.findMany({
         where: { status: 'active' },
         select: {
-          id: true, fullName: true,
+          id: true, fullName: true, roomId: true,
           room: { select: { roomNumber: true, branch: true } },
         },
         orderBy: { fullName: 'asc' },
       }),
+      // Every room in every branch so the picker can offer vacant rooms.
+      db.room.findMany({
+        select: { id: true, roomNumber: true, branch: true, status: true },
+        orderBy: [{ branch: 'asc' }, { roomNumber: 'asc' }],
+      }),
     ])
-    return { notices, tenants }
+    return { notices, tenants, rooms }
   },
   ['notices-data'],
-  { tags: [TAGS.tenants], revalidate: REVALIDATE_SECONDS },
+  { tags: [TAGS.tenants, TAGS.rooms], revalidate: REVALIDATE_SECONDS },
 )
 
 /**

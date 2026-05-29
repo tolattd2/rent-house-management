@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import {
   Plus, Search, Bell, Trash2, Pencil, CheckCircle2, RotateCcw,
-  LogOut, Wrench, AlertTriangle, FileText, Hammer,
+  LogIn, LogOut, Wrench, AlertTriangle, FileText, Hammer,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -16,7 +16,7 @@ import { TableScroll } from '@/components/ui/table-scroll'
 import { SortableTh, type SortDir } from '@/components/ui/sortable-th'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { DeleteConfirmDialog } from '@/components/ui/delete-confirm-dialog'
-import { NoticeDialog, type TenantNotice, type NoticeTenantOption } from '@/components/tenants/notice-dialog'
+import { NoticeDialog, type TenantNotice, type NoticeTenantOption, type NoticeRoomOption } from '@/components/tenants/notice-dialog'
 import { formatDate, groupByBranch, cn } from '@/lib/utils'
 import { CARD_STYLES, type CardColor } from '@/lib/card-colors'
 import { toast } from '@/hooks/use-toast'
@@ -25,7 +25,7 @@ import { useBranches, useRoomLabel } from '@/contexts/branches-context'
 import { useDeleteWithUndo } from '@/hooks/use-delete-with-undo'
 import { usePersistentState } from '@/hooks/use-persistent-state'
 
-type NoticeType = 'move_out' | 'repair' | 'complaint' | 'general'
+type NoticeType = 'move_in' | 'move_out' | 'repair' | 'complaint' | 'general'
 
 type NoticeRecord = {
   id: string
@@ -39,11 +39,13 @@ type NoticeRecord = {
     id: string; fullName: string
     room: { id: string; roomNumber: string; branch: string | null } | null
   } | null
+  room: { id: string; roomNumber: string; branch: string | null } | null
 }
 
 interface Props {
   notices: NoticeRecord[]
   tenants: NoticeTenantOption[]
+  rooms: NoticeRoomOption[]
 }
 
 /** Gradient-wash colour for each status summary card. */
@@ -54,16 +56,17 @@ const STATUS_CARD_COLOR: Record<'all' | 'open' | 'resolved', CardColor> = {
 }
 
 /** Icon + badge colour per notice type. */
-const NOTICE_META: Record<NoticeType, { icon: typeof LogOut; badge: 'error' | 'warning' | 'secondary' }> = {
+const NOTICE_META: Record<NoticeType, { icon: typeof LogOut; badge: 'error' | 'warning' | 'secondary' | 'success' }> = {
+  move_in: { icon: LogIn, badge: 'success' },
   move_out: { icon: LogOut, badge: 'error' },
   repair: { icon: Wrench, badge: 'warning' },
   complaint: { icon: AlertTriangle, badge: 'warning' },
   general: { icon: FileText, badge: 'secondary' },
 }
 
-const NOTICE_TYPES: NoticeType[] = ['move_out', 'repair', 'complaint', 'general']
+const NOTICE_TYPES: NoticeType[] = ['move_in', 'move_out', 'repair', 'complaint', 'general']
 
-export function NoticesClient({ notices: initial, tenants }: Props) {
+export function NoticesClient({ notices: initial, tenants, rooms }: Props) {
   const router = useRouter()
   const { data: session } = useSession()
   const canManage = session?.user?.role ? session.user.role !== 'guest' : false
@@ -82,15 +85,19 @@ export function NoticesClient({ notices: initial, tenants }: Props) {
   const [editing, setEditing] = useState<NoticeRecord | null>(null)
   const { triggerDelete, dialogState, closeDialog } = useDeleteWithUndo()
 
+  // Notices may be tenant-scoped, room-scoped (move-in), or both — fall back
+  // to the room when no tenant is attached so vacant-room notices still
+  // sort, group, and filter by branch/room.
+  const roomOf = (n: NoticeRecord) => n.tenant?.room ?? n.room
   const filtered = notices.filter((n) => {
     const q = search.toLowerCase()
     const matchSearch =
       (n.tenant?.fullName ?? '').toLowerCase().includes(q) ||
-      (n.tenant?.room?.roomNumber ?? '').toLowerCase().includes(q) ||
+      (roomOf(n)?.roomNumber ?? '').toLowerCase().includes(q) ||
       n.message.toLowerCase().includes(q)
     const matchStatus = statusFilter === 'all' || n.status === statusFilter
     const matchType = typeFilter === 'all' || n.type === typeFilter
-    const matchBranch = branchFilter === 'all' || n.tenant?.room?.branch === branchFilter
+    const matchBranch = branchFilter === 'all' || roomOf(n)?.branch === branchFilter
     return matchSearch && matchStatus && matchType && matchBranch
   })
 
@@ -117,8 +124,8 @@ export function NoticesClient({ notices: initial, tenants }: Props) {
   const grouped = groupByBranch(
     filtered.map((n) => ({
       ...n,
-      roomNumber: n.tenant?.room?.roomNumber ?? '',
-      branch: n.tenant?.room?.branch ?? '',
+      roomNumber: roomOf(n)?.roomNumber ?? '',
+      branch: roomOf(n)?.branch ?? '',
     })),
   ).map((g) => ({ ...g, items: sortItems(g.items) }))
 
@@ -162,7 +169,8 @@ export function NoticesClient({ notices: initial, tenants }: Props) {
 
   const [addingMaintenanceId, setAddingMaintenanceId] = useState<string | null>(null)
   async function handleAddToMaintenance(n: NoticeRecord) {
-    if (!n.tenant?.room) {
+    const r = roomOf(n)
+    if (!r) {
       toast({ title: t('notice_add_to_maintenance_no_room'), variant: 'destructive' })
       return
     }
@@ -177,8 +185,8 @@ export function NoticesClient({ notices: initial, tenants }: Props) {
         repairFeeUsd: 0,
         reportedDate: new Date().toISOString().slice(0, 10),
         notes: '',
-        roomId: n.tenant.room.id,
-        tenantId: n.tenant.id,
+        roomId: r.id,
+        tenantId: n.tenant?.id ?? null,
       }),
     })
     const data = await res.json()
@@ -200,8 +208,12 @@ export function NoticesClient({ notices: initial, tenants }: Props) {
     })
   }
 
-  const tenantLabelOf = (n: NoticeRecord) =>
-    `${n.tenant?.room ? `${t('room')} ${roomLabel(n.tenant.room)} · ` : ''}${n.tenant?.fullName ?? ''}`
+  const tenantLabelOf = (n: NoticeRecord) => {
+    const r = roomOf(n)
+    const roomPart = r ? `${t('room')} ${roomLabel(r)}` : ''
+    const namePart = n.tenant?.fullName ?? ''
+    return [roomPart, namePart].filter(Boolean).join(' · ')
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -299,12 +311,18 @@ export function NoticesClient({ notices: initial, tenants }: Props) {
             <Card key={n.id} className={cn('p-4', resolved ? '' : 'border-amber-300 dark:border-amber-900/70')}>
               <div className="flex items-start justify-between gap-2 mb-2">
                 <div className="min-w-0">
-                  <Link href={`/tenants/${n.tenant?.id}`} className="font-semibold hover:text-primary">
-                    {n.tenant?.fullName ?? '—'}
-                  </Link>
+                  {n.tenant ? (
+                    <Link href={`/tenants/${n.tenant.id}`} className="font-semibold hover:text-primary">
+                      {n.tenant.fullName}
+                    </Link>
+                  ) : (
+                    <span className="font-semibold">
+                      {roomOf(n) ? `${t('room')} ${roomLabel(roomOf(n)!)}` : '—'}
+                    </span>
+                  )}
                   <p className="text-xs text-muted-foreground">
-                    {n.tenant?.room ? `${t('room')} ${roomLabel(n.tenant.room)}` : '—'}
-                    {n.tenant?.room?.branch ? ` · ${n.tenant.room.branch}` : ''}
+                    {n.tenant && roomOf(n) ? `${t('room')} ${roomLabel(roomOf(n)!)}` : ''}
+                    {roomOf(n)?.branch ? `${n.tenant && roomOf(n) ? ' · ' : ''}${roomOf(n)!.branch}` : ''}
                   </p>
                 </div>
                 <div className="flex flex-col items-end gap-1 shrink-0">
@@ -397,17 +415,21 @@ export function NoticesClient({ notices: initial, tenants }: Props) {
                     className={`border-b border-border last:border-0 hover:bg-muted/40 ${i % 2 ? 'bg-muted/10' : ''}`}
                   >
                     <td className="px-4 py-3">
-                      <Link href={`/tenants/${n.tenant?.id}`} className="font-medium hover:text-primary">
-                        {n.tenant?.fullName ?? '—'}
-                      </Link>
+                      {n.tenant ? (
+                        <Link href={`/tenants/${n.tenant.id}`} className="font-medium hover:text-primary">
+                          {n.tenant.fullName}
+                        </Link>
+                      ) : (
+                        <span className="font-medium text-muted-foreground">—</span>
+                      )}
                       <p className="text-xs text-muted-foreground">
                         {t('notice_added_on')} {formatDate(String(n.createdAt))}
                       </p>
                     </td>
                     <td className="px-4 py-3">
-                      {n.tenant?.room ? `${t('room')} ${roomLabel(n.tenant.room)}` : <span className="text-muted-foreground">—</span>}
+                      {roomOf(n) ? `${t('room')} ${roomLabel(roomOf(n)!)}` : <span className="text-muted-foreground">—</span>}
                     </td>
-                    <td className="px-4 py-3 text-muted-foreground">{n.tenant?.room?.branch ?? '—'}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{roomOf(n)?.branch ?? '—'}</td>
                     <td className="px-4 py-3">
                       <Badge variant={resolved ? 'secondary' : meta.badge} className="flex items-center gap-1 w-fit">
                         <Icon className="w-3 h-3" />
@@ -487,6 +509,7 @@ export function NoticesClient({ notices: initial, tenants }: Props) {
       {showForm && (
         <NoticeDialog
           tenants={tenants}
+          rooms={rooms}
           notice={editing}
           tenantLabel={editing ? tenantLabelOf(editing) : undefined}
           onClose={() => { setShowForm(false); setEditing(null) }}

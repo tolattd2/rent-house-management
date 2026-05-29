@@ -55,7 +55,7 @@ export const CONTRACT_STATUS = ['active', 'expired', 'terminated'] as const
 export const PAYMENT_STATUS = ['unpaid', 'partial', 'paid'] as const
 export const PAYMENT_METHOD = ['Cash', 'ABA_Pay', 'Wing', 'TrueMoney', 'Bank_Transfer', 'Other'] as const
 export const MAINTENANCE_STATUS = ['pending', 'in_progress', 'completed'] as const
-export const NOTICE_TYPE = ['move_out', 'repair', 'complaint', 'general'] as const
+export const NOTICE_TYPE = ['move_in', 'move_out', 'repair', 'complaint', 'general'] as const
 export const NOTICE_STATUS = ['open', 'resolved'] as const
 
 // ---------- coercion helpers ----------

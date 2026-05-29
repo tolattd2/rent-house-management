@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { invalidate } from '@/lib/revalidate'
 
-const NOTICE_TYPES = ['move_out', 'repair', 'complaint', 'general'] as const
+const NOTICE_TYPES = ['move_in', 'move_out', 'repair', 'complaint', 'general'] as const
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth()
@@ -17,12 +17,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       return NextResponse.json({ ok: false, error: 'Details are required' }, { status: 400 })
     }
 
-    const tenant = await db.tenant.findUnique({ where: { id }, select: { id: true } })
+    const tenant = await db.tenant.findUnique({ where: { id }, select: { id: true, roomId: true } })
     if (!tenant) return NextResponse.json({ ok: false, error: 'Tenant not found' }, { status: 404 })
 
     const record = await db.tenantNotice.create({
       data: {
         tenantId: id,
+        roomId: tenant.roomId ?? null,
         type: NOTICE_TYPES.includes(type) ? type : 'general',
         message: String(message).trim(),
         expectedDate: expectedDate ?? '',

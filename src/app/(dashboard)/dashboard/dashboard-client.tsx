@@ -34,6 +34,7 @@ type UnpaidBilling = {
 type OpenNotice = {
   id: string; type: string; message: string; expectedDate: string; createdAt: Date | string
   tenant: { id: string; fullName: string; room: { roomNumber: string; branch: string } | null } | null
+  room: { roomNumber: string; branch: string } | null
 }
 
 interface Props {
@@ -82,7 +83,8 @@ export function DashboardClient({ rooms, tenants, billings, expenses, unpaidBill
   const filteredBillings = useMemo(() => billings.filter(b => branch === 'all' || b.room?.branch === branch), [billings, branch])
   const filteredExpenses = useMemo(() => expenses.filter(e => branch === 'all' || e.room?.branch === branch || !e.room), [expenses, branch])
   const filteredUnpaid   = useMemo(() => unpaidBillings.filter(b => branch === 'all' || b.room?.branch === branch), [unpaidBillings, branch])
-  const filteredNotices  = useMemo(() => openNotices.filter(n => branch === 'all' || n.tenant?.room?.branch === branch), [openNotices, branch])
+  const noticeRoom = (n: OpenNotice) => n.tenant?.room ?? n.room
+  const filteredNotices  = useMemo(() => openNotices.filter(n => branch === 'all' || noticeRoom(n)?.branch === branch), [openNotices, branch])
 
   const stats = useMemo(() => {
     const now   = new Date()
@@ -214,7 +216,7 @@ export function DashboardClient({ rooms, tenants, billings, expenses, unpaidBill
 
   const noticeGroups = useMemo(() => {
     const sign = noticeSort.dir === 'asc' ? 1 : -1
-    const groups = groupByBranch(filteredNotices.map((n) => ({ ...n, roomNumber: n.tenant?.room?.roomNumber ?? '', branch: n.tenant?.room?.branch ?? '' })))
+    const groups = groupByBranch(filteredNotices.map((n) => ({ ...n, roomNumber: noticeRoom(n)?.roomNumber ?? '', branch: noticeRoom(n)?.branch ?? '' })))
       .map((g) => ({
         branch: g.branch,
         items: [...g.items].sort((a, b) => {
@@ -537,13 +539,17 @@ export function DashboardClient({ rooms, tenants, billings, expenses, unpaidBill
                         <div className="flex items-start justify-between gap-2 mb-2">
                           <div className="min-w-0">
                             <p className="font-medium truncate">
-                              {n.tenant?.room ? `${t('room')} ${roomLabel(n.tenant.room)}` : '—'}
+                              {noticeRoom(n) ? `${t('room')} ${roomLabel(noticeRoom(n)!)}` : '—'}
                             </p>
-                            <Link href={`/tenants/${n.tenant?.id}`} className="text-sm text-muted-foreground truncate hover:text-primary block">
-                              {n.tenant?.fullName ?? '—'}
-                            </Link>
+                            {n.tenant ? (
+                              <Link href={`/tenants/${n.tenant.id}`} className="text-sm text-muted-foreground truncate hover:text-primary block">
+                                {n.tenant.fullName}
+                              </Link>
+                            ) : (
+                              <span className="text-sm text-muted-foreground truncate block">{t('room_status_vacant')}</span>
+                            )}
                           </div>
-                          <Badge variant={n.type === 'move_out' ? 'error' : n.type === 'general' ? 'secondary' : 'warning'} className="shrink-0">
+                          <Badge variant={n.type === 'move_in' ? 'success' : n.type === 'move_out' ? 'error' : n.type === 'general' ? 'secondary' : 'warning'} className="shrink-0">
                             {t(`notice_type_${n.type}` as Parameters<typeof t>[0])}
                           </Badge>
                         </div>
@@ -589,15 +595,19 @@ export function DashboardClient({ rooms, tenants, billings, expenses, unpaidBill
                             className={`border-b border-border last:border-0 hover:bg-muted/40 transition-colors ${i % 2 === 0 ? '' : 'bg-muted/10'}`}
                           >
                             <td className="px-5 py-3 text-muted-foreground">
-                              {n.tenant?.room ? `${t('room')} ${roomLabel(n.tenant.room)}` : '—'}
+                              {noticeRoom(n) ? `${t('room')} ${roomLabel(noticeRoom(n)!)}` : '—'}
                             </td>
                             <td className="px-5 py-3">
-                              <Link href={`/tenants/${n.tenant?.id}`} className="font-medium hover:text-primary">
-                                {n.tenant?.fullName ?? '—'}
-                              </Link>
+                              {n.tenant ? (
+                                <Link href={`/tenants/${n.tenant.id}`} className="font-medium hover:text-primary">
+                                  {n.tenant.fullName}
+                                </Link>
+                              ) : (
+                                <span className="font-medium text-muted-foreground">{t('room_status_vacant')}</span>
+                              )}
                             </td>
                             <td className="px-5 py-3">
-                              <Badge variant={n.type === 'move_out' ? 'error' : n.type === 'general' ? 'secondary' : 'warning'}>
+                              <Badge variant={n.type === 'move_in' ? 'success' : n.type === 'move_out' ? 'error' : n.type === 'general' ? 'secondary' : 'warning'}>
                                 {t(`notice_type_${n.type}` as Parameters<typeof t>[0])}
                               </Badge>
                             </td>

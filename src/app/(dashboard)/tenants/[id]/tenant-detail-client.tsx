@@ -8,7 +8,7 @@ import Link from 'next/link'
 import {
   User, Phone, Calendar,
   Edit, ArrowLeft, Home, FileText, CreditCard,
-  CheckCircle2, AlertTriangle, LogOut,
+  CheckCircle2, AlertTriangle, LogIn, LogOut,
   Bell, Plus, Pencil, Trash2, Wrench, RotateCcw,
   Send, History, FileSignature, Eye, Printer, MessageCircle
 } from 'lucide-react'
@@ -59,7 +59,8 @@ interface Props {
 }
 
 /** Icon + badge colour per notice type. */
-const NOTICE_META: Record<TenantNotice['type'], { icon: typeof Bell; badge: 'error' | 'warning' | 'secondary' }> = {
+const NOTICE_META: Record<TenantNotice['type'], { icon: typeof Bell; badge: 'error' | 'warning' | 'secondary' | 'success' }> = {
+  move_in: { icon: LogIn, badge: 'success' },
   move_out: { icon: LogOut, badge: 'error' },
   repair: { icon: Wrench, badge: 'warning' },
   complaint: { icon: AlertTriangle, badge: 'warning' },
