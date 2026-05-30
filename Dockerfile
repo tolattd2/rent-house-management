@@ -42,6 +42,11 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
+# `next build` bakes any .env* present at build time into the standalone output,
+# which would override the runtime env_file (e.g. a stale Supabase DATABASE_URL).
+# Strip them so the container's environment is the single source of truth.
+RUN rm -f .env .env.local .env.development .env.production .env.production.local
+
 # Prisma query engine + generated client for runtime (standalone trims node_modules)
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma/client ./node_modules/@prisma/client
