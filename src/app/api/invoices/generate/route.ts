@@ -49,13 +49,22 @@ export async function POST(req: NextRequest) {
 
   if (billings.length === 0) return NextResponse.json({ ok: true, created: 0 })
 
-  const existingCount = await db.invoice.count()
+  // Start numbering above the highest existing invoice for this year, not from
+  // `count` — `count` collides once any invoice has been deleted (gaps), and
+  // every migrated/legacy invoice already creates such gaps.
+  const prefix = `INV-${new Date().getFullYear()}-`
+  const last = await db.invoice.findFirst({
+    where: { invoiceNumber: { startsWith: prefix } },
+    orderBy: { invoiceNumber: 'desc' },
+    select: { invoiceNumber: true },
+  })
+  const startSeq = last ? Number(last.invoiceNumber.slice(prefix.length)) || 0 : 0
 
   await Promise.all(
     billings.map((billing, i) =>
       db.invoice.create({
         data: {
-          invoiceNumber: generateInvoiceNumber(existingCount + i + 1),
+          invoiceNumber: generateInvoiceNumber(startSeq + i + 1),
           tenantId: billing.tenantId,
           billingId: billing.id,
         },
