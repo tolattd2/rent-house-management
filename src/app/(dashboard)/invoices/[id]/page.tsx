@@ -1,7 +1,9 @@
 import { db } from '@/lib/db'
 import { Prisma } from '@prisma/client'
+import { after } from 'next/server'
 import { notFound } from 'next/navigation'
 import { InvoiceClient } from './invoice-client'
+import { invalidate } from '@/lib/revalidate'
 import { generateInvoiceNumber } from '@/lib/utils'
 
 async function getOrCreateInvoice(billingId: string) {
@@ -20,6 +22,7 @@ async function getOrCreateInvoice(billingId: string) {
   if (!billing) return null
 
   let invoice = await db.invoice.findUnique({ where: { billingId } })
+  const existed = !!invoice
   // Allocate the next number from the highest existing one for this year (not
   // `count + 1`, which collides once any invoice has been deleted — leaving gaps).
   // Retry on P2002 to absorb the rare race (two people opening the same invoice,
@@ -50,6 +53,10 @@ async function getOrCreateInvoice(billingId: string) {
     }
   }
   if (!invoice) throw new Error('Could not allocate a unique invoice number')
+
+  // A brand-new invoice must show up in the (cached) invoices list right away.
+  // revalidateTag can't run during render, so defer it to after the response.
+  if (!existed) after(() => invalidate('invoices'))
 
   const settings = await db.setting.findMany()
   const settingsMap = Object.fromEntries(settings.map((s) => [s.key, s.value]))
