@@ -5,7 +5,7 @@ exposed over HTTPS by a Cloudflare Tunnel.
 
 - **NAS CPU:** Intel Celeron J4025 (x86-64 → images build for `linux/amd64`)
 - **Stack:** `postgres` · `minio` · `app` (Next.js standalone) · `cloudflared`
-- **Domain:** `happyhomebyhas.com` (app) + `media.happyhomebyhas.com` (MinIO)
+- **Domain:** `YOURDOMAIN` (app) + `media.YOURDOMAIN` (MinIO)
 
 Phase 1 (code: standalone build, MinIO storage, Docker files) is already done on
 the `migrate/synology` branch. This runbook covers Phases 2–6, run on cutover day.
@@ -19,7 +19,7 @@ the `migrate/synology` branch. This runbook covers Phases 2–6, run on cutover 
   Container Manager's GUI for `docker compose`.
 - On your PC: Docker Desktop (to build) and **PostgreSQL 16 client tools**
   (`pg_dump`, `pg_restore`) — `winget install PostgreSQL.PostgreSQL` or the EDB installer.
-- A Cloudflare account with `happyhomebyhas.com` using Cloudflare nameservers
+- A Cloudflare account with `YOURDOMAIN` using Cloudflare nameservers
   (free plan is fine). If the domain isn't on Cloudflare yet, add the site in the
   Cloudflare dashboard and update the nameservers at your registrar first.
 
@@ -109,14 +109,14 @@ automatically by the `minio-init` service on first `docker compose up`.
 
    | Subdomain | Domain | Type | URL |
    |---|---|---|---|
-   | *(blank)* | happyhomebyhas.com | HTTP | `app:3000` |
-   | media | happyhomebyhas.com | HTTP | `minio:9000` |
+   | *(blank)* | YOURDOMAIN | HTTP | `app:3000` |
+   | media | YOURDOMAIN | HTTP | `minio:9000` |
 
    `cloudflared` runs in the compose network, so it resolves the `app` and `minio`
    service names. Cloudflare auto-creates the DNS records and provisions TLS.
 
 > Leave **Host header** untouched — MinIO presigned uploads rely on the original
-> `media.happyhomebyhas.com` Host header to validate the signature.
+> `media.YOURDOMAIN` Host header to validate the signature.
 
 ---
 
@@ -129,12 +129,12 @@ The cron API routes already require `CRON_SECRET`. Create two scheduled tasks:
 - Task 1 — daily, **02:00**:
   ```bash
   curl -fsS -H "Authorization: Bearer YOUR_CRON_SECRET" \
-    https://happyhomebyhas.com/api/cron/late-invoice-alerts
+    https://YOURDOMAIN/api/cron/late-invoice-alerts
   ```
 - Task 2 — daily, **02:30**:
   ```bash
   curl -fsS -H "Authorization: Bearer YOUR_CRON_SECRET" \
-    https://happyhomebyhas.com/api/cron/landlord-promise-alerts
+    https://YOURDOMAIN/api/cron/landlord-promise-alerts
   ```
 
 > **Timezone:** Vercel Cron ran in **UTC**; Task Scheduler uses the **NAS local time**.
@@ -186,16 +186,16 @@ To deploy a new version later: push to the branch → wait for the Action → on
 
 In the running app: **Settings → Telegram tenant linking → toggle Off then On.**
 This calls `/api/telegram/setup-webhook`, which registers
-`https://happyhomebyhas.com/api/telegram/webhook` **with the secret_token** the
+`https://YOURDOMAIN/api/telegram/webhook` **with the secret_token** the
 validator expects. (Do *not* use a raw Telegram `setWebhook` call — it skips the secret.)
 
 ### 6.4 Smoke test
 
-- [ ] Log in (NextAuth) at `https://happyhomebyhas.com`
+- [ ] Log in (NextAuth) at `https://YOURDOMAIN`
 - [ ] Billing list loads with migrated data; status-card filters work
 - [ ] Generate / view an invoice PDF
 - [ ] Send a custom Telegram reminder **with a photo** → confirms presigned upload to
-      MinIO + public fetch via `media.happyhomebyhas.com`
+      MinIO + public fetch via `media.YOURDOMAIN`
 - [ ] Link a tenant by messaging the bot → confirms the inbound webhook
 - [ ] Manually run a cron task in Task Scheduler → check the alert fires
 
