@@ -226,7 +226,7 @@ export function TenantsClient({ tenants: initial, rooms }: Props) {
           <Button key={s} variant={statusFilter === s ? 'default' : 'outline'} size="sm"
             className="h-9 px-3 text-sm"
             onClick={() => setStatusFilter(s)}>
-            {t(`status_${s}` as Parameters<typeof t>[0])}
+            {t(s === 'active' ? 'tenant_status_active' : s === 'inactive' ? 'tenant_status_inactive' : 'status_all')}
           </Button>
         ))}
         <Select
