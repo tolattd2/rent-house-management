@@ -33,6 +33,7 @@ export default async function EditBillingPage({ params }: { params: Promise<{ id
     fullName: billing.tenant.fullName,
     phone: billing.tenant.phone,
     monthlyRent: billing.tenant.monthlyRent,
+    payDay: billing.tenant.payDay,
     room: room
       ? {
           id: room.id,

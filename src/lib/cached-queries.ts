@@ -500,7 +500,7 @@ export const getCreateBillingData = unstable_cache(
       db.tenant.findMany({
         where: { status: 'active', roomId: { not: null } },
         select: {
-          id: true, fullName: true, phone: true, monthlyRent: true,
+          id: true, fullName: true, phone: true, monthlyRent: true, payDay: true,
           room: {
             select: {
               id: true, roomNumber: true, branch: true, rentPriceUsd: true,

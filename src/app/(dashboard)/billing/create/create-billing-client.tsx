@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea'
 import { Separator } from '@/components/ui/separator'
 import { calculateBilling } from '@/lib/billing'
+import { daysLate } from '@/lib/late-fees'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { toast } from '@/hooks/use-toast'
 import { useBack } from '@/hooks/use-back'
@@ -47,7 +48,7 @@ const schema = z.object({
 type FormData = z.infer<typeof schema>
 
 interface Tenant {
-  id: string; fullName: string; phone: string; monthlyRent: number
+  id: string; fullName: string; phone: string; monthlyRent: number; payDay: number
   room: { id: string; roomNumber: string; branch?: string; rentPriceUsd: number; waterRateRiel: number; electricRateRiel: number } | null
   billings: Array<{ billingMonth: string; currWaterReading: number; currElectricReading: number; totalUsd: number; paymentStatus: string; payments: Array<{ amountUsd: number }> }>
   notices: Array<{ id: string; type: string; message: string; expectedDate: string; createdAt: string | Date }>
@@ -152,6 +153,14 @@ export function CreateBillingClient({ tenants, settings, preselectedTenantId, ed
     setValue('currElectricReading', lastBilling?.currElectricReading ?? 0)
     setValue('outstandingDebtUsd', prevUnpaid)
   }, [formValues.tenantId, selectedTenant, setValue, isEdit])
+
+  // Auto-fill Late Days from the selected month + tenant's pay day vs today, so
+  // the late-penalty rule applies on its own (create mode only). Still editable.
+  useEffect(() => {
+    if (isEdit) return
+    if (!selectedTenant) return
+    setValue('lateDays', daysLate(formValues.billingMonth, selectedTenant.payDay ?? 1))
+  }, [formValues.tenantId, formValues.billingMonth, selectedTenant, setValue, isEdit])
 
   // Suggest the late penalty from the days-late + branch rate model (create
   // mode only). It pre-fills the editable field; the admin can still type any
