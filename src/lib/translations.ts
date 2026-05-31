@@ -1473,13 +1473,13 @@ export const translations = {
     // Dashboard expense stats
     dashboard_monthly_expenses: 'ចំណាយប្រចាំខែ',
     dashboard_this_month_expenses: 'ចំណាយខែនេះ',
-    dashboard_net_income: 'ចំណូលសុទ្ធ',
+    dashboard_net_income: 'ចំនេញសុទ្ធ',
     dashboard_revenue_minus_expenses: 'ចំណូលដក ចំណាយ',
     // Reports expense section
     reports_expenses_title: 'សង្ខេបការចំណាយ',
     reports_total_expenses: 'ចំណាយសរុប',
     reports_expense_by_category: 'តាមប្រភេទ',
-    reports_net_income: 'ចំណូលសុទ្ធ',
+    reports_net_income: 'ចំនេញសុទ្ធ',
     // Reports tax/audit sections
     reports_collection_rate: 'អត្រាប្រមូលប្រាក់',
     reports_occupancy_rate: 'អត្រាស្នាក់នៅ',
