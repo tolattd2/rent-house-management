@@ -143,7 +143,7 @@ export function CreateBillingClient({ tenants, settings, preselectedTenantId, ed
     const lastBilling = selectedTenant.billings[0]
     // Carry the remaining balance of the last bill (total minus payments) so a
     // partially-paid bill rolls its leftover forward, not just fully-unpaid ones.
-    const lastPaid = lastBilling?.payments.reduce((s, p) => s + p.amountUsd, 0) ?? 0
+    const lastPaid = (lastBilling?.payments ?? []).reduce((s, p) => s + p.amountUsd, 0)
     const prevUnpaid = lastBilling ? Math.max(0, lastBilling.totalUsd - lastPaid) : 0
 
     setValue('roomRentUsd', selectedTenant.monthlyRent > 0 ? selectedTenant.monthlyRent : (selectedTenant.room?.rentPriceUsd ?? 0))
@@ -163,7 +163,7 @@ export function CreateBillingClient({ tenants, settings, preselectedTenantId, ed
     if (!selectedTenant) return
     const payDay = selectedTenant.payDay ?? 1
     const last = selectedTenant.billings[0]
-    const lastPaid = last?.payments.reduce((s, p) => s + p.amountUsd, 0) ?? 0
+    const lastPaid = (last?.payments ?? []).reduce((s, p) => s + p.amountUsd, 0)
     const debt = last ? Math.max(0, last.totalUsd - lastPaid) : 0
     const prevLate = last && debt > 0 ? daysLate(last.billingMonth, payDay) : 0
     setValue('lateDays', Math.max(daysLate(formValues.billingMonth, payDay), prevLate))
