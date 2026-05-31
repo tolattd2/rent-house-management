@@ -89,9 +89,11 @@ export async function POST(req: NextRequest) {
         const prev = tenant.billings[0]
         const prevPaid = prev ? prev.payments.reduce((s, p) => s + p.amountUsd, 0) : 0
         const outstandingDebt = prev ? Math.max(0, prev.totalUsd - prevPaid) : 0
-        // If this month is already past the tenant's due date when generated,
-        // seed the days-late so calculateBilling applies the flat penalty.
-        const lateDays = daysLate(month, tenant.payDay)
+        // Days late drives the penalty. A freshly-generated month isn't past
+        // its own due date yet, so the lateness that matters is on the unpaid
+        // prior bill carried forward as debt. Use whichever is more overdue.
+        const prevLateDays = prev && outstandingDebt > 0 ? daysLate(prev.billingMonth, tenant.payDay) : 0
+        const lateDays = Math.max(daysLate(month, tenant.payDay), prevLateDays)
         const input = {
           prevWaterReading: prev?.currWaterReading ?? 0,
           currWaterReading: prev?.currWaterReading ?? 0,

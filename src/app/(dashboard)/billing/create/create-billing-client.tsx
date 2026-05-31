@@ -154,12 +154,19 @@ export function CreateBillingClient({ tenants, settings, preselectedTenantId, ed
     setValue('outstandingDebtUsd', prevUnpaid)
   }, [formValues.tenantId, selectedTenant, setValue, isEdit])
 
-  // Auto-fill Late Days from the selected month + tenant's pay day vs today, so
-  // the late-penalty rule applies on its own (create mode only). Still editable.
+  // Auto-fill Late Days so the late-penalty rule applies on its own (create
+  // mode only). A new month isn't past its own due date yet, so the lateness
+  // that matters is on the unpaid prior bill carried as debt — use whichever is
+  // more overdue. Still editable.
   useEffect(() => {
     if (isEdit) return
     if (!selectedTenant) return
-    setValue('lateDays', daysLate(formValues.billingMonth, selectedTenant.payDay ?? 1))
+    const payDay = selectedTenant.payDay ?? 1
+    const last = selectedTenant.billings[0]
+    const lastPaid = last?.payments.reduce((s, p) => s + p.amountUsd, 0) ?? 0
+    const debt = last ? Math.max(0, last.totalUsd - lastPaid) : 0
+    const prevLate = last && debt > 0 ? daysLate(last.billingMonth, payDay) : 0
+    setValue('lateDays', Math.max(daysLate(formValues.billingMonth, payDay), prevLate))
   }, [formValues.tenantId, formValues.billingMonth, selectedTenant, setValue, isEdit])
 
   // Suggest the late penalty from the days-late + branch rate model (create

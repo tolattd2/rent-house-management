@@ -130,7 +130,7 @@ export function BillingDetailClient({ billing }: { billing: Billing }) {
             {billing.outstandingDebtUsd > 0 && (
               <div className="flex justify-between text-red-600"><span>{t('outstanding_debt')}</span><span>{formatCurrency(billing.outstandingDebtUsd)}</span></div>
             )}
-            {billing.lateDays > 0 && (
+            {billing.latePenaltyUsd > 0 && (
               <div className="flex justify-between text-orange-600"><span>{t('late_penalty')} ({billing.lateDays}d)</span><span>{formatCurrency(billing.latePenaltyUsd)}</span></div>
             )}
             {billing.discountUsd > 0 && (
