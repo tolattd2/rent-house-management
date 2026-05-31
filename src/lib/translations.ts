@@ -114,6 +114,8 @@ export const translations = {
     // Status labels
     status_active: 'Active',
     status_inactive: 'Inactive',
+    tenant_status_active: 'Active',
+    tenant_status_inactive: 'Inactive',
     status_all: 'All',
     status_pending: 'Pending',
     status_in_progress: 'In Progress',
@@ -1071,6 +1073,8 @@ export const translations = {
     // Status labels
     status_active: 'សកម្ម',
     status_inactive: 'អសកម្ម',
+    tenant_status_active: 'ភ្ញៀវរស់នៅបច្ចុប្បន្ន',
+    tenant_status_inactive: 'ភ្ញៀវឈប់ស្នាក់នៅ',
     status_all: 'ទាំងអស់',
     status_pending: 'រង់ចាំ',
     status_in_progress: 'កំពុងដំណើរការ',
@@ -1085,7 +1089,7 @@ export const translations = {
     status_maintenance: 'ការថែទាំ',
     // Tenants page
     tenants_title: 'អ្នករស់នៅ',
-    tenants_active_count: 'អ្នករស់នៅសកម្ម',
+    tenants_active_count: 'ភ្ញៀវរស់នៅបច្ចុប្បន្ន',
     tenants_add: 'បន្ថែមអ្នករស់នៅ',
     tenants_search: 'ស្វែងរកតាមឈ្មោះ, ទូរស័ព្ទ, បន្ទប់...',
     tenants_col_tenant: 'អ្នករស់នៅ',
@@ -1189,7 +1193,7 @@ export const translations = {
     dashboard_total_rooms: 'បន្ទប់សរុប',
     dashboard_occupied: 'មានភ្ញៀវ',
     dashboard_vacant: 'គ្មានភ្ញៀវ',
-    dashboard_active_tenants: 'អ្នករស់នៅសកម្ម',
+    dashboard_active_tenants: 'ភ្ញៀវរស់នៅបច្ចុប្បន្ន',
     dashboard_revenue: 'ចំណូល (ខែនេះ)',
     dashboard_outstanding: 'ជំពាក់',
     // Header

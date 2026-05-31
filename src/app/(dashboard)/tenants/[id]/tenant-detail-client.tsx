@@ -391,7 +391,7 @@ export function TenantDetailClient({ tenant, rooms }: Props) {
                   <p className="text-muted-foreground">{tenant.occupation || t('tenant_no_occupation')}</p>
                 </div>
                 <Badge variant={tenant.status === 'active' ? 'success' : 'secondary'} className="capitalize text-sm px-3 py-1">
-                  {t(tenant.status === 'active' ? 'status_active' : 'status_inactive')}
+                  {t(tenant.status === 'active' ? 'tenant_status_active' : 'tenant_status_inactive')}
                 </Badge>
               </div>
 
