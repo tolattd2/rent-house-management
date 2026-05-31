@@ -117,6 +117,25 @@ export function InvoicesClient({ invoices: initial }: Props) {
   const paidCount = filtered.filter((inv) => inv.billing?.paymentStatus === 'paid').length
   const unpaidCount = filtered.filter((inv) => inv.billing?.paymentStatus !== 'paid').length
 
+  // Summary cards toggle the status filter; clicking the active one clears it.
+  const statusCardProps = (value: string) => ({
+    role: 'button' as const,
+    tabIndex: 0,
+    'aria-pressed': statusFilter === value,
+    onClick: () => setStatusFilter(statusFilter === value ? 'all' : value),
+    onKeyDown: (e: React.KeyboardEvent) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault()
+        setStatusFilter(statusFilter === value ? 'all' : value)
+      }
+    },
+  })
+  const statusCardCn = (value: string) =>
+    cn(
+      'cursor-pointer hover:shadow-md transition-all duration-200 hover:-translate-y-0.5',
+      statusFilter === value && 'ring-2 ring-primary ring-offset-1'
+    )
+
   const handleDelete = (inv: Invoice) => {
     triggerDelete({
       itemName: `Invoice ${inv.invoiceNumber}`,
@@ -174,19 +193,19 @@ export function InvoicesClient({ invoices: initial }: Props) {
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <Card className={cn('hover:shadow-md transition-all duration-200 hover:-translate-y-0.5', CARD_STYLES.indigo.card)}>
+        <Card {...statusCardProps('all')} className={cn(statusCardCn('all'), CARD_STYLES.indigo.card)}>
           <div className="p-4">
             <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{t('invoices_generated')}</p>
             <p className={cn('text-xl font-bold mt-1.5 tabular-nums', CARD_STYLES.indigo.value)}>{filtered.length}</p>
           </div>
         </Card>
-        <Card className={cn('hover:shadow-md transition-all duration-200 hover:-translate-y-0.5', CARD_STYLES.green.card)}>
+        <Card {...statusCardProps('paid')} className={cn(statusCardCn('paid'), CARD_STYLES.green.card)}>
           <div className="p-4">
             <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{t('billing_paid_count')}</p>
             <p className={cn('text-xl font-bold mt-1.5 tabular-nums', CARD_STYLES.green.value)}>{paidCount}</p>
           </div>
         </Card>
-        <Card className={cn('hover:shadow-md transition-all duration-200 hover:-translate-y-0.5', CARD_STYLES.orange.card)}>
+        <Card {...statusCardProps('unpaid_partial')} className={cn(statusCardCn('unpaid_partial'), CARD_STYLES.orange.card)}>
           <div className="p-4">
             <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{t('billing_unpaid_count')}</p>
             <p className={cn('text-xl font-bold mt-1.5 tabular-nums', CARD_STYLES.orange.value)}>{unpaidCount}</p>
