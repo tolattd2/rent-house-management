@@ -24,6 +24,7 @@ const billingSchema = z.object({
   roomRentUsd: z.coerce.number().min(0).default(0),
   outstandingDebtUsd: z.coerce.number().min(0).default(0),
   lateDays: z.coerce.number().int().min(0).default(0),
+  latePenaltyUsd: z.coerce.number().min(0).optional(),
   discountUsd: z.coerce.number().min(0).default(0),
   notes: z.string().default(''),
 })

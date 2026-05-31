@@ -62,6 +62,7 @@ export default async function EditBillingPage({ params }: { params: Promise<{ id
         roomRentUsd: billing.roomRentUsd,
         outstandingDebtUsd: billing.outstandingDebtUsd,
         lateDays: billing.lateDays,
+        latePenaltyUsd: billing.latePenaltyUsd,
         discountUsd: billing.discountUsd,
         notes: billing.notes ?? '',
       }}

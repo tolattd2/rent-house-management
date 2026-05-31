@@ -39,7 +39,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   try {
     const body = await req.json()
-    const recalcFields = ['currWaterReading', 'currElectricReading', 'lateDays', 'discountUsd', 'roomRentUsd', 'outstandingDebtUsd']
+    const recalcFields = ['currWaterReading', 'currElectricReading', 'lateDays', 'latePenaltyUsd', 'discountUsd', 'roomRentUsd', 'outstandingDebtUsd']
 
     // Resolve the billing's month for the period-lock guard. Need this even
     // when no recalc fields changed (e.g. notes-only update).
@@ -67,6 +67,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
           roomRentUsd: merged.roomRentUsd,
           outstandingDebtUsd: merged.outstandingDebtUsd,
           lateDays: merged.lateDays,
+          // Only treat the penalty as an explicit override when the request
+          // actually carried one; otherwise let it recompute from lateDays.
+          latePenaltyUsd: body.latePenaltyUsd,
           discountUsd: merged.discountUsd,
         },
         rates,

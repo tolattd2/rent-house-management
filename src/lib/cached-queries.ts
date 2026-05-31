@@ -513,6 +513,7 @@ export const getCreateBillingData = unstable_cache(
             select: {
               billingMonth: true, currWaterReading: true, currElectricReading: true,
               totalUsd: true, paymentStatus: true,
+              payments: { select: { amountUsd: true } },
             },
           },
           notices: {

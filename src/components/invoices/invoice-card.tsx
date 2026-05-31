@@ -60,7 +60,6 @@ interface InvoiceCardProps {
 export function InvoiceCard({ data, settings, xRate }: InvoiceCardProps) {
   const isPaid = data.paymentStatus === 'paid'
   const tenantPhones = data.tenant ? formatPhones(data.tenant.phone, data.tenant.phonesExtra) : ''
-  const latePenaltyRate = parseFloat(settings.late_penalty_usd ?? '1')
   const branches = parseBranches(settings.branches)
   const branchKey = branchSlug(branches, data.room?.branch)
   const companyName = settings[`company_${branchKey}_name`] || settings.company_name || 'Takmao Rental'
@@ -173,7 +172,7 @@ export function InvoiceCard({ data, settings, xRate }: InvoiceCardProps) {
             <tr style={{ color: data.latePenaltyUsd > 0 ? '#ea580c' : '#475569' }}>
               <td style={{ padding: '0.5mm 0' }}>
                 ប្រាក់ពិន័យបង់យឺត
-                <div style={{ fontSize: '6pt', color: data.latePenaltyUsd > 0 ? '#fb923c' : '#94a3b8' }}>យឺត {data.lateDays} ថ្ងៃ × {formatCurrency(latePenaltyRate)}/ថ្ងៃ</div>
+                <div style={{ fontSize: '6pt', color: data.latePenaltyUsd > 0 ? '#fb923c' : '#94a3b8' }}>យឺត {data.lateDays} ថ្ងៃ</div>
               </td>
               <td style={{ padding: '0.5mm 0', textAlign: 'right', verticalAlign: 'top' }}>{formatCurrency(data.latePenaltyUsd)}</td>
             </tr>

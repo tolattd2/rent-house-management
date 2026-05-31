@@ -158,6 +158,9 @@ export interface Settings {
   exchange_rate: string
   water_rate_riel: string
   electric_rate_riel: string
+  late_penalty_mode: string
+  late_penalty_flat_usd: string
+  late_penalty_threshold_days: string
   late_penalty_usd: string
   company_name: string
   company_phone: string

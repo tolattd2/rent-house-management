@@ -1,4 +1,4 @@
-import { resolveBranchRates, type Branch } from './branches'
+import { resolveBranchRates, parseLatePenaltyMode, type Branch, type LatePenaltyMode } from './branches'
 
 /**
  * Days past the tenant's pay-day for this billing month. Negative results are
@@ -17,8 +17,8 @@ export function daysLate(billingMonth: string, payDay: number): number {
 /**
  * Single source of truth for the late-fee numbers shown to a tenant — used by
  * both the auto-overdue cron and the manual "late notified" button so they
- * always agree. Returns the days late, the per-day penalty for the billing's
- * branch (USD), and their product.
+ * always agree. Honours the branch's late-penalty mode: 'flat' applies a flat
+ * amount once past the threshold of days; 'perday' charges per day late.
  */
 export function computeLateFee(
   settings: Record<string, string>,
@@ -26,8 +26,13 @@ export function computeLateFee(
   branchName: string | null | undefined,
   billingMonth: string,
   payDay: number,
-): { days: number; penaltyPerDay: number; penaltyUsd: number } {
+): { days: number; mode: LatePenaltyMode; thresholdDays: number; flatUsd: number; perDayUsd: number; penaltyUsd: number } {
   const days = daysLate(billingMonth, payDay)
-  const penaltyPerDay = Number(resolveBranchRates(settings, branches, branchName).late_penalty_usd) || 0
-  return { days, penaltyPerDay, penaltyUsd: penaltyPerDay * days }
+  const rates = resolveBranchRates(settings, branches, branchName)
+  const mode = parseLatePenaltyMode(rates.late_penalty_mode)
+  const flatUsd = Number(rates.late_penalty_flat_usd) || 0
+  const thresholdDays = Number(rates.late_penalty_threshold_days) || 0
+  const perDayUsd = Number(rates.late_penalty_usd) || 0
+  const penaltyUsd = mode === 'perday' ? perDayUsd * days : (days > thresholdDays ? flatUsd : 0)
+  return { days, mode, thresholdDays, flatUsd, perDayUsd, penaltyUsd }
 }

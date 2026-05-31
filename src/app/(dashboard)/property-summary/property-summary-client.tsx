@@ -174,7 +174,8 @@ export function PropertySummaryClient({ rooms, tenants, billings, expenses, main
 
   const rateLabels: { key: RateKey; label: string }[] = [
     { key: 'exchange_rate', label: t('settings_exchange_rate') },
-    { key: 'late_penalty_usd', label: t('settings_late_penalty') },
+    { key: 'late_penalty_flat_usd', label: t('settings_late_penalty') },
+    { key: 'late_penalty_threshold_days', label: t('settings_late_threshold') },
     { key: 'water_rate_riel', label: t('settings_water_rate') },
     { key: 'electric_rate_riel', label: t('settings_electric_rate') },
   ]

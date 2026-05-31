@@ -8,6 +8,13 @@ interface BillingInput {
   roomRentUsd?: number
   outstandingDebtUsd?: number
   lateDays?: number
+  /**
+   * Explicit penalty override. When a finite number is supplied it is used
+   * verbatim (this is what makes the late penalty editable on the form). When
+   * omitted, the penalty defaults to the flat amount if `lateDays` exceeds the
+   * configured threshold, otherwise 0.
+   */
+  latePenaltyUsd?: number
   discountUsd?: number
 }
 
@@ -15,6 +22,9 @@ interface RateSettings {
   exchange_rate?: string
   water_rate_riel?: string
   electric_rate_riel?: string
+  late_penalty_mode?: string
+  late_penalty_flat_usd?: string
+  late_penalty_threshold_days?: string
   late_penalty_usd?: string
 }
 
@@ -47,7 +57,10 @@ export function calculateBilling(
   const exchangeRate = num(settings.exchange_rate, 4100) || 4100
   const waterRate = num(settings.water_rate_riel, 2000)
   const electricRate = num(settings.electric_rate_riel, 720)
-  const penaltyRate = num(settings.late_penalty_usd, 1)
+  const flatPenalty = num(settings.late_penalty_flat_usd, 10)
+  const thresholdDays = num(settings.late_penalty_threshold_days, 10)
+  const perDayRate = num(settings.late_penalty_usd, 1)
+  const flatMode = settings.late_penalty_mode !== 'perday'
 
   const waterUsage = Math.max(0, num(input.currWaterReading) - num(input.prevWaterReading))
   const electricUsage = Math.max(0, num(input.currElectricReading) - num(input.prevElectricReading))
@@ -57,7 +70,15 @@ export function calculateBilling(
 
   const rent = num(input.roomRentUsd)
   const debt = num(input.outstandingDebtUsd)
-  const latePenalty = num(input.lateDays) * penaltyRate
+  // Flat penalty past the threshold, or per-day, depending on the branch mode.
+  // An explicit override (when the user edits the penalty field) always wins.
+  const days = num(input.lateDays)
+  const defaultPenalty = flatMode
+    ? (days > thresholdDays ? flatPenalty : 0)
+    : days * perDayRate
+  const latePenalty = input.latePenaltyUsd != null && Number.isFinite(input.latePenaltyUsd)
+    ? Math.max(0, input.latePenaltyUsd)
+    : defaultPenalty
   const discount = num(input.discountUsd)
 
   const utilityUsd = (waterCostRiel + electricCostRiel) / exchangeRate

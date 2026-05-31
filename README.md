@@ -123,7 +123,11 @@ water_cost_riel    = water_usage × water_rate_riel
 electric_usage     = curr_electric_reading - prev_electric_reading
 electric_cost_riel = electric_usage × electric_rate_riel
 
-late_penalty_usd   = late_days × penalty_rate_usd
+late_penalty       = flat mode  → late_days > threshold_days ? flat_usd : 0   (default: $10 after 10 days)
+                     perday mode → late_days × penalty_rate_usd
+                     (per-branch toggle; overridable per bill on the billing form)
+
+outstanding_debt   = previous bill's unpaid balance (total − payments), carried forward
 
 total_usd = rent + (water_cost_riel + electric_cost_riel) / exchange_rate
             + outstanding_debt + late_penalty - discount

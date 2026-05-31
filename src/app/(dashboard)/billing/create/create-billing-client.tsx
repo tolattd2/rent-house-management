@@ -32,6 +32,7 @@ const schema = z.object({
   roomRentUsd: z.coerce.number().min(0).default(0),
   outstandingDebtUsd: z.coerce.number().min(0).default(0),
   lateDays: z.coerce.number().int().min(0).default(0),
+  latePenaltyUsd: z.coerce.number().min(0).default(0),
   discountUsd: z.coerce.number().min(0).default(0),
   notes: z.string().default(''),
 }).superRefine((data, ctx) => {
@@ -48,7 +49,7 @@ type FormData = z.infer<typeof schema>
 interface Tenant {
   id: string; fullName: string; phone: string; monthlyRent: number
   room: { id: string; roomNumber: string; branch?: string; rentPriceUsd: number; waterRateRiel: number; electricRateRiel: number } | null
-  billings: Array<{ billingMonth: string; currWaterReading: number; currElectricReading: number; totalUsd: number; paymentStatus: string }>
+  billings: Array<{ billingMonth: string; currWaterReading: number; currElectricReading: number; totalUsd: number; paymentStatus: string; payments: Array<{ amountUsd: number }> }>
   notices: Array<{ id: string; type: string; message: string; expectedDate: string; createdAt: string | Date }>
 }
 
@@ -63,6 +64,7 @@ export interface EditBilling {
   roomRentUsd: number
   outstandingDebtUsd: number
   lateDays: number
+  latePenaltyUsd: number
   discountUsd: number
   notes: string
 }
@@ -107,6 +109,7 @@ export function CreateBillingClient({ tenants, settings, preselectedTenantId, ed
           roomRentUsd: editBilling.roomRentUsd,
           outstandingDebtUsd: editBilling.outstandingDebtUsd,
           lateDays: editBilling.lateDays,
+          latePenaltyUsd: editBilling.latePenaltyUsd,
           discountUsd: editBilling.discountUsd,
           notes: editBilling.notes,
         }
@@ -120,6 +123,7 @@ export function CreateBillingClient({ tenants, settings, preselectedTenantId, ed
           roomRentUsd: 0,
           outstandingDebtUsd: 0,
           lateDays: 0,
+          latePenaltyUsd: 0,
           discountUsd: 0,
           notes: '',
         },
@@ -136,7 +140,10 @@ export function CreateBillingClient({ tenants, settings, preselectedTenantId, ed
     if (isEdit) return
     if (!selectedTenant) return
     const lastBilling = selectedTenant.billings[0]
-    const prevUnpaid = lastBilling?.paymentStatus === 'unpaid' ? lastBilling.totalUsd : 0
+    // Carry the remaining balance of the last bill (total minus payments) so a
+    // partially-paid bill rolls its leftover forward, not just fully-unpaid ones.
+    const lastPaid = lastBilling?.payments.reduce((s, p) => s + p.amountUsd, 0) ?? 0
+    const prevUnpaid = lastBilling ? Math.max(0, lastBilling.totalUsd - lastPaid) : 0
 
     setValue('roomRentUsd', selectedTenant.monthlyRent > 0 ? selectedTenant.monthlyRent : (selectedTenant.room?.rentPriceUsd ?? 0))
     setValue('prevWaterReading', lastBilling?.currWaterReading ?? 0)
@@ -145,6 +152,21 @@ export function CreateBillingClient({ tenants, settings, preselectedTenantId, ed
     setValue('currElectricReading', lastBilling?.currElectricReading ?? 0)
     setValue('outstandingDebtUsd', prevUnpaid)
   }, [formValues.tenantId, selectedTenant, setValue, isEdit])
+
+  // Suggest the late penalty from the days-late + branch rate model (create
+  // mode only). It pre-fills the editable field; the admin can still type any
+  // amount, and re-typing the days re-suggests the default.
+  const penaltyFlatMode = rates.late_penalty_mode !== 'perday'
+  const penaltyThreshold = Number(rates.late_penalty_threshold_days) || 0
+  const penaltyFlat = Number(rates.late_penalty_flat_usd) || 0
+  const penaltyPerDay = Number(rates.late_penalty_usd) || 0
+  const suggestedPenalty = (days: number) =>
+    penaltyFlatMode ? (days > penaltyThreshold ? penaltyFlat : 0) : days * penaltyPerDay
+  useEffect(() => {
+    if (isEdit) return
+    setValue('latePenaltyUsd', suggestedPenalty(Number(formValues.lateDays) || 0))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formValues.lateDays, isEdit, penaltyFlatMode, penaltyThreshold, penaltyFlat, penaltyPerDay, setValue])
 
   // Live preview calculation
   useEffect(() => {
@@ -158,6 +180,7 @@ export function CreateBillingClient({ tenants, settings, preselectedTenantId, ed
         roomRentUsd: formValues.roomRentUsd,
         outstandingDebtUsd: formValues.outstandingDebtUsd,
         lateDays: formValues.lateDays,
+        latePenaltyUsd: formValues.latePenaltyUsd,
         discountUsd: formValues.discountUsd,
       },
       resolveBranchRates(settings, branches, selectedTenant.room.branch),
@@ -167,7 +190,7 @@ export function CreateBillingClient({ tenants, settings, preselectedTenantId, ed
     formValues.prevWaterReading, formValues.currWaterReading,
     formValues.prevElectricReading, formValues.currElectricReading,
     formValues.roomRentUsd, formValues.outstandingDebtUsd,
-    formValues.lateDays, formValues.discountUsd,
+    formValues.lateDays, formValues.latePenaltyUsd, formValues.discountUsd,
     selectedTenant, settings, branches
   ])
 
@@ -378,8 +401,15 @@ export function CreateBillingClient({ tenants, settings, preselectedTenantId, ed
                   <Label>Late Days</Label>
                   <Input type="number" min="0" {...register('lateDays')} />
                   <p className="text-xs text-muted-foreground">
-                    Penalty: ${parseFloat(rates.late_penalty_usd)}/day
+                    {penaltyFlatMode
+                      ? `${formatCurrency(penaltyFlat)} after ${penaltyThreshold} days late`
+                      : `${formatCurrency(penaltyPerDay)}/day`}
                   </p>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>{t('late_penalty')} (USD)</Label>
+                  <Input type="number" step="0.01" min="0" {...register('latePenaltyUsd')} />
+                  <p className="text-xs text-muted-foreground">Auto-filled — you can overwrite</p>
                 </div>
                 <div className="space-y-1.5">
                   <Label>Discount (USD)</Label>
@@ -481,7 +511,7 @@ export function CreateBillingClient({ tenants, settings, preselectedTenantId, ed
                 <p><span className="font-medium">Exchange rate:</span> {parseFloat(rates.exchange_rate).toLocaleString()} ៛/USD</p>
                 <p><span className="font-medium">Water rate:</span> {parseFloat(rates.water_rate_riel).toLocaleString()} ៛/{t('unit_kib')}</p>
                 <p><span className="font-medium">Electric rate:</span> {parseFloat(rates.electric_rate_riel).toLocaleString()} ៛/{t('unit_kw')}</p>
-                <p><span className="font-medium">Late penalty:</span> ${parseFloat(rates.late_penalty_usd)}/day</p>
+                <p><span className="font-medium">Late penalty:</span> {penaltyFlatMode ? `${formatCurrency(penaltyFlat)} after ${penaltyThreshold} days late` : `${formatCurrency(penaltyPerDay)}/day`}</p>
               </CardContent>
             </Card>
           </div>

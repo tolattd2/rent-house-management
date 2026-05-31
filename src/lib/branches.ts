@@ -87,13 +87,38 @@ export function roomLabel(
   return `${roomPrefix(branches, room.branch)}${room.roomNumber}`
 }
 
-/** Billing rate settings that can be configured per branch. */
-export const RATE_KEYS = ['exchange_rate', 'late_penalty_usd', 'water_rate_riel', 'electric_rate_riel'] as const
+/**
+ * Billing rate settings that can be configured per branch.
+ *
+ * Late fees support two models, chosen per branch via `late_penalty_mode`:
+ *  - 'flat' (default): a bill more than `late_penalty_threshold_days` past its
+ *    due date incurs a single flat `late_penalty_flat_usd` penalty.
+ *  - 'perday': the penalty is `lateDays × late_penalty_usd` (the original rule).
+ * Either way the computed penalty is overridable per bill on the billing form.
+ */
+export const RATE_KEYS = [
+  'exchange_rate',
+  'late_penalty_mode',
+  'late_penalty_flat_usd',
+  'late_penalty_threshold_days',
+  'late_penalty_usd',
+  'water_rate_riel',
+  'electric_rate_riel',
+] as const
 export type RateKey = (typeof RATE_KEYS)[number]
+
+/** Late-fee model: flat amount past a threshold, or a per-day rate. */
+export type LatePenaltyMode = 'flat' | 'perday'
+export function parseLatePenaltyMode(value: string | undefined | null): LatePenaltyMode {
+  return value === 'perday' ? 'perday' : 'flat'
+}
 
 /** Hard fallback rates, used when neither a per-branch nor a legacy global value exists. */
 export const RATE_DEFAULTS: Record<RateKey, string> = {
   exchange_rate: '4100',
+  late_penalty_mode: 'flat',
+  late_penalty_flat_usd: '10',
+  late_penalty_threshold_days: '10',
   late_penalty_usd: '1',
   water_rate_riel: '2000',
   electric_rate_riel: '720',

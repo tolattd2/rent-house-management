@@ -588,16 +588,58 @@ export function SettingsClient({ settings: initial }: Props) {
                       />
                       <p className="text-xs text-muted-foreground">{t('settings_exchange_rate_hint')}</p>
                     </div>
-                    <div className="space-y-1.5">
-                      <Label>{t('settings_late_penalty')}</Label>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        value={branchRates[branchRateKey('late_penalty_usd', br.slug)] ?? RATE_DEFAULTS.late_penalty_usd}
-                        onChange={(e) => setBranchRate(branchRateKey('late_penalty_usd', br.slug), e.target.value)}
-                        placeholder="1"
-                      />
-                    </div>
+                    {(() => {
+                      const flatMode = (branchRates[branchRateKey('late_penalty_mode', br.slug)] ?? RATE_DEFAULTS.late_penalty_mode) !== 'perday'
+                      return (
+                        <div className="col-span-2 space-y-3 rounded-lg border border-border p-3">
+                          <div className="flex items-center justify-between gap-3">
+                            <div>
+                              <Label>{t('settings_late_flat_toggle')}</Label>
+                              <p className="text-xs text-muted-foreground mt-0.5">{t('settings_late_flat_toggle_hint')}</p>
+                            </div>
+                            <Switch
+                              checked={flatMode}
+                              onCheckedChange={(on) => setBranchRate(branchRateKey('late_penalty_mode', br.slug), on ? 'flat' : 'perday')}
+                            />
+                          </div>
+                          {flatMode ? (
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="space-y-1.5">
+                                <Label>{t('settings_late_penalty')}</Label>
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  value={branchRates[branchRateKey('late_penalty_flat_usd', br.slug)] ?? RATE_DEFAULTS.late_penalty_flat_usd}
+                                  onChange={(e) => setBranchRate(branchRateKey('late_penalty_flat_usd', br.slug), e.target.value)}
+                                  placeholder="10"
+                                />
+                              </div>
+                              <div className="space-y-1.5">
+                                <Label>{t('settings_late_threshold')}</Label>
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  value={branchRates[branchRateKey('late_penalty_threshold_days', br.slug)] ?? RATE_DEFAULTS.late_penalty_threshold_days}
+                                  onChange={(e) => setBranchRate(branchRateKey('late_penalty_threshold_days', br.slug), e.target.value)}
+                                  placeholder="10"
+                                />
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="space-y-1.5">
+                              <Label>{t('settings_late_perday')}</Label>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                value={branchRates[branchRateKey('late_penalty_usd', br.slug)] ?? RATE_DEFAULTS.late_penalty_usd}
+                                onChange={(e) => setBranchRate(branchRateKey('late_penalty_usd', br.slug), e.target.value)}
+                                placeholder="1"
+                              />
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })()}
                     <div className="space-y-1.5">
                       <Label>{t('settings_water_rate')}</Label>
                       <Input

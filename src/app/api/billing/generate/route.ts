@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { calculateBilling } from '@/lib/billing'
 import { parseBranches, resolveBranchRates } from '@/lib/branches'
+import { daysLate } from '@/lib/late-fees'
 import { invalidate } from '@/lib/revalidate'
 
 // GET — preview: how many tenants would get invoices for month+branch
@@ -55,7 +56,11 @@ export async function POST(req: NextRequest) {
         where,
         include: {
           room: true,
-          billings: { orderBy: { billingMonth: 'desc' }, take: 1 },
+          billings: {
+            orderBy: { billingMonth: 'desc' },
+            take: 1,
+            include: { payments: { select: { amountUsd: true } } },
+          },
         },
       }),
       db.setting.findMany(),
@@ -77,8 +82,16 @@ export async function POST(req: NextRequest) {
 
     await Promise.all(
       toCreate.map((tenant) => {
+        // Carry forward whatever is still owed on the most recent bill — its
+        // total minus payments received. This covers both fully-unpaid bills
+        // (paid = 0 → full total) and partially-paid ones (the remaining
+        // balance). A fully-paid bill carries nothing.
         const prev = tenant.billings[0]
-        const outstandingDebt = prev && prev.paymentStatus === 'unpaid' ? prev.totalUsd : 0
+        const prevPaid = prev ? prev.payments.reduce((s, p) => s + p.amountUsd, 0) : 0
+        const outstandingDebt = prev ? Math.max(0, prev.totalUsd - prevPaid) : 0
+        // If this month is already past the tenant's due date when generated,
+        // seed the days-late so calculateBilling applies the flat penalty.
+        const lateDays = daysLate(month, tenant.payDay)
         const input = {
           prevWaterReading: prev?.currWaterReading ?? 0,
           currWaterReading: prev?.currWaterReading ?? 0,
@@ -86,7 +99,7 @@ export async function POST(req: NextRequest) {
           currElectricReading: prev?.currElectricReading ?? 0,
           roomRentUsd: tenant.monthlyRent > 0 ? tenant.monthlyRent : tenant.room!.rentPriceUsd,
           outstandingDebtUsd: outstandingDebt,
-          lateDays: 0,
+          lateDays,
           discountUsd: 0,
         }
         const rates = resolveBranchRates(settingsMap, branchList, tenant.room!.branch)
@@ -106,8 +119,8 @@ export async function POST(req: NextRequest) {
             electricCostRiel: calc.electricCostRiel,
             roomRentUsd: input.roomRentUsd,
             outstandingDebtUsd: input.outstandingDebtUsd,
-            lateDays: 0,
-            latePenaltyUsd: 0,
+            lateDays: input.lateDays,
+            latePenaltyUsd: calc.latePenaltyUsd,
             discountUsd: 0,
             totalUsd: calc.totalUsd,
             totalRiel: calc.totalRiel,
