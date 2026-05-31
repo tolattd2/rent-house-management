@@ -1,7 +1,7 @@
 import { db } from '@/lib/db'
 import { notFound } from 'next/navigation'
 import { InvoiceClient } from './invoice-client'
-import { generateInvoiceNumber } from '@/lib/utils'
+import { nextInvoiceNumber, isUniqueViolation } from '@/lib/invoice-number'
 
 async function getOrCreateInvoice(billingId: string) {
   const billing = await db.billing.findUnique({
@@ -18,17 +18,29 @@ async function getOrCreateInvoice(billingId: string) {
   })
   if (!billing) return null
 
+  // Create-on-first-view. The invoice number is derived from the highest
+  // existing number for the year (not a row count), so deletions that shrink
+  // the count can't make us regenerate a number that already exists. A unique
+  // collision can still happen under concurrent opens, so retry a few times —
+  // re-checking the billing's existing invoice each pass keeps it idempotent.
   let invoice = await db.invoice.findUnique({ where: { billingId } })
-  if (!invoice) {
-    const count = await db.invoice.count()
-    invoice = await db.invoice.create({
-      data: {
-        invoiceNumber: generateInvoiceNumber(count + 1),
-        tenantId: billing.tenantId,
-        billingId,
-      },
-    })
+  for (let attempt = 0; !invoice && attempt < 5; attempt++) {
+    try {
+      invoice = await db.invoice.create({
+        data: {
+          invoiceNumber: await nextInvoiceNumber(),
+          tenantId: billing.tenantId,
+          billingId,
+        },
+      })
+    } catch (err) {
+      if (!isUniqueViolation(err)) throw err
+      // Either another request created this billing's invoice, or our number
+      // raced another insert. Re-read; if it now exists we're done, else retry.
+      invoice = await db.invoice.findUnique({ where: { billingId } })
+    }
   }
+  if (!invoice) throw new Error('Could not allocate an invoice number')
 
   const settings = await db.setting.findMany()
   const settingsMap = Object.fromEntries(settings.map((s) => [s.key, s.value]))

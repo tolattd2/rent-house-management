@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { generateInvoiceNumber } from '@/lib/utils'
+import { nextInvoiceNumber, isUniqueViolation } from '@/lib/invoice-number'
 import { invalidate } from '@/lib/revalidate'
 
 function billingFilter(month: string, branch: string) {
@@ -49,20 +49,32 @@ export async function POST(req: NextRequest) {
 
   if (billings.length === 0) return NextResponse.json({ ok: true, created: 0 })
 
-  const existingCount = await db.invoice.count()
-
-  await Promise.all(
-    billings.map((billing, i) =>
-      db.invoice.create({
-        data: {
-          invoiceNumber: generateInvoiceNumber(existingCount + i + 1),
-          tenantId: billing.tenantId,
-          billingId: billing.id,
-        },
-      })
-    )
-  )
+  // Create sequentially so each invoice number is derived from the previous
+  // insert's max. Parallel creates would all read the same max and collide on
+  // the unique invoiceNumber. Retry a number collision a few times; skip a
+  // billing that already gained an invoice (unique billingId) concurrently.
+  let created = 0
+  for (const billing of billings) {
+    for (let attempt = 0; attempt < 5; attempt++) {
+      try {
+        await db.invoice.create({
+          data: {
+            invoiceNumber: await nextInvoiceNumber(),
+            tenantId: billing.tenantId,
+            billingId: billing.id,
+          },
+        })
+        created++
+        break
+      } catch (err) {
+        if (!isUniqueViolation(err)) throw err
+        // billingId already has an invoice → nothing to do for this billing.
+        if (await db.invoice.findUnique({ where: { billingId: billing.id }, select: { id: true } })) break
+        // Otherwise the number raced another insert; retry with a fresh max.
+      }
+    }
+  }
 
   invalidate('invoices')
-  return NextResponse.json({ ok: true, created: billings.length })
+  return NextResponse.json({ ok: true, created })
 }
